@@ -46,7 +46,7 @@ export function Add({
 
   return (
     <div className="page">
-      <div className="card">
+      <div className="card form">
         <h1 className="card-title">Новая загрузка</h1>
 
         <label className="field-label" htmlFor="link">Ссылка</label>
