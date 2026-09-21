@@ -1,452 +1,359 @@
 # dsm-mini
 
-[![Проверки](https://github.com/alexlnos/dsm-mini/actions/workflows/ci.yml/badge.svg)](https://github.com/alexlnos/dsm-mini/actions/workflows/ci.yml)
-[![Docker](https://github.com/alexlnos/dsm-mini/actions/workflows/docker.yml/badge.svg)](https://github.com/alexlnos/dsm-mini/actions/workflows/docker.yml)
-[![Лицензия MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+**English** · [Русский](README_RU.md) · [Español](README_ES.md) · [Português](README_PT.md) · [Deutsch](README_DE.md) · [Français](README_FR.md) · [Italiano](README_IT.md) · [Türkçe](README_TR.md) · [Українська](README_UK.md) · [Polski](README_PL.md)
 
-Telegram-бот с Mini App для управления домашним NAS Synology: закачки Download
-Station и файлы File Station прямо из мессенджера, без VPN и веб-интерфейса DSM.
+[![Checks](https://github.com/alexlnos/dsm-mini/actions/workflows/ci.yml/badge.svg)](https://github.com/alexlnos/dsm-mini/actions/workflows/ci.yml)
+[![MIT license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Кинули magnet-ссылку в чат — бот спросил кнопками, куда качать, и поставил в
-очередь. Открыли приложение — видно, что качается, сколько осталось, что лежит
-на дисках и как себя чувствует NAS.
+A Telegram bot with a Mini App for running a home Synology NAS: Download Station
+downloads and File Station files straight from the messenger, with no VPN and no
+DSM web interface.
 
-> Работает: бот, Mini App и уведомления. Проверено на DSM 7.2.2 с
-> Download Station 4.1.2 и File Station 1.4.4. Поддержка DSM 6 написана по
-> документации, но на живом DSM 6 не проверялась.
+Drop a magnet link into the chat — the bot asks with buttons where to put it and
+queues it. Open the app — you see what is downloading, how long is left, what is
+on the disks and how the NAS is feeling.
 
-## Что это умеет
+<p align="center">
+  <img src="docs/screenshots/en-home.webp" width="19%" alt="NAS overview">
+  <img src="docs/screenshots/en-downloads.webp" width="19%" alt="Downloads">
+  <img src="docs/screenshots/en-task.webp" width="19%" alt="A task">
+  <img src="docs/screenshots/en-files.webp" width="19%" alt="Files">
+  <img src="docs/screenshots/en-storage.webp" width="19%" alt="Storage">
+</p>
 
-**Загрузки**
+> Working: the bot, the Mini App and notifications. Tested on DSM 7.2.2 with
+> Download Station 4.1.2 and File Station 1.4.4. DSM 6 support is written from
+> the documentation but has not been checked on a live DSM 6.
 
-- Список задач: прогресс, скорость, оставшееся время, сиды и пиры
-- Пауза, возобновление, удаление
-- Добавление magnet-ссылкой, прямой ссылкой и файлом `.torrent`
-- Выбор папки назначения с настраиваемым списком быстрого доступа
-- Выбор файлов внутри раздачи и их приоритета
-- Сообщение в чат, когда задача завершилась или упала
+## What it can do
 
-**Файлы**
+**Downloads**
 
-- Обзор папок, предпросмотр, загрузка на NAS
-- Переименование, копирование, перенос, удаление
+- The task list: progress, speed, time left, seeds and peers
+- Pause, resume, delete
+- Adding by magnet link, by direct link and by `.torrent` file
+- Choosing the destination folder, with a configurable quick-access list
+- Choosing the files inside a torrent and their priority
+- A message in the chat when a task finishes or fails
 
-**Состояние NAS**
+**Files**
 
-- Загрузка процессора и памяти, время работы, сеть
-- Диски, пулы и тома: температура, занятое место, здоровье
-- Виртуальные машины и контейнеры: запуск и остановка
-- Журнал событий DSM
+- Browsing folders, previews, uploading to the NAS
+- Rename, copy, move, delete
 
-**Язык**
+**NAS state**
 
-Приложение и бот говорят на языке, выбранном в Telegram: английский, русский,
-испанский, португальский, немецкий, французский, итальянский, турецкий,
-украинский, польский. Незнакомый язык получает английский.
+- CPU and memory load, uptime, network
+- Disks, pools and volumes: temperature, space used, health
+- Virtual machines and containers: start and stop
+- The DSM event log
 
----
+**Language**
 
-## Установка
-
-Дальше — по шагам. Знать заранее ничего не нужно, но приготовьте полчаса:
-большая часть времени уйдёт на сертификат, а не на сам сервис.
-
-### Что понадобится
-
-- **NAS Synology** с DSM 7 и пакетом **Container Manager** (в DSM 6 он
-  называется Docker). Проверить: Центр пакетов → найдите «Container Manager».
-- **Download Station** — установите из Центра пакетов, если ещё нет.
-- **Telegram** на телефоне.
-- **Доступ к роутеру** — понадобится пробросить два порта.
-
-> **Почему нужен публичный адрес.** Telegram открывает Mini App только по
-> `https://` с настоящим сертификатом. Самоподписанный, локальный `192.168.…`
-> и адрес вида `nas:5001` не подойдут: приложение просто не откроется. Бот при
-> этом работает и без адреса — но без кнопки.
+The app and the bot speak the language chosen in Telegram: English, Russian,
+Spanish, Portuguese, German, French, Italian, Turkish, Ukrainian, Polish. An
+unknown language gets English.
 
 ---
 
-### Шаг 1. Создать бота
+## Installation
 
-1. Откройте в Telegram [@BotFather](https://t.me/BotFather) и нажмите **Start**.
-2. Отправьте `/newbot`.
-3. Введите **имя** бота — любое, его видно в шапке чата. Например: `Мой NAS`.
-4. Введите **логин** бота — латиницей и обязательно заканчивается на `bot`.
-   Например: `alex_home_nas_bot`. Если занят, BotFather попросит другой.
-5. В ответ придёт строка вида
-   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. Это **токен**.
-   Скопируйте его — понадобится на шаге 5.
+What follows is step by step. You need to know nothing in advance, but set aside
+half an hour: most of it goes on the certificate, not on the service itself.
 
-> Токен — это пароль от бота. Кто его получил, тот управляет ботом. Не
-> выкладывайте его в чаты и на GitHub.
+### What you will need
 
-### Шаг 2. Узнать свой Telegram ID
+- **A Synology NAS** with DSM 7. Nothing else has to be installed beforehand:
+  the service ships as a DSM package and runs on the NAS itself.
+- **Download Station** — install it from Package Center if it is not there yet.
+- **Telegram** on your phone.
+- **Access to your router** — two ports have to be forwarded.
 
-Это число, по которому сервис поймёт, что пишете именно вы, а не посторонний.
+> **Why a public address is needed.** Telegram only opens a Mini App over
+> `https://` with a real certificate. A self-signed one, a local `192.168.…` and
+> an address like `nas:5001` will not do: the app simply will not open. The bot
+> works without an address — just without the button.
 
-1. Откройте [@userinfobot](https://t.me/userinfobot) и нажмите **Start**.
-2. Он ответит числом в строке `Id`, например `123456789`. Запишите.
+---
 
-### Шаг 3. Завести отдельного пользователя на NAS
+### Step 1. Create the bot
 
-Сервис умеет удалять файлы, поэтому давать ему администратора — плохая идея.
+1. Open [@BotFather](https://t.me/BotFather) in Telegram and press **Start**.
+2. Send `/newbot`.
+3. Enter the bot's **name** — anything, it is what you see in the chat header.
+   For example: `My NAS`.
+4. Enter the bot's **username** — Latin letters, and it must end in `bot`. For
+   example: `alex_home_nas_bot`. If it is taken, BotFather asks for another one.
+5. The answer is a line like
+   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. That is the **token**. Copy
+   it — you need it in step 5.
 
-1. В DSM: **Панель управления → Пользователь и группа → Пользователь →
-   Создать**.
-2. Имя: `dsm-mini`. Пароль — длинный, случайный; запишите его.
-3. **Двухэтапную проверку не включайте.** Одноразовый код неоткуда взять, и
-   вход просто не пройдёт.
-4. Группы: оставьте `users`.
-5. Общие папки: дайте доступ **только** к тем, куда будете качать
-   (обычно `download` или `Media`). Остальным — «Нет доступа».
-6. Приложения: разрешите **Download Station** и **File Station**, остальное
-   запретите.
+> The token is the bot's password. Whoever has it controls the bot. Do not post
+> it in chats or on GitHub.
 
-> Если на шаге 5 в журнале появится «аутентификация в DSM не удалась» —
-> вернитесь сюда и разрешите этому пользователю ещё и приложение **DSM**: на
-> части версий без него не проходит вход даже по API.
+### Step 2. Find out your Telegram ID
 
-### Шаг 4. Получить адрес и сертификат
+This is the number the service uses to know it is you writing and not a stranger.
 
-Если у вас уже есть домен с валидным сертификатом на NAS — пропустите шаг.
+1. Open [@userinfobot](https://t.me/userinfobot) and press **Start**.
+2. It answers with a number on the `Id` line, for example `123456789`. Write it
+   down.
 
-1. **Имя.** Панель управления → **Внешний доступ → DDNS → Добавить**.
-   Поставщик услуг — `Synology`, имя хоста — любое свободное, например
-   `alex-nas`. Получится адрес `alex-nas.synology.me`. Сохраните.
-2. **Порты на роутере.** В настройках роутера пробросьте на внутренний адрес
-   NAS **порт 80** и **порт 443**. Без 80 не выпустится сертификат, без 443 не
-   откроется приложение.
-3. **Сертификат.** Панель управления → **Безопасность → Сертификат →
-   Добавить → Получить сертификат от Let's Encrypt**. Имя домена — тот самый
-   `alex-nas.synology.me`, почта — ваша. Выпуск занимает минуту.
+### Step 3. Create a separate user on the NAS
 
-Проверьте: откройте `https://alex-nas.synology.me:5001` с телефона по мобильному
-интернету (не по домашнему Wi-Fi). Должен открыться DSM без предупреждений о
-сертификате.
+The service can delete files, so giving it an administrator is a bad idea.
 
-### Шаг 5. Запустить сервис
+1. In DSM: **Control Panel → User & Group → User → Create**.
+2. Name: `dsm-mini`. The password — long and random; write it down.
+3. **Do not turn on two-factor verification.** There is nowhere to get the
+   one-time code from, and the sign-in simply will not go through.
+4. Groups: leave `users`.
+5. Shared folders: give access **only** to the ones you will download into
+   (usually `download` or `Media`). "No access" for the rest.
+6. Applications: allow **Download Station** and **File Station**, deny the rest.
 
-Два способа. **Пакет** проще и работает даже там, где Container Manager не
-поставить, — на бюджетных моделях его просто нет. **Контейнер** — если вы уже
-держите всё в Docker.
+> If in step 5 the log says "authentication with DSM failed" — come back here and
+> allow this user the **DSM** application as well: on some versions the sign-in
+> does not go through without it, even over the API.
 
-#### Способ А. Пакет для DSM
+### Step 4. Get an address and a certificate
 
-Самый простой путь — **добавить источник пакетов**, тогда установка и
-обновления идут прямо из Центра пакетов:
+If you already have a domain with a valid certificate on the NAS — skip this step.
 
-1. **Центр пакетов → Настройки → Источники пакетов → Добавить**.
-2. Имя: `dsm-mini`. Адрес — по вашей архитектуре:
-   - Intel и AMD (большинство моделей): `https://alexlnos.github.io/dsm-mini/amd64.json`
-   - ARM (бюджетные модели): `https://alexlnos.github.io/dsm-mini/arm64.json`
-3. Разрешите сторонние пакеты: **Настройки → Общие → Доверенный уровень →
-   Любой издатель**.
-4. Слева появится раздел **Сообщество**, а в нём `dsm-mini`. Нажмите
-   «Установить» — дальше мастер спросит настройки.
+1. **The name.** Control Panel → **External Access → DDNS → Add**. Service
+   provider `Synology`, hostname anything free, for example `alex-nas`. That
+   gives the address `alex-nas.synology.me`. Save.
+2. **Ports on the router.** In the router settings forward **port 80** and
+   **port 443** to the NAS's internal address. Without 80 the certificate will
+   not be issued, without 443 the app will not open.
+3. **The certificate.** Control Panel → **Security → Certificate → Add → Get a
+   certificate from Let's Encrypt**. Domain name is that same
+   `alex-nas.synology.me`, the email is yours. Issuing takes a minute.
 
-Не знаете свою архитектуру — попробуйте `amd64`: неподходящий пакет DSM
-просто откажется ставить, сломать этим ничего нельзя.
+Check it: open `https://alex-nas.synology.me:5001` from your phone over mobile
+internet (not over the home Wi-Fi). DSM should open with no certificate warnings.
 
-**Или вручную, без источника:**
+### Step 5. Install the package
 
-1. Скачайте `.spk` со страницы
-   [релизов](https://github.com/alexlnos/dsm-mini/releases): `-amd64` для
-   моделей на Intel и AMD (DS918+, DS923+, DS1522+, SA6400 и подобные),
-   `-arm64` для бюджетных на ARM (DS223, DS124). Не уверены — берите
-   `amd64`: неподходящий пакет DSM просто откажется ставить.
-2. **Центр пакетов → Ручная установка → Обзор** и выберите скачанный файл.
-3. DSM скажет, что издатель неизвестен. Это нормально для стороннего
-   пакета: разрешите один раз в **Центр пакетов → Настройки → Общие →
-   Доверенный уровень → Любой издатель**.
-4. Мастер установки спросит шесть значений — те же, что в таблице ниже.
-   Адрес DSM уже подставлен: `https://localhost:5001`, служба работает на
-   самом NAS.
-5. Всё. Пакет запустится сам и будет подниматься вместе с NAS.
+The easiest route is to **add a package source**, so installation and updates go
+straight through Package Center:
 
-Настройки потом лежат в `/var/packages/dsm-mini/var/config.env`, журнал —
-рядом, в `dsm-mini.log`. Если добавляли источник пакетов, обновления
-приходят в Центр пакетов сами; если ставили вручную — скачайте новый `.spk`
-и поставьте поверх. Настройки в обоих случаях сохранятся.
+1. **Package Center → Settings → Package Sources → Add**.
+2. Name: `dsm-mini`. The address depends on your architecture:
+   - Intel and AMD (most models): `https://alexlnos.github.io/dsm-mini/amd64.json`
+   - ARM (budget models): `https://alexlnos.github.io/dsm-mini/arm64.json`
+3. Allow third-party packages: **Settings → General → Trust Level → Any
+   publisher**.
+4. A **Community** section appears on the left, with `dsm-mini` in it. Press
+   Install — the wizard then asks for the settings.
 
-#### Способ Б. Контейнер
+If you do not know your architecture — try `amd64`: DSM simply refuses to
+install a package that does not fit, nothing can be broken this way.
 
-Никаких файлов скачивать и создавать не нужно: всё живёт в одном тексте,
-который вы вставите прямо в DSM.
+**Or by hand, without a source:**
 
-1. Откройте **Container Manager → Проект → Создать**.
-2. **Название проекта**: `dsm-mini`.
-3. **Путь**: нажмите Обзор, выберите общую папку `docker` и создайте в ней
-   папку `dsm-mini`.
-4. **Источник**: выберите **«Создать docker-compose.yml»** — появится большое
-   пустое поле.
-5. Скопируйте текст ниже целиком и вставьте в это поле.
-6. Замените шесть значений в разделе «ЗАПОЛНИТЕ» на свои — прямо там же, в
-   этом поле.
+1. Download the `.spk` from the
+   [releases](https://github.com/alexlnos/dsm-mini/releases) page: `-amd64` for
+   Intel and AMD models (DS918+, DS923+, DS1522+, SA6400 and the like), `-arm64`
+   for budget ARM ones (DS223, DS124). Not sure — take `amd64`: DSM simply
+   refuses to install a package that does not fit.
+2. **Package Center → Manual Install → Browse** and pick the downloaded file.
+3. DSM says the publisher is unknown. That is normal for a third-party package:
+   allow it once in **Package Center → Settings → General → Trust Level → Any
+   publisher**.
 
-```yaml
-# dsm-mini — a Telegram bot with a Mini App for a Synology NAS.
-#
-# This is the only file needed to run it. Paste it whole into Container
-# Manager (Project → Create → Create docker-compose.yml) and replace the
-# values in the FILL IN section. No other files have to be created.
-#
-# Mind the dollar sign: docker compose treats it as the start of a variable.
-# If your password has a $ in it, write it twice — "pa$$word", not "pa$word".
-services:
-  dsm-mini:
-    image: alexlnos/dsm-mini:latest
-    container_name: dsm-mini
-    restart: unless-stopped
+#### What the wizard asks
 
-    environment:
-      # ──────────────── FILL IN THESE SIX LINES ────────────────
+The installer has two screens and seven fields. Everything you need for them was
+collected in steps 1 to 4.
 
-      # The local DSM address. Port 5001 is HTTPS, 5000 is HTTP.
-      DSM_URL: "https://192.168.1.10:5001"
-
-      # A separate DSM user — not an administrator and without two-factor
-      # verification. How to create one is in the README.
-      DSM_USER: "dsm-mini"
-      DSM_PASSWORD: "that-users-password"
-
-      # The bot token from @BotFather.
-      TELEGRAM_BOT_TOKEN: "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg"
-
-      # Who is allowed in: your Telegram ID from @userinfobot, comma separated.
-      # An empty value closes access to EVERYONE, it does not open it.
-      ALLOWED_USER_IDS: "123456789"
-
-      # The public HTTPS address of the app: no port and no trailing slash.
-      PUBLIC_URL: "https://alex-nas.synology.me"
-
-      # ──────────── nothing below needs changing ────────────
-
-      # Inside the network DSM has a self-signed certificate — that is normal.
-      DSM_INSECURE_TLS: "true"
-      # How often to ask Download Station about finished tasks.
-      WATCH_INTERVAL: "30s"
-      # debug | info | warn | error
-      LOG_LEVEL: "info"
-      # The database directory inside the container; outside it is the volume below.
-      STATE_DIR: "/data"
-
-    ports:
-      # The port is not published outwards: the DSM reverse proxy sits in front
-      # and terminates TLS. 127.0.0.1 means "from the NAS only".
-      - "127.0.0.1:8080:8080"
-
-    volumes:
-      # Settings, language and task state. Survives recreating the container.
-      - dsm-mini-state:/data
-
-volumes:
-  dsm-mini-state:
-```
-
-7. **Далее → Далее → Готово**. Первый запуск займёт минуту: образ
-   скачивается из Docker Hub.
-
-**Что именно менять** (и в мастере пакета, и в compose):
-
-| Строка | На что заменить |
+| Field | What to put in |
 |---|---|
-| `DSM_URL` | Локальный адрес NAS, например `https://192.168.1.10:5001`. Посмотреть можно в DSM: Панель управления → Сеть → Сетевой интерфейс |
-| `DSM_USER`, `DSM_PASSWORD` | Имя и пароль пользователя из шага 3 |
-| `TELEGRAM_BOT_TOKEN` | Токен из шага 1 |
-| `ALLOWED_USER_IDS` | Ваш номер из шага 2 |
-| `PUBLIC_URL` | Ваш адрес из шага 4, например `https://alex-nas.synology.me` |
+| DSM address | Already filled in: `https://localhost:5001`. The service runs on the NAS itself, so leave it as it is |
+| DSM user | The name of the user from step 3, for example `dsm-mini` |
+| DSM password | That user's password |
+| Bot token | The token from step 1 |
+| Allowed Telegram IDs | Your number from step 2. Several people — comma separated |
+| Public HTTPS address | Your address from step 4, for example `https://alex-nas.synology.me` |
+| Local port | Leave `8080`. Change it only if something on the NAS already holds that port |
 
-**Частые ошибки именно здесь:**
+**The mistakes people actually make here:**
 
-| Написано | Правильно |
+| Written | Correct |
 |---|---|
-| `PUBLIC_URL: "alex-nas.synology.me"` | `"https://alex-nas.synology.me"` |
-| `PUBLIC_URL: "https://alex-nas.synology.me/"` | без слеша в конце |
-| `ALLOWED_USER_IDS: ""` | пусто — значит **никому**; впишите свой номер |
-| `DSM_URL: "https://alex-nas.synology.me"` | нужен локальный адрес: `"https://192.168.1.10:5001"` |
-| Пароль со знаком `$` | удвойте его: `па$$роль` |
-| Убраны кавычки вокруг значений | кавычки нужны |
+| `alex-nas.synology.me` | `https://alex-nas.synology.me` — with the protocol |
+| `https://alex-nas.synology.me/` | no trailing slash |
+| An empty list of IDs | empty means **nobody**; put your number in |
+| Your public address as the DSM address | the DSM address stays `https://localhost:5001` |
+| A one-time 2FA code as the password | the account must be without two-factor at all (step 3) |
 
-Когда проект станет зелёным, откройте вкладку **Журнал**. Там должно быть:
+The package starts by itself after installation and comes up together with the
+NAS. The settings then live in `/var/packages/dsm-mini/var/config.env` (mode
+`600`), the log next to them in `dsm-mini.log`.
 
-```
-dsm-mini запускается
-вход в DSM выполнен
-Download Station подключён
-HTTP слушает
-бот запущен
-```
+If the service cannot start — a wrong token, a wrong password, no network — it
+says so in the **DSM notification centre**, with the reason. The full log is in
+Package Center, on the package's page.
 
-Если вместо этого ошибка — смотрите таблицу в конце.
+### Step 6. Point the address at the service
 
-### Шаг 6. Направить адрес на сервис
+Right now the service only listens inside the NAS, on port 8080. The reverse
+proxy takes requests from the internet over HTTPS and passes them on to it.
 
-Сейчас сервис слушает только внутри NAS, на порту 8080. Обратный прокси
-принимает запросы из интернета по HTTPS и передаёт их ему.
+1. **Control Panel → Login Portal → Advanced → Reverse Proxy → Create**.
+   (In DSM 7.0–7.1 this is **Control Panel → Application Portal → Reverse
+   Proxy**.)
+2. **Source**: protocol `HTTPS`, hostname `alex-nas.synology.me`, port `443`.
+3. **Destination**: protocol `HTTP`, hostname `localhost`, port `8080`.
+4. Save.
 
-1. **Панель управления → Портал входа → Дополнительно → Обратный
-   прокси-сервер → Создать**.
-   (В DSM 7.0–7.1 это **Панель управления → Портал приложений → Обратный
-   прокси-сервер**.)
-2. **Источник**: протокол `HTTPS`, имя `alex-nas.synology.me`, порт `443`.
-3. **Назначение**: протокол `HTTP`, имя `localhost`, порт `8080`.
-4. Сохраните.
+> **Do not proxy port 80 for this hostname**: DSM renews the Let's Encrypt
+> certificate through it, and intercepting it breaks the renewal three months
+> later.
 
-> **Порт 80 для этого имени не проксируйте**: через него DSM продлевает
-> сертификат Let's Encrypt, и перехват сломает продление через три месяца.
+### Step 7. Check
 
-### Шаг 7. Проверить
-
-Откройте в браузере `https://alex-nas.synology.me/healthz`. Должно ответить:
+Open `https://alex-nas.synology.me/healthz` in a browser. It should answer:
 
 ```json
 {"status":"ok"}
 ```
 
-Ответило — значит сервис жив и доступен снаружи. Данные он при этом не отдаёт:
-любой запрос без подписи Telegram получает отказ.
+If it answered — the service is alive and reachable from outside. It gives no
+data away while doing so: any request without a Telegram signature is refused.
 
-### Шаг 8. Открыть приложение
+### Step 8. Open the app
 
-1. Найдите своего бота в Telegram по логину из шага 1.
-2. Нажмите **Start**.
-3. Внизу, рядом с полем ввода, появится кнопка **Загрузки** — она открывает
-   приложение. Кнопку бот ставит сам при запуске, вручную настраивать ничего
-   не нужно.
-4. Пришлите боту любую magnet-ссылку — он предложит папку кнопками.
+1. Find your bot in Telegram by the username from step 1.
+2. Press **Start**.
+3. At the bottom, next to the input field, a **Downloads** button appears — it
+   opens the app. The bot puts the button there itself at startup, nothing has to
+   be set up by hand.
+4. Send the bot any magnet link — it offers folders as buttons.
 
-Готово.
+Done.
 
 ---
 
-## Если что-то пошло не так
+## If something went wrong
 
-| Что видите | В чём дело | Что делать |
+| What you see | What it is | What to do |
 |---|---|---|
-| Бот молчит на `/start` | Неверный токен или контейнер не запустился | Container Manager → Проект → Журнал |
-| «Доступ к этому боту закрыт» | Вашего ID нет в списке | Впишите номер из шага 2 в `ALLOWED_USER_IDS`, перестройте проект |
-| Кнопки приложения нет | `PUBLIC_URL` пустой или не `https://` | Исправьте compose: Container Manager → Проект → Изменить |
-| Кнопка есть, приложение не открывается | Не работает обратный прокси или сертификат | Откройте `https://ваш-адрес/healthz` в браузере |
-| «Откройте через Telegram» | Приложение открыто прямой ссылкой в браузере | Так и задумано: открывайте из бота |
-| «Доступ закрыт: ваш Telegram ID…» | Сервис вас не узнал | В `ALLOWED_USER_IDS` только цифры, через запятую |
-| В журнале «аутентификация в DSM не удалась» | Пароль, 2FA или права пользователя | Шаг 3: пароль без опечаток, 2FA выключена, приложения разрешены |
-| В журнале «не получить список задач» | Download Station не установлен или запрещён пользователю | Центр пакетов и права из шага 3 |
-| Контейнер перезапускается по кругу | Не заполнена обязательная переменная | Журнал назовёт, какая именно |
+| The bot is silent on `/start` | Wrong token, or the package is not running | Package Center → `dsm-mini` → the log |
+| "Access to this bot is closed" | Your ID is not on the list | Put the number from step 2 into the allowed IDs (see "Changing the settings" below) |
+| There is no app button | The public address is empty or not `https://` | Same place: the settings file, then restart the package |
+| The button is there, the app does not open | The reverse proxy or the certificate is not working | Open `https://your-address/healthz` in a browser |
+| "Open the app through the bot" | The app was opened by a direct link in a browser | That is intended: open it from the bot |
+| "Access denied: your Telegram ID…" | The service did not recognise you | The allowed IDs take digits only, comma separated |
+| "authentication with DSM failed" in the log | The password, 2FA or the user's permissions | Step 3: password without typos, 2FA off, applications allowed |
+| "Could not get the task list" in the log | Download Station is not installed, or is denied to the user | Package Center and the permissions from step 3 |
+| The package stops right after starting | A setting is wrong — the log names which | The DSM notification centre shows the reason too |
 
-Журнал контейнера — главный источник правды: **Container Manager → Контейнер →
-`dsm-mini` → Журнал**. Он пишет по-русски и прямо называет, чего не хватает.
+The package log is the main source of truth: it names exactly what is missing.
+It lives at `/var/packages/dsm-mini/var/dsm-mini.log` and opens from Package
+Center.
 
-## Обновление
+### Changing the settings
 
-**Пакет:** если добавлен источник пакетов, Центр пакетов сам покажет
-обновление. Иначе скачайте свежий `.spk` из релизов и поставьте поверх —
-настройки и база останутся, они лежат вне пакета.
+Everything the wizard asked for is in one file,
+`/var/packages/dsm-mini/var/config.env`. The simplest way to change a value is to
+install the package over itself — the wizard asks again. To edit the file
+directly you need SSH to the NAS; after editing, stop and start the package in
+Package Center.
 
-**Контейнер:** Container Manager → Проект → `dsm-mini` → **Построить** (или Остановить →
-Построить → Запустить). Свежий образ подтянется сам, данные останутся: они
-лежат в отдельном томе.
+## Updating
 
-## Где хранятся данные
+If the package source was added, Package Center shows the update itself. Without
+a source, download the fresh `.spk` from the
+[releases](https://github.com/alexlnos/dsm-mini/releases) and install it over the
+old one.
 
-Настройки и состояние — в SQLite: у пакета это
-`/var/packages/dsm-mini/var/dsm-mini.db`, у контейнера — `/data/dsm-mini.db`
-внутри тома `dsm-mini-state`. Там закреплённые папки, язык и последние известные статусы
-задач, по которым сервис понимает, о чём уже сообщал. Пересоздание контейнера
-их не трогает.
+The settings and the database survive either way: they live in the package's
+`var` directory, which an upgrade does not touch.
 
-## Безопасность
+## Where the data is kept
 
-Сервис выставлен в интернет и умеет удалять файлы на NAS, поэтому:
+Everything is in `/var/packages/dsm-mini/var/`:
 
-- **Отдельный пользователь DSM**, а не администратор (шаг 3).
-- **Без двухэтапной проверки** у этой учётной записи: одноразовый код в
-  конфигурации работать не будет.
-- **`ALLOWED_USER_IDS` — белый список.** Пустой список закрывает доступ всем,
-  а не открывает.
-- Каждый запрос к `/api/` проверяется дважды: подпись `initData` ключом от
-  токена бота и идентификатор в списке разрешённых. Подпись доказывает лишь
-  то, что человек открыл бота, — открыть его может любой.
-- Наружу отдаётся общая фраза, подробности — в журнал: сообщение о том, что
-  именно не сошлось в подписи, подсказывало бы, как её подобрать.
-- Секреты живут в compose проекта на самом NAS и в образ не попадают: образ
-  публичный, один на всех, и ничего вашего в нём нет.
+- `config.env` — what the wizard asked for, mode `600`;
+- `dsm-mini.db` — an SQLite database: the pinned folders, the language and the
+  last known task statuses, from which the service knows what it has already
+  reported;
+- `dsm-mini.log` — the log.
 
-## Собирать свой образ
+An upgrade of the package keeps all three. Uninstalling removes them.
 
-В репозитории есть workflow, который собирает образ под `amd64` и `arm64` и
-публикует его в Docker Hub: при пуше в `main` — с тегом `latest`, при теге
-`v1.2.3` — с тегами версии.
+## Security
 
-Чтобы он заработал в вашей копии репозитория:
+The service is exposed to the internet and can delete files on the NAS, so:
 
-1. Зарегистрируйтесь на [Docker Hub](https://hub.docker.com).
-2. **Account Settings → Personal access tokens → Generate new token**,
-   права **Read & Write**. Скопируйте токен — показывают его один раз.
-3. В GitHub: **Settings → Secrets and variables → Actions → New repository
-   secret**. Добавьте два:
-   - `DOCKERHUB_USERNAME` — ваш логин на Docker Hub;
-   - `DOCKERHUB_TOKEN` — токен из пункта 2.
-4. Actions → **Docker** → **Run workflow**.
+- **A separate DSM user**, not an administrator (step 3).
+- **No two-factor verification** on that account: a one-time code cannot work
+  from a configuration file.
+- **The allowed IDs are an allow list.** An empty list closes access to everyone,
+  it does not open it.
+- Every request to `/api/` is checked twice: the `initData` signature with a key
+  derived from the bot token, and the id against the allowed list. The signature
+  only proves that a person opened the bot — and anyone can open it.
+- The outside gets a generic phrase, the details go to the log: a message saying
+  exactly what did not match in the signature would be a hint on how to forge it.
+- The bot token and the DSM password live only in `config.env` on the NAS, mode
+  `600`, and never reach the log: on a refusal the reason is written, never the
+  value.
+- The service listens on `127.0.0.1` only — from the NAS itself. Everything from
+  outside goes through the DSM reverse proxy, which terminates TLS.
 
-Образ появится как `ваш-логин/dsm-mini` — подставьте его в строку `image:`.
-
-Собрать вручную, без GitHub:
+## Development
 
 ```bash
-docker build -f deploy/Dockerfile -t dsm-mini:local .
-```
-
-## Разработка
-
-```bash
-cd web && npm install && npm run build   # Mini App попадёт в internal/web/dist
-cd .. && go build ./cmd/dsm-mini         # бинарник со встроенным приложением
+cd web && npm install && npm run build   # the Mini App lands in internal/web/dist
+cd .. && go build ./cmd/dsm-mini         # a binary with the app embedded
 go test ./...
 ```
 
-Фронтенд отдельно, с автообновлением:
+The frontend on its own, with hot reload:
 
 ```bash
-cd web && npm run dev    # ходит в бэкенд на localhost:8080
+cd web && npm run dev    # talks to the backend on localhost:8080
 ```
 
-Локальный запуск бэкенда читает те же переменные, что и compose. Удобно
-держать их в файле:
+Running the backend locally reads the same variables the package wizard writes
+into `config.env`. It is convenient to keep them in a file:
 
 ```bash
-cp .env.example .env     # заполните
+cp .env.example .env     # fill it in
 set -a; . ./.env; set +a
 go run ./cmd/dsm-mini
 ```
 
-Собранный интерфейс лежит в репозитории (`internal/web/dist`) — его забирает
-`go:embed`. После правок фронтенда пересоберите и закоммитьте результат, иначе
-проверки не пройдут.
+The built interface is in the repository (`internal/web/dist`) — `go:embed`
+picks it up. After changing the frontend, rebuild and commit the result,
+otherwise the checks will not pass.
 
-Интеграционные тесты работают против настоящего NAS и по умолчанию
-пропускаются:
+Integration tests run against a real NAS and are skipped by default:
 
 ```bash
 DSM_URL=https://192.168.1.10:5001 DSM_USER=... DSM_PASSWORD=... \
   DSM_INSECURE_TLS=true go test -tags=integration ./...
 ```
 
-Тесты, которые меняют состояние NAS, требуют отдельного разрешения:
-`DSM_TEST_MUTATIONS=1`, а для файловых операций ещё и `DSM_TEST_FOLDER` —
-папку, внутри которой можно создавать временные файлы. Всё созданное они
-удаляют за собой.
+Tests that change the state of the NAS need separate permission:
+`DSM_TEST_MUTATIONS=1`, and for file operations also `DSM_TEST_FOLDER` — the
+folder inside which temporary files may be created. They delete everything they
+created.
 
-Новый язык интерфейса — один файл словаря на каждой стороне:
-`web/src/i18n/<код>.ts` и `internal/i18n/<код>.go`. Пропустить строку не выйдет:
-на фронтенде за этим следит тип, на сервере — тест.
+A new interface language is one dictionary file on each side:
+`web/src/i18n/<code>.ts` and `internal/i18n/<code>.go`. You cannot miss a string:
+on the frontend the type watches for that, on the server a test does.
 
-## Особенности Synology API
+## Synology API quirks
 
-Web API Synology местами ведёт себя не так, как написано в документации: одно и
-то же действие отвечает в трёх разных форматах, `limit = -1` роняет File
-Station, а `_sid` при загрузке файла нужно передавать иначе, чем везде.
-Всё, что выяснено на живом NAS, собрано в [docs/synology-api.md](docs/synology-api.md).
+The Synology Web API behaves differently from its documentation in places: one
+and the same action answers in three different shapes, `limit = -1` takes File
+Station down, and `_sid` during a file upload has to be passed differently from
+everywhere else. Everything learned on a live NAS is collected in
+[docs/synology-api.md](docs/synology-api.md).
 
-## Лицензия
+## License
 
 [MIT](LICENSE)

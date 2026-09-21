@@ -1,7 +1,7 @@
 # Synology packages for the releases page.
 #
 # Triggered by a v1.2.3 style tag: builds the .spk for both architectures and
-# attaches them to the release. The Docker image for the same tag is built by docker.yml.
+# attaches them to the release.
 name: Release
 
 on:

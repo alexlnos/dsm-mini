@@ -1,14 +1,10 @@
 # Checks on every push and pull request.
-#
-# The same file is called from docker.yml: the image is not published until
-# the checks pass. That keeps a build with failing tests out of Docker Hub.
 name: Checks
 
 on:
   push:
     branches: [main]
   pull_request:
-  workflow_call:
 
 jobs:
   go:
@@ -102,17 +98,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The same compose lives in deploy/ and as a copy in the README: people
-      # install the service by copying it straight out of the instructions.
-      # Let them drift and half the readers get a stale file without knowing.
-      - name: The compose in the README matches the file
+      # The README exists in ten languages, and every one of them carries the
+      # links to the other nine. Add a language and forget one line, and the
+      # new README is reachable from nowhere — which nobody notices, because
+      # each file looks fine on its own.
+      - name: The language links in the READMEs are in step
         run: |
           python3 - <<'CHECK'
-          compose = open('deploy/docker-compose.yml', encoding='utf-8').read().rstrip()
-          readme = open('README.md', encoding='utf-8').read()
-          if compose not in readme:
-              print('::error::The compose block in the README drifted from deploy/docker-compose.yml. '
-                    'Paste the current file contents into the README.')
+          # file -> the name the link to it is written under
+          LANGS = {
+              'README.md': 'English',
+              'README_RU.md': 'Русский',
+              'README_ES.md': 'Español',
+              'README_PT.md': 'Português',
+              'README_DE.md': 'Deutsch',
+              'README_FR.md': 'Français',
+              'README_IT.md': 'Italiano',
+              'README_TR.md': 'Türkçe',
+              'README_UK.md': 'Українська',
+              'README_PL.md': 'Polski',
+          }
+          import os
+
+          problems = []
+          for name, title in LANGS.items():
+              if not os.path.exists(name):
+                  problems.append(f'{name} is missing')
+                  continue
+              head = open(name, encoding='utf-8').read(4000)
+              if f'**{title}**' not in head:
+                  problems.append(f'{name}: it does not name itself as **{title}**')
+              for other, other_title in LANGS.items():
+                  if other == name:
+                      continue
+                  if f'[{other_title}]({other})' not in head:
+                      problems.append(f'{name}: no link to {other} as [{other_title}]')
+
+          if problems:
+              for p in problems:
+                  print(f'::error::{p}')
               raise SystemExit(1)
-          print('matches')
+          print(f'{len(LANGS)} READMEs, the links are in step')
           CHECK
+
+      # The wizard files are generated from the table in make-wizard.py and
+      # committed. Edit the table, forget to regenerate, and the installer
+      # keeps showing the old questions while the source says otherwise.
+      - name: The wizard files match the generator
+        run: |
+          python3 tools/make-wizard.py
+          if ! git diff --quiet -- spk/WIZARD_UIFILES; then
+            echo "::error::spk/WIZARD_UIFILES differs from the generator result. Run 'python3 tools/make-wizard.py' and commit it."
+            git diff --stat -- spk/WIZARD_UIFILES
+            exit 1
+          fi

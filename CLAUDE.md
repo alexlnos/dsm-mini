@@ -1,250 +1,252 @@
-# dsm-mini — рабочие правила проекта
+# dsm-mini — working rules for this project
 
-Telegram-бот с Mini App для управления Synology NAS: закачки Download Station
-и файлы File Station. Опенсорс, MIT, Go + React.
+A Telegram bot with a Mini App for managing a Synology NAS: Download Station
+tasks and File Station files. Open source, MIT, Go + React.
 
-## Главное правило: не гадать про Synology API
+## The main rule: never guess about the Synology API
 
-Web API Synology местами ведёт себя не так, как написано в документации, а
-`SYNO.DownloadStation2.*` не документирован вовсе. Порядок работы:
+The Synology Web API behaves differently from its documentation in places, and
+`SYNO.DownloadStation2.*` is not documented at all. The order of work:
 
-1. Сначала **скачать официальный PDF** — ссылки в [docs/synology-api.md](docs/synology-api.md).
-2. Затем **проверить вызов на живом NAS** интеграционным тестом.
-3. Найденное расхождение — **сразу в `docs/synology-api.md`**, с примером ответа.
+1. First **download the official PDF** — links are in [docs/synology-api.md](docs/synology-api.md).
+2. Then **check the call against a live NAS** with an integration test.
+3. Any discrepancy found goes **straight into `docs/synology-api.md`**, with a sample response.
 
-Объяснять поведение API догадкой нельзя: в этом проекте так уже была выдана
-неверная причина сбоя (см. «limit = -1» в том же файле).
+Explaining API behaviour with a guess is not allowed: this project has already
+seen a wrong cause given for a failure that way (see "limit = -1" in the same file).
 
-Известные ловушки, которые стоят за конкретными строками кода:
+Known traps that specific lines of code exist for:
 
-- Пакетные действия отвечают в **трёх разных формах**, и в двух из них отказ
-  приходит под `success: true`. Не разобрать массив — показать пользователю
-  успех там, где NAS ничего не сделал.
-- `limit = -1` штатно работает в Download Station и **роняет File Station** в
-  HTTP 502 на любой версии API.
-- Кодирование параметров различается в трёх местах: обычные вызовы — JSON,
-  `FileStation.Upload` — без кавычек, `DownloadStation2` create с файлом —
-  снова JSON. `_sid` при multipart идёт **в строке запроса**.
-- Пути: File Station требует ведущий слеш, Download Station — наоборот.
-- Файлы, трекеры и пиры задачи (`Task.BT.*`) доступны **только пока задача
-  активна**; у завершённой приходит код 1913, и это не сбой.
-- Приоритет **задачи** относится к eMule, а не к торрентам: для BT вызов
-  принимается, но ничего не делает и не читается. Приоритет **файлов** внутри
-  раздачи — рабочая возможность.
-- Когда API молчит о том, что умеет, ответ есть в коде веб-морды на NAS:
-  `/var/packages/<Пакет>/target/ui/*.js` — видно, какой вызов и с какими
-  параметрами делает сам DSM.
-- В `Task.edit` параметр называется `id`, в `Task.BT.File` — `task_id`.
-- Завершающий слеш в пути назначения `CopyMove` даёт ошибку 418.
-- Имя хоста `SYNO.Core.System` не возвращает — оно есть у `FileStation.Info`.
-- Фильтр по уровню в системном журнале не работает: отбираем у себя.
-- `Thumb` и `Download` возвращают байты, а об ошибке сообщают, подменив
-  Content-Type на JSON.
+- Batch actions answer in **three different shapes**, and in two of them a
+  refusal arrives under `success: true`. Failing to parse the array means
+  showing the user success where the NAS did nothing.
+- `limit = -1` works normally in Download Station and **takes File Station down**
+  with HTTP 502 on every API version.
+- Parameter encoding differs in three places: ordinary calls use JSON,
+  `FileStation.Upload` takes no quotes, `DownloadStation2` create with a file is
+  JSON again. With multipart, `_sid` goes **in the query string**.
+- Paths: File Station wants a leading slash, Download Station does not.
+- A task's files, trackers and peers (`Task.BT.*`) are available **only while the
+  task is active**; a finished one answers with code 1913, and that is not a failure.
+- **Task** priority applies to eMule, not to torrents: for BT the call is
+  accepted but does nothing and cannot be read back. Priority of **files** inside
+  a torrent is a working feature.
+- When the API says nothing about what it can do, the answer is in the web UI
+  code on the NAS: `/var/packages/<Package>/target/ui/*.js` shows which call DSM
+  itself makes and with which parameters.
+- In `Task.edit` the parameter is called `id`, in `Task.BT.File` it is `task_id`.
+- A trailing slash in the `CopyMove` destination path gives error 418.
+- `SYNO.Core.System` does not return the host name — `FileStation.Info` has it.
+- The level filter in the system log does not work: we filter on our side.
+- `Thumb` and `Download` return bytes, and report an error by switching the
+  Content-Type to JSON.
 
-Этот файл ведётся постоянно: новая находка про API, причина неочевидного сбоя
-или решение об архитектуре дописываются сюда в ту же сессию, вместе с кодом.
+This file is kept up to date continuously: a new API finding, the cause of a
+non-obvious failure or an architecture decision is written here in the same
+session, together with the code.
 
-## Тесты
+## Tests
 
 ```bash
-go test ./...                               # без NAS, всегда должны проходить
+go test ./...                               # no NAS needed, must always pass
 DSM_URL=… DSM_USER=… DSM_PASSWORD=… \
   DSM_INSECURE_TLS=true go test -tags=integration ./...
 ```
 
-Интеграционные тесты идут против настоящего NAS и по умолчанию пропускаются.
-Меняющие состояние требуют отдельного разрешения:
+Integration tests run against a real NAS and are skipped by default. The ones
+that change state need separate permission:
 
-- `DSM_TEST_MUTATIONS=1` — создание и удаление задач;
-- `DSM_TEST_FOLDER=/Download` — папка для файловых операций;
-- `DSM_TEST_MAGNET`, `DSM_TEST_TORRENT` — свои источники вместо встроенных.
+- `DSM_TEST_MUTATIONS=1` — creating and deleting tasks;
+- `DSM_TEST_FOLDER=/Download` — the folder for file operations;
+- `DSM_TEST_MAGNET`, `DSM_TEST_TORRENT` — your own sources instead of the built-in ones.
 
-Всё созданное тест **обязан убрать за собой** через `t.Cleanup`, даже при
-падении. Если уборка не удалась — сказать об этом в тексте ошибки и назвать,
-что удалять вручную.
+A test **must clean up** everything it created through `t.Cleanup`, even when it
+fails. If the cleanup did not work — say so in the failure message and name what
+has to be deleted by hand.
 
-Действия над NAS, меняющие состояние, согласовывать с пользователем до
-запуска — включая тестовые задачи и файлы.
+State-changing actions on the NAS are agreed with the user before they run —
+test tasks and files included.
 
-## Что где лежит
+## Where things live
 
 ```
-cmd/dsm-mini/        точка входа
-internal/dsm/        клиент DSM Web API: сессии, версии, multipart
-  downloadstation/   задачи: DownloadStation2 и легаси за одним интерфейсом
-  filestation/       файлы: обзор, загрузка, переименование, удаление
-internal/httpapi/    REST для Mini App, проверка подписи Telegram
-internal/bot/        бот: ссылки и .torrent из чата, вид бота из кода
-internal/watcher/    уведомления о завершении задач
-internal/dsm/system/     загрузка, сведения об устройстве, пакеты, журнал
-internal/dsm/storage/    диски, пулы и тома
-internal/dsm/vmm/        виртуальные машины
-internal/dsm/containers/ контейнеры Container Manager
-internal/store/      настройки пользователей поверх SQLite
-internal/db/         схема и миграции
-web/                 Mini App на React, собирается в internal/web/dist
-docs/synology-api.md что выяснено про API на практике
+cmd/dsm-mini/        entry point
+internal/dsm/        DSM Web API client: sessions, versions, multipart
+  downloadstation/   tasks: DownloadStation2 and legacy behind one interface
+  filestation/       files: browsing, upload, rename, delete
+internal/httpapi/    REST for the Mini App, Telegram signature check
+internal/bot/        the bot: links and .torrent files from chat, bot appearance from code
+internal/watcher/    notifications about finished tasks
+internal/dsm/system/     load, device details, packages, log
+internal/dsm/storage/    disks, pools and volumes
+internal/dsm/vmm/        virtual machines
+internal/dsm/containers/ Container Manager containers
+internal/store/      user settings on top of SQLite
+internal/db/         schema and migrations
+web/                 the React Mini App, built into internal/web/dist
+docs/synology-api.md what has been learned about the API in practice
 ```
 
-## Безопасность
+## Security
 
-Сервис открыт в интернет и умеет удалять файлы на NAS.
+The service is exposed to the internet and can delete files on the NAS.
 
-- **Каждый запрос к `/api/`** проверяется дважды: подпись `initData` ключом от
-  токена бота и идентификатор в списке разрешённых. Подпись доказывает лишь
-  то, что человек открыл бота, — открыть его может любой.
-- **Пустой `ALLOWED_USER_IDS` закрывает доступ всем**, а не открывает.
-- Секреты только в `.env` (в `.gitignore`), права `0600`. В журнал не писать
-  ни токен, ни пароль DSM — при отказе логируется причина, но не значение.
-- Наружу отдаётся общая фраза, подробности — в журнал: сообщение о том, что
-  именно не сошлось в подписи, подсказывает, как её подобрать.
-- Для NAS заводится **отдельный пользователь** с доступом только к нужным
-  пакетам и без двухэтапной проверки, а не администратор.
+- **Every request to `/api/`** is checked twice: the `initData` signature with a
+  key derived from the bot token, and the user id against the allow list. The
+  signature only proves that a person opened the bot — and anyone can open it.
+- **An empty `ALLOWED_USER_IDS` closes access to everyone**, it does not open it.
+- Secrets live only in `.env` (which is in `.gitignore`), mode `0600`. Neither
+  the token nor the DSM password goes into the log — on a refusal the reason is
+  logged, never the value.
+- The outside gets a generic phrase, the details go to the log: a message saying
+  exactly what did not match in the signature is a hint on how to forge it.
+- For the NAS a **separate user** is created, with access only to the packages
+  needed and without two-factor, not an administrator.
 
-Правки в этой части покрывать тестами в `internal/httpapi/auth_test.go`.
+Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 
-## Фронтенд
+## Frontend
 
-- Состояние экранов, которые уходят в обзор NAS, **держать в `App`**: переход
-  размонтирует экран, и несохранённые правки пропадут. На этом уже дважды
-  ломались настройка папок и экран добавления. По той же причине там живут
-  открытая папка вкладки «Файлы», выбранная вкладка загрузок, набранный
-  вручную путь в настройке папок и то, на каком экране раздела человека
-  прервали: переключение вкладок иначе сбрасывало бы всё это.
-- Добавление загрузки, настройка папок и экран задачи — **части раздела
-  загрузок**, а не отдельные места: панель вкладок на них не прячется, а
-  возврат на вкладку приводит туда, где человек остановился. Повторное
-  нажатие на активную вкладку — к началу раздела.
-- Начальные значения, приходящие пропсом (`initialPath`), брать **один раз**
-  через `useRef`: если вернуть их же наверх обработчиком, экран начнёт
-  перезагружаться сам от себя.
-- Настройки сохраняются **сразу**, без кнопки «Сохранить»: интерфейс
-  обновляется до ответа сервера и откатывается при ошибке.
-- Отступы внутри карточек — через `padding` самой карточки, не через `margin`
-  потомков: такое правило ломается от первой же обёртки.
-- Имена классов проверять на совпадение с уже занятыми: карточка с классом
-  `app` унаследовала стили корневого контейнера и растянулась на весь экран.
-- Тема берётся из `themeParams` Telegram; подтверждения и отклик — нативные
-  (`showConfirm`, `HapticFeedback`), а не браузерные. Тема и высота
-  перечитываются по событиям `themeChanged` и `viewportChanged`: одного
-  чтения при запуске мало.
-- Высота приложения — `viewportStableHeight` от Telegram, а не `100dvh`:
-  внутри клиента `dvh` равен высоте всего экрана, и у нераскрытого
-  приложения панель вкладок уезжает за нижний край. `viewportHeight` для
-  этого не годится — он скачет во время жестов.
-- Вертикальные свайпы отключены (`disableVerticalSwipes`, Bot API 7.7):
-  иначе жест прокрутки списка сворачивает приложение.
-- Новые возможности Telegram вызывать только под `isVersionAtLeast`:
-  документация не обещает, что на старом клиенте вызов безопасен. Вне
-  Telegram заглушка скрипта представляется версией 6.0 — проверки заодно
-  прикрывают и этот случай.
-- Про safe area (Bot API 8.0) документация **не говорит**, складываются ли
-  `safeAreaInset` и `contentSafeAreaInset` или вложены друг в друга.
-  Пока используется полноэкранный режим — не используется, а отступы
-  берутся из `env(safe-area-inset-*)`. Захочется — сначала проверить на
-  живом клиенте, а не выбирать наугад.
-- Пока данные не пришли, экран показывает **заглушки** (`components/Skeleton`),
-  а не пустой список и не нули в счётчиках: «Машин нет» при живых машинах —
-  прямая ложь. Заглушки собираются из тех же классов, что и настоящие
-  карточки, поэтому содержимое встаёт на их место без скачка вёрстки.
-  Колонке с полосками нужен `sk-grow`: внутри `flex` без своей ширины
-  проценты считаются от нуля, и полоски схлопываются.
-- Экраны со списками с NAS стартуют из `localStorage` (`cache.ts`): при
-  повторном открытии картинка есть с первого кадра, заглушки — только когда
-  показывать действительно нечего.
-- `index.html` отдаётся с `Cache-Control: no-cache`, файлы с хешем в имени —
-  на год. Без этого Telegram показывает старую сборку, пока приложение не
-  перезапустят.
+- State of screens that lead out into the NAS overview is **kept in `App`**:
+  navigating unmounts the screen, and unsaved edits are lost. This has already
+  broken the folder settings and the add screen twice. For the same reason the
+  open folder of the Files tab, the selected downloads tab, the path typed by
+  hand in the folder settings and the screen a person was interrupted on live
+  there too: switching tabs would otherwise reset all of it.
+- Adding a download, the folder settings and the task screen are **parts of the
+  downloads section**, not separate places: the tab bar is not hidden on them,
+  and coming back to the tab lands where the person left off. Tapping the active
+  tab again goes back to the start of the section.
+- Initial values that arrive as a prop (`initialPath`) are taken **once** through
+  `useRef`: sending them back up from a handler makes the screen reload itself.
+- Settings are saved **immediately**, with no "Save" button: the interface
+  updates before the server answers and rolls back on an error.
+- Padding inside cards comes from the card's own `padding`, not from `margin` on
+  its children: such a rule breaks at the very first wrapper.
+- Class names are checked against the ones already taken: a card with the class
+  `app` inherited the root container's styles and stretched across the screen.
+- The theme comes from Telegram's `themeParams`; confirmations and feedback are
+  native (`showConfirm`, `HapticFeedback`), not the browser's. The theme and the
+  height are re-read on the `themeChanged` and `viewportChanged` events: reading
+  them once at startup is not enough.
+- The app height is Telegram's `viewportStableHeight`, not `100dvh`: inside the
+  client `dvh` equals the whole screen height, and in a collapsed app the tab bar
+  slides below the bottom edge. `viewportHeight` will not do for this — it jumps
+  around during gestures.
+- Vertical swipes are disabled (`disableVerticalSwipes`, Bot API 7.7): otherwise
+  a scroll gesture over a list collapses the app.
+- New Telegram features are called only under `isVersionAtLeast`: the
+  documentation does not promise that a call is safe on an old client. Outside
+  Telegram the script stub reports version 6.0 — the checks cover that case too.
+- About the safe area (Bot API 8.0) the documentation **says nothing** about
+  whether `safeAreaInset` and `contentSafeAreaInset` add up or are nested. As
+  long as full-screen mode is not used, it is not used either, and the insets
+  come from `env(safe-area-inset-*)`. If it is ever wanted — check it on a live
+  client first, rather than picking blindly.
+- Until the data arrives the screen shows **placeholders**
+  (`components/Skeleton`), not an empty list and not zeros in counters: "No
+  machines" while machines are running is a plain lie. Placeholders are built
+  from the same classes as the real cards, so the content takes their place
+  without the layout jumping. The column with bars needs `sk-grow`: inside a
+  `flex` with no width of its own, percentages are computed from zero and the
+  bars collapse.
+- Screens with lists from the NAS start from `localStorage` (`cache.ts`): on a
+  second open there is a picture from the first frame, and placeholders appear
+  only when there is genuinely nothing to show.
+- `index.html` is served with `Cache-Control: no-cache`, files with a hash in the
+  name for a year. Without this Telegram shows the old build until the app is
+  restarted.
 
-## Упаковка и публикация
+## Packaging and publishing
 
-- Установка у пользователя — **один compose, вставляемый в Container Manager**;
-  никаких файлов на NAS он не создаёт. Поэтому новая обязательная переменная
-  окружения правится в двух местах: `deploy/docker-compose.yml` и копия этого
-  файла внутри README. Их совпадение проверяет CI.
-- `.gitignore` для собранного бинарника пишется с ведущим слешем (`/dsm-mini`):
-  без него шаблон совпадает и с каталогом `cmd/dsm-mini`, и точка входа
-  тихо выпадает из репозитория.
-- `.dockerignore` обязателен: `COPY . .` иначе утащит `.env` с токеном бота и
-  паролем DSM в слой образа, откуда он достаётся через `docker history`.
-- Версия Go в `deploy/Dockerfile` должна совпадать с `go.mod`.
-- Образ собирается кросс-компиляцией под amd64 и arm64 (`--platform=$BUILDPLATFORM`
-  на стадиях сборки), а не через эмуляцию: бинарник статический, в целевом
-  образе ничего не выполняется.
-- **Пакет `.spk`** собирается обычным tar (`tools/build-spk.sh`), без тулкита
-  Synology: бинарник статический, chroot с их окружением не нужен. Порядок
-  файлов в архиве — как у spksrc: `package.tgz`, `INFO`, `scripts`, потом
-  остальное.
-- Значения `arch` в INFO — **имена платформ Synology**, а не процессоров
-  (`epyc7002`, `rtd1296`). Один пакет покрывает все модели одной
-  архитектуры.
-- DSM 7 запускает скрипты пакета от пользователя пакета, а не от root
-  (`conf/privilege` с `run-as: package`). Писать можно только в `var`
-  пакета — он же переживает обновление, в отличие от `target`.
-- Настройки мастера приходят в `postinst` переменными окружения с именами
-  ключей из `WIZARD_UIFILES`. В файл они пишутся в одинарных кавычках:
-  пароль с пробелом или `$` иначе развалит запуск службы.
-- Мастер переведён отдельными файлами `install_uifile_<язык>`; суффиксы —
-  синологовские (`rus`, `ger`, `ptb`), они не совпадают с кодами Telegram.
-- Каталог для «Источников пакетов» DSM — статические файлы на GitHub Pages,
-  по одному на каждое имя платформы Synology: Центр пакетов ждёт список,
-  **отфильтрованный по архитектуре**, а статика фильтровать не умеет.
-  Выкладывается на тег; окружение `github-pages` должно разрешать теги `v*`,
-  иначе задача падает ещё до первого шага.
-- Рецепт для SynoCommunity — в `contrib/spksrc/`: они собирают из исходников
-  своим тулчейном, наш `build-spk.sh` им не подходит. При выпуске версии там
-  правятся номера и контрольные суммы.
-- Публикация в Docker Hub — `.github/workflows/docker.yml`, секреты
-  `DOCKERHUB_USERNAME` и `DOCKERHUB_TOKEN`. Образ не уходит, пока не прошли
-  проверки.
+- There is **one way to install it: the DSM package.** Docker was dropped in
+  September 2026 — a second path meant the same settings documented twice, in
+  ten languages, and the two drifting apart. A new required setting is now
+  edited in one place: the wizard table in `tools/make-wizard.py`.
+- The `.gitignore` entry for the built binary is written with a leading slash
+  (`/dsm-mini`): without it the pattern also matches the `cmd/dsm-mini`
+  directory, and the entry point quietly drops out of the repository.
+- The **`.spk` package** is built with plain tar (`tools/build-spk.sh`), without
+  the Synology toolkit: the binary is static, a chroot with their environment is
+  not needed. The file order in the archive follows spksrc: `package.tgz`,
+  `INFO`, `scripts`, then the rest.
+- The `arch` values in INFO are **Synology platform names**, not processors
+  (`epyc7002`, `rtd1296`). One package covers every model of the same
+  architecture.
+- DSM 7 runs package scripts as the package user, not as root (`conf/privilege`
+  with `run-as: package`). Writing is only possible into the package's `var` —
+  which is also what survives an upgrade, unlike `target`.
+- Wizard settings arrive in `postinst` as environment variables named after the
+  keys from `WIZARD_UIFILES`. They are written to the file in single quotes: a
+  password with a space or a `$` would otherwise break the service start.
+- The wizard is translated in separate `install_uifile_<language>` files; the
+  suffixes are Synology's (`rus`, `ger`, `ptb`) and do not match Telegram's codes.
+- The catalogue for DSM "Package Sources" is static files on GitHub Pages, one
+  per Synology platform name: Package Center expects a list **filtered by
+  architecture**, and static files cannot filter. It is published on a tag; the
+  `github-pages` environment has to allow `v*` tags, otherwise the job fails
+  before its first step.
+- The wizard files in `spk/WIZARD_UIFILES/` are generated and committed; CI
+  regenerates them and fails if the result differs. The same goes for the ten
+  READMEs: a check compares the language links, because a translation nothing
+  links to looks perfectly fine on its own.
+- The recipe for SynoCommunity is in `contrib/spksrc/`: they build from source
+  with their own toolchain, our `build-spk.sh` does not suit them. On a release
+  the version numbers and checksums are updated there.
 
-## Языки
+## Languages
 
-Интерфейс и бот переведены на десять языков; язык берётся из `language_code`
-пользователя Telegram, незнакомый получает английский.
+The interface and the bot are translated into ten languages; the language comes
+from the Telegram user's `language_code`, an unknown one gets English.
 
-- Словари: `web/src/i18n/<код>.ts` (интерфейс) и `internal/i18n/<код>.go`
-  (бот, уведомления, ошибки API). Русский — источник истины в обоих.
-- **Новая строка добавляется сразу во все словари.** На фронтенде это
-  требует тип (`Record<Key, Phrase>`), на сервере — тест `internal/i18n`,
-  который сверяет ключи, подстановки `{name}` и отсутствие чужой
-  письменности: обрывок русского текста в португальской строке иначе
-  замечает только пользователь.
-- Множественное число на фронтенде — через `Intl.PluralRules` (формы `one`,
-  `few`, `many`), в Go его нет: сообщения написаны так, чтобы число стояло
-  после двоеточия («Активных задач: 5») и согласование не требовалось.
-- Числа и даты форматируются через `Intl` с меткой языка, а не вручную:
-  разделитель дроби и порядок дат у всех разные.
-- Сообщения об ошибках API уходят **ключом**, а не текстом: `s.fail(w, r,
-  err, "api.readFolder")`. Человек получает перевод, журнал остаётся
-  русским, а код DSM идёт отдельным полем — цифры понятны на любом языке.
-- Вид бота (имя, описания, команды) выставляется на каждом языке и **только
-  при изменении**: Telegram резко ограничивает смену имени, а на десяти
-  языках это два десятка запросов.
+- Dictionaries: `web/src/i18n/<code>.ts` (interface) and `internal/i18n/<code>.go`
+  (bot, notifications, API errors). English is the source of truth in both.
+- **A new string is added to every dictionary at once.** On the frontend the type
+  enforces it (`Record<Key, Phrase>`), on the server the `internal/i18n` test
+  does: it compares keys, `{name}` substitutions and the absence of a foreign
+  script — a scrap of Russian text inside a Portuguese string would otherwise
+  only be noticed by a user.
+- Plurals on the frontend go through `Intl.PluralRules` (the `one`, `few`, `many`
+  forms); Go has nothing like it, so the messages are written with the number
+  after a colon ("Active tasks: 5") and need no agreement.
+- Numbers and dates are formatted through `Intl` with a locale tag, not by hand:
+  the decimal separator and the date order differ everywhere.
+- API error messages travel as a **key**, not as text: `s.fail(w, r, err,
+  "api.readFolder")`. The person gets a translation, the log stays English, and
+  the DSM code goes in a separate field — digits read the same in any language.
+- The bot's appearance (name, descriptions, commands) is set for every language
+  and **only when it changes**: Telegram limits name changes hard, and across ten
+  languages that is a couple of dozen requests.
 
-## Сборка и запуск
+## Build and run
 
 ```bash
 cd web && npm install && npm run build   # Mini App → internal/web/dist
-cd .. && go build ./cmd/dsm-mini         # один бинарник со встроенным фронтендом
+cd .. && go build ./cmd/dsm-mini         # a single binary with the frontend embedded
 ```
 
-Драйвер SQLite — `modernc.org/sqlite`, на чистом Go. Менять на `mattn/go-sqlite3`
-нельзя: он требует CGO, а с ним пропадает статическая сборка, на которой
-держится образ из distroless.
+The SQLite driver is `modernc.org/sqlite`, pure Go. Swapping it for
+`mattn/go-sqlite3` is not allowed: that one needs CGO, and with CGO the static
+build the distroless image relies on is gone.
 
-## Язык
+## Language of the project
 
-**В коде русского нет.** Комментарии, имена, сообщения в журнал и тексты
-ошибок — по-английски: проект открытый, и читать его будут не только
-по-русски.
+**There is no Russian in the code.** Comments, names, log messages and error
+text are in English: the project is open, and not only Russian speakers will
+read it.
 
-Русский живёт ровно в трёх местах, и все они — **переводы**:
-`internal/i18n/ru.go`, `web/src/i18n/ru.ts`, `spk/WIZARD_UIFILES/install_uifile_rus`
-(его собирает `tools/make-wizard.py`, там же таблица текстов) плюс
-`DESCRIPTION_RUS` в рецепте для SynoCommunity. Там же и остальные девять языков.
+Russian lives in exactly three places, and all of them are **translations**:
+`internal/i18n/ru.go`, `web/src/i18n/ru.ts`,
+`spk/WIZARD_UIFILES/install_uifile_rus` (built by `tools/make-wizard.py`, which
+holds the text table) plus `DESCRIPTION_RUS` in the SynoCommunity recipe. The
+other nine languages live in the same places.
 
-Этот файл и README пока на русском — они документация, а не код.
+Documentation follows the same rule: `README.md` and this file are English,
+translations of the README are separate files (`README_RU.md` and the rest), and
+the language links at the top of every one of them are kept in step.
 
-Тексты для человека пишутся для человека, а не для разработчика: «папка не
-существует» вместо «код 403» — на любом языке.
+Commit messages stay in Russian: the history has been written that way from the
+first commit, and mixing the two would make it unreadable either way.
+
+Text for people is written for people, not for developers: "the folder does not
+exist" instead of "code 403" — in any language.

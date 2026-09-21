@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -35,13 +34,6 @@ import (
 var version = "dev"
 
 func main() {
-	// The container checks itself with this very binary: distroless has
-	// neither a shell nor curl, and pulling them in for a health check means
-	// pulling in everything that comes with them.
-	if len(os.Args) > 1 && (os.Args[1] == "-healthcheck" || os.Args[1] == "--healthcheck") {
-		os.Exit(healthcheck())
-	}
-
 	if err := run(); err != nil {
 		// Printed directly rather than through the logger: a configuration
 		// error is multi-line, and squeezed into a single line with \n it
@@ -49,32 +41,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-// healthcheck knocks on our own /healthz and returns an exit code:
-// 0 — the service answers, 1 — it does not.
-func healthcheck() int {
-	addr := os.Getenv("LISTEN_ADDR")
-	if addr == "" {
-		addr = ":8080"
-	}
-	// ":8080" means "listen everywhere"; we have to knock on a real address.
-	if strings.HasPrefix(addr, ":") {
-		addr = "127.0.0.1" + addr
-	}
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("http://" + addr + "/healthz")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "healthz answered %d\n", resp.StatusCode)
-		return 1
-	}
-	return 0
 }
 
 func run() error {
