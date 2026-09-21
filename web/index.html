@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <title>Загрузки</title>
+    <!--
+      Официальный скрипт Telegram: он создаёт window.Telegram.WebApp, через
+      который приложение получает подпись, тему и системные кнопки. Грузится
+      до нашего кода, поэтому подключён в head без defer.
+    -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -33,7 +33,35 @@ export function initTelegram(): string {
   app?.ready?.()
   app?.expand?.()
   applyTheme(app)
-  return app?.initData ?? ''
+  return app?.initData || initDataFromLocation()
+}
+
+/**
+ * Запасной способ получить подпись.
+ *
+ * Telegram кладёт параметры запуска во фрагмент адреса (#tgWebAppData=…), и
+ * они доступны, даже если внешний скрипт telegram-web-app.js не загрузился —
+ * например, когда у клиента нет доступа к telegram.org. Без этого приложение
+ * показывало бы «откройте через Telegram», будучи открытым именно из него.
+ */
+function initDataFromLocation(): string {
+  const sources = [window.location.hash.slice(1), window.location.search.slice(1)]
+  for (const source of sources) {
+    if (!source) continue
+    const value = new URLSearchParams(source).get('tgWebAppData')
+    if (value) return value
+  }
+  // Telegram сохраняет параметры запуска между переходами внутри приложения.
+  try {
+    const stored = sessionStorage.getItem('__telegram__initParams')
+    if (stored) {
+      const parsed = JSON.parse(stored) as { tgWebAppData?: string }
+      if (parsed.tgWebAppData) return parsed.tgWebAppData
+    }
+  } catch {
+    // Хранилище может быть недоступно — это не повод падать.
+  }
+  return ''
 }
 
 /**
