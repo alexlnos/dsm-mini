@@ -22,6 +22,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import shutil
 
 REPO = "alexlnos/dsm-mini"
 PAGES = f"https://{REPO.split('/')[0]}.github.io/{REPO.split('/')[1]}"
@@ -35,8 +36,16 @@ ARCHS = {
     "arm64": ["aarch64", "rtd1296", "rtd1619b", "armada37xx"],
 }
 
-DESC = ("Telegram bot with a Mini App to manage your Synology NAS: "
-        "Download Station, File Station, disks, virtual machines and containers.")
+# The listing text lives in assets/store.json together with the one the
+# package itself carries: two copies of the same paragraph drift apart.
+STORE = json.loads((pathlib.Path(__file__).resolve().parent.parent
+                    / "assets" / "store.json").read_text(encoding="utf-8"))
+DESC = STORE["description"]["enu"]
+
+# Package Center does not fetch these itself — it asks the NAS to, and streams
+# the bytes back. So they are ordinary PNGs on the same site as the catalogue.
+SHOTS = sorted((pathlib.Path(__file__).resolve().parent.parent
+                / "docs" / "store").glob("*.png"))
 
 
 def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
@@ -63,7 +72,10 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
         "thumbnail_retina": [f"{PAGES}/icon_256.png"],
         "maintainer": "alexlnos",
         "maintainer_url": f"https://github.com/{REPO}",
-        "changelog": f"https://github.com/{REPO}/releases",
+        # Package Center shows this as text under "What is new", not as a
+        # link: a URL here renders as a URL, which is what it used to do.
+        "changelog": STORE["changelog"],
+        "snapshot": [f"{PAGES}/shots/{p.name}" for p in SHOTS],
         "distributor": "alexlnos",
         "distributor_url": f"https://github.com/{REPO}",
         "support_url": f"https://github.com/{REPO}/issues",
@@ -135,10 +147,16 @@ def main() -> None:
         for syno in syno_archs:
             (out / f"{syno}.json").write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
 
+    shots = out / "shots"
+    shots.mkdir(exist_ok=True)
+    for shot in SHOTS:
+        shutil.copy2(shot, shots / shot.name)
+
     (out / "index.html").write_text(
         INDEX.format(repo=REPO, pages=PAGES, version=args.version), encoding="utf-8")
 
-    print(f"catalogue ready: {len(list(out.glob('*.json')))} files in {out}")
+    print(f"catalogue ready: {len(list(out.glob('*.json')))} files, "
+          f"{len(SHOTS)} screenshots in {out}")
 
 
 if __name__ == "__main__":

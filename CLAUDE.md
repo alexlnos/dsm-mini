@@ -180,7 +180,21 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   keys from `WIZARD_UIFILES`. They are written to the file in single quotes: a
   password with a space or a `$` would otherwise break the service start.
 - The wizard is translated in separate `install_uifile_<language>` files; the
-  suffixes are Synology's (`rus`, `ger`, `ptb`) and do not match Telegram's codes.
+  suffixes are Synology's (`rus`, `ger`, `ptb`) and do not match Telegram's
+  codes. **Italian is `ita`** — `itn` was used here once, and a suffix DSM does
+  not know is not an error: the installer quietly shows English, so only an
+  Italian speaker would ever notice. The full list is in `docs/synology-api.md`.
+- The listing text lives in **`assets/store.json`**, once: `build-spk.sh` writes
+  it into INFO as `description` and `description_<lang>`, `make-feed.py` puts
+  the English one into the catalogue. One paragraph, no line breaks and no
+  markup — of the 30 packages on a live DSM, Synology's own included, not one
+  has a newline in its description.
+- Screenshots for the listing come **only from the catalogue**, field
+  `snapshot`; the `.spk` has no field for them. Package Center does not fetch
+  them from the browser — the NAS does, through
+  `SYNO.Core.Package.Screenshot.Server`, so the address has to be reachable
+  from the NAS. `tools/make-store.py` composes the slides from the English
+  screenshots into `docs/store/`, and `make-feed.py` publishes them.
 - The catalogue for DSM "Package Sources" is static files on GitHub Pages, one
   per Synology platform name: Package Center expects a list **filtered by
   architecture**, and static files cannot filter. It is published on a tag; the

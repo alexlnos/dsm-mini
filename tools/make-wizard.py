@@ -24,6 +24,10 @@ FIELDS = [
     ("wizard_port", "port", "textfield", "8080"),
 ]
 
+# The suffixes are DSM language codes from the Synology developer guide, not
+# Telegram ones: enu, rus, ger, fre, ita, spn, ptb, plk, trk. Italian is ita —
+# itn was here once, and a suffix DSM does not know is not an error, the
+# installer just quietly shows English.
 TEXTS = {
     None: {  # English — the common file
         "step_nas": "NAS access",
@@ -115,7 +119,7 @@ TEXTS = {
         "ids_error": "Solo dígitos y comas",
         "port_error": "Solo el número de puerto",
     },
-    "itn": {
+    "ita": {
         "step_nas": "Accesso al NAS",
         "step_telegram": "Telegram",
         "nas_intro": "Crea un utente DSM dedicato al servizio invece di usare un amministratore: Pannello di controllo → Utente e gruppo → Crea. Concedi solo Download Station e File Station e non attivare la verifica in due passaggi.",

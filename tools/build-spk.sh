@@ -56,7 +56,6 @@ package="dsm-mini"
 version="$SPK_VERSION"
 os_min_ver="7.0-40000"
 displayname="dsm-mini"
-description="Telegram bot with a Mini App to manage your Synology NAS: downloads, files, disks, containers."
 maintainer="alexlnos"
 maintainer_url="https://github.com/alexlnos/dsm-mini"
 support_url="https://github.com/alexlnos/dsm-mini/issues"
@@ -68,6 +67,24 @@ silent_upgrade="no"
 silent_uninstall="no"
 ctl_stop="yes"
 EOF
+
+# The listing text comes from assets/store.json so that the package and the
+# catalogue on GitHub Pages cannot drift apart. Package Center picks the
+# description matching the DSM language and falls back to `description`.
+python3 - "$ROOT/assets/store.json" >> "$WORK/INFO" <<'PYEOF'
+import json, sys
+
+store = json.load(open(sys.argv[1], encoding="utf-8"))
+
+def line(key, value):
+    # INFO is key="value"; a stray quote would cut the value short.
+    return '%s="%s"' % (key, value.replace('"', "'"))
+
+print(line("description", store["description"]["enu"]))
+for lang, text in store["description"].items():
+    print(line("description_%s" % lang, text))
+print(line("changelog", store["changelog"]))
+PYEOF
 
 cp -r "$ROOT/spk/scripts" "$ROOT/spk/conf" "$ROOT/spk/WIZARD_UIFILES" "$WORK/"
 cp "$ROOT/spk/PACKAGE_ICON.PNG" "$ROOT/spk/PACKAGE_ICON_256.PNG" "$WORK/"
