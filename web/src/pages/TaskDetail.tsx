@@ -36,14 +36,24 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
   const load = useCallback(async () => {
     try {
       setDetails(await api.taskDetails(task.id))
-    } catch (e) {
+    } catch {
       // Подробности не критичны: основной экран остаётся полезным.
       setDetails({ files: null, trackers: null })
-      if (!(e instanceof ApiError)) return
     }
   }, [task.id])
 
-  useEffect(() => { void load() }, [load])
+  // Перезапрашиваем состав не только при открытии, но и когда меняется
+  // состояние задачи: после снятия с паузы NAS заново открывает BT-сессию,
+  // и файлы, которых только что не было, появляются.
+  useEffect(() => { void load() }, [load, task.status])
+
+  // Пока задача работает, состав подтягивается сам: список приходит не
+  // мгновенно после возобновления, а доли загруженного меняются на ходу.
+  useEffect(() => {
+    if (!task.active) return
+    const timer = window.setInterval(() => { void load() }, 5000)
+    return () => window.clearInterval(timer)
+  }, [task.active, load])
 
   async function run(action: () => Promise<unknown>, after?: () => void) {
     setBusy(true)
@@ -168,7 +178,11 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
       )}
 
       {!notActive && files.length === 0 && (
-        <div className="card empty-text">Получаю список файлов…</div>
+        <div className="card empty-text">
+          {task.active
+            ? 'Получаю список файлов… NAS отдаёт его не сразу после запуска.'
+            : 'Список файлов пуст.'}
+        </div>
       )}
 
       <div className="list">
