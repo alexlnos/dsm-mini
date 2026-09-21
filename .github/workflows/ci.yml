@@ -1,0 +1,69 @@
+# Проверки на каждый push и pull request.
+#
+# Этот же файл вызывается из docker.yml: образ не публикуется, пока проверки
+# не прошли. Так в Docker Hub не попадает сборка с падающими тестами.
+name: Проверки
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Форматирование
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::Не отформатировано gofmt: $unformatted"
+            exit 1
+          fi
+
+      - run: go vet ./...
+
+      # Интеграционные тесты требуют живого NAS и по умолчанию пропускаются.
+      - run: go test ./...
+
+  web:
+    name: Mini App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+        working-directory: web
+
+      - name: Типы
+        run: npx tsc --noEmit
+        working-directory: web
+
+      - run: npm run build
+        working-directory: web
+
+      # Собранный фронтенд лежит в репозитории: его забирает go:embed. Если
+      # сборка разошлась с тем, что закоммичено, бинарник будет со старым
+      # интерфейсом — и понять это по одному лишь зелёному CI невозможно.
+      - name: Собранный интерфейс совпадает с закоммиченным
+        run: |
+          if ! git diff --quiet -- internal/web/dist; then
+            echo "::error::internal/web/dist отличается от результата сборки. Выполните 'cd web && npm run build' и закоммитьте результат."
+            git diff --stat -- internal/web/dist
+            exit 1
+          fi

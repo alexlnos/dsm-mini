@@ -1,0 +1,31 @@
+# Что НЕ должно попасть в образ.
+#
+# Главное здесь — .env: в нём токен бота и пароль DSM, а `COPY . .` забрал бы
+# его в слой образа, откуда он достаётся простым `docker history`.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+.idea
+.vscode
+
+# Ставятся и собираются внутри образа заново.
+web/node_modules
+web/dist
+internal/web/dist
+
+# Всё, что не нужно работающему сервису.
+docs
+deploy
+*.md
+!README.md
+.github
+.gitlab-ci.yml
+
+# Локальные базы и временные файлы.
+*.db
+*.db-shm
+*.db-wal
+data

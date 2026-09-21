@@ -1,23 +1,41 @@
+# Запуск dsm-mini одним контейнером.
+#
+# Значения берутся из файла .env, лежащего рядом с этим файлом: docker compose
+# читает его сам. Переменные перечислены явно, чтобы было видно, что вообще
+# настраивается, и чтобы пустая переменная не затирала разумное значение.
 services:
   dsm-mini:
-    image: ghcr.io/alexlnos/dsm-mini:latest
+    # Если собираете образ сами, подставьте своё имя в Docker Hub.
+    image: ${DSM_MINI_IMAGE:-alexlnos/dsm-mini:latest}
     container_name: dsm-mini
     restart: unless-stopped
-    env_file:
-      - ../.env
+
+    environment:
+      # ── Synology DSM ───────────────────────────────────────────────────
+      DSM_URL: ${DSM_URL:?укажите адрес DSM в .env}
+      DSM_USER: ${DSM_USER:?укажите пользователя DSM в .env}
+      DSM_PASSWORD: ${DSM_PASSWORD:?укажите пароль DSM в .env}
+      DSM_INSECURE_TLS: ${DSM_INSECURE_TLS:-true}
+
+      # ── Telegram ───────────────────────────────────────────────────────
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?укажите токен бота в .env}
+      ALLOWED_USER_IDS: ${ALLOWED_USER_IDS:?укажите свой Telegram ID в .env}
+      PUBLIC_URL: ${PUBLIC_URL:?укажите публичный адрес в .env}
+
+      # ── Сервис ─────────────────────────────────────────────────────────
+      LISTEN_ADDR: ${LISTEN_ADDR:-:8080}
+      WATCH_INTERVAL: ${WATCH_INTERVAL:-30s}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      STATE_DIR: /data
+
     ports:
-      # Наружу порт не публикуем: перед сервисом стоит reverse proxy,
-      # который завершает TLS. Меняйте адрес привязки, если прокси на
-      # другой машине.
-      - "127.0.0.1:8080:8080"
+      # Наружу порт не публикуем: перед сервисом стоит обратный прокси DSM,
+      # он же завершает TLS. 127.0.0.1 означает «только с самого NAS».
+      - "127.0.0.1:${HOST_PORT:-8080}:8080"
+
     volumes:
+      # Настройки и состояние задач: переживают пересоздание контейнера.
       - dsm-mini-state:/data
-    healthcheck:
-      test: ["CMD", "/dsm-mini", "-healthcheck"]
-      interval: 60s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
 
 volumes:
   dsm-mini-state:
