@@ -60,13 +60,18 @@ func (s *Server) userSettings(ctx context.Context, userID int64) store.Settings 
 	return settings
 }
 
-// suggestFolders собирает папки, которые есть смысл предложить: папку по
-// умолчанию и те, что уже используются задачами.
+// suggestFolders предлагает папки, которые есть смысл закрепить: папку по
+// умолчанию из Download Station и те, куда пользователь уже складывал
+// загрузки сам.
+//
+// Папки существующих задач сюда не попадают намеренно: это чужие раздачи и
+// давние закачки, к которым новая загрузка отношения не имеет.
 func (s *Server) suggestFolders(r *http.Request) []string {
 	ctx := r.Context()
+	u, _ := userFrom(ctx)
+
 	seen := map[string]bool{}
 	var out []string
-
 	add := func(folder string) {
 		if folder == "" || seen[folder] {
 			return
@@ -78,14 +83,14 @@ func (s *Server) suggestFolders(r *http.Request) []string {
 	if def, err := s.ds.DefaultDestination(ctx); err == nil {
 		add(def)
 	}
-	tasks, err := s.ds.List(ctx)
-	if err != nil {
-		s.log.Warn("не получить задачи для списка папок", "err", err)
-		return out
-	}
-	// С конца: недавние задачи интереснее старых.
-	for i := len(tasks) - 1; i >= 0 && len(out) < 12; i-- {
-		add(tasks[i].Destination)
+	if s.settings != nil {
+		recent, err := s.settings.RecentFolders(ctx, u.ID, 8)
+		if err != nil {
+			s.log.Warn("не прочитать историю папок", "err", err)
+		}
+		for _, folder := range recent {
+			add(folder)
+		}
 	}
 	return out
 }
@@ -109,6 +114,7 @@ func (s *Server) folderChoices(r *http.Request, userID int64) []string {
 	for _, f := range settings.PinnedFolders {
 		add(f)
 	}
+	// Недавние — это собственная история, а не папки задач Download Station.
 	if settings.ShowRecent || len(out) == 0 {
 		for _, f := range s.suggestFolders(r) {
 			add(f)

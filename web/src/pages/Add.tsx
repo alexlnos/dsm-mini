@@ -1,51 +1,44 @@
-import { useEffect, useState } from 'react'
-import { api, ApiError } from '../api'
+import { useEffect } from 'react'
+import { ApiError } from '../api'
 import { alertMessage, backButton, haptic } from '../telegram'
 import type { Overview } from '../types'
 
-interface Props {
-  data: Overview | null
-  onDone: () => void
-  onBack: () => void
-  onConfigureFolders: () => void
+/** Несохранённое содержимое экрана: живёт выше, чтобы пережить обзор NAS. */
+export interface AddDraft {
+  link: string
+  destination: string
 }
 
-export function Add({ data, onDone, onBack, onConfigureFolders }: Props) {
-  const [link, setLink] = useState('')
-  const [destination, setDestination] = useState(
-    data?.settings?.last_used || data?.default_destination || '',
-  )
-  const [sending, setSending] = useState(false)
+interface Props {
+  data: Overview | null
+  draft: AddDraft
+  onDraftChange: (draft: AddDraft) => void
+  onBack: () => void
+  onConfigureFolders: () => void
+  /** Открыть обзор NAS, начиная с указанной папки, чтобы выбрать другую. */
+  onBrowse: (from: string) => void
+  sending: boolean
+  onSend: () => void
+}
 
+export function Add({
+  data, draft, onDraftChange, onBack, onConfigureFolders, onBrowse, sending, onSend,
+}: Props) {
   useEffect(() => backButton(onBack), [onBack])
 
-  // Список приходит с сервера: закреплённые папки, затем недавние.
   const folders = data?.folders ?? []
+  const { link, destination } = draft
 
-  async function submit() {
-    const urls = link.split('\n').map((s) => s.trim()).filter(Boolean)
-    if (urls.length === 0) {
-      alertMessage('Вставьте ссылку')
-      return
-    }
-    setSending(true)
-    try {
-      await api.create(urls, destination)
-      haptic('success')
-      setLink('')
-      onDone()
-    } catch (e) {
-      haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось поставить задачу')
-    } finally {
-      setSending(false)
-    }
-  }
+  // Папка, выбранная в обзоре, может не входить в список — показываем её
+  // отдельной строкой, иначе выбор выглядел бы пропавшим.
+  const shown = destination && !folders.includes(destination)
+    ? [destination, ...folders]
+    : folders
 
   async function paste() {
     try {
       const text = await navigator.clipboard.readText()
-      if (text) setLink(text.trim())
+      if (text) onDraftChange({ ...draft, link: text.trim() })
     } catch {
       alertMessage('Буфер обмена недоступен — вставьте ссылку вручную')
     }
@@ -57,14 +50,30 @@ export function Add({ data, onDone, onBack, onConfigureFolders }: Props) {
         <h1 className="card-title">Новая загрузка</h1>
 
         <label className="field-label" htmlFor="link">Ссылка</label>
-        <textarea
-          id="link"
-          rows={3}
-          className="input"
-          placeholder="magnet:?xt=urn:btih:… или https://…"
-          value={link}
-          onChange={(e) => setLink(e.target.value)}
-        />
+        <div className="input-wrap">
+          <textarea
+            id="link"
+            rows={3}
+            className="input"
+            placeholder="magnet:?xt=urn:btih:… или https://…"
+            value={link}
+            onChange={(e) => onDraftChange({ ...draft, link: e.target.value })}
+          />
+          {link && (
+            <button
+              type="button"
+              className="input-clear"
+              onClick={() => { haptic('light'); onDraftChange({ ...draft, link: '' }) }}
+              aria-label="Очистить"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12" /><path d="M18 6L6 18" />
+              </svg>
+            </button>
+          )}
+        </div>
+
         <div className="row">
           <button type="button" className="button secondary" onClick={paste}>
             Из буфера
@@ -80,34 +89,60 @@ export function Add({ data, onDone, onBack, onConfigureFolders }: Props) {
       </div>
 
       <div className="list">
-        {folders.map((folder) => (
-          <button
+        {shown.map((folder) => (
+          <div
             key={folder}
-            type="button"
             className={folder === destination ? 'card folder selected' : 'card folder'}
-            onClick={() => setDestination(folder)}
           >
-            <span className="radio" aria-hidden="true">
-              {folder === destination && <span className="radio-dot" />}
-            </span>
-            <span className="folder-name">{folder}</span>
-          </button>
-        ))}
-        {folders.length === 0 && (
-          <div className="card empty-text">
-            Список пуст. Нажмите «Настроить», чтобы закрепить папки.
+            <button
+              type="button"
+              className="folder-main"
+              onClick={() => onDraftChange({ ...draft, destination: folder })}
+            >
+              <span className="radio" aria-hidden="true">
+                {folder === destination && <span className="radio-dot" />}
+              </span>
+              <span className="folder-name">{folder}</span>
+            </button>
+            <button
+              type="button"
+              className="icon-button small"
+              onClick={() => onBrowse(folder)}
+              aria-label={`Открыть ${folder} и выбрать вложенную папку`}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5z" />
+              </svg>
+            </button>
           </div>
-        )}
+        ))}
+
+        <button type="button" className="card folder pick-any" onClick={() => onBrowse('')}>
+          <span className="icon dir" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5z" />
+              <path d="M11 11.5v4" /><path d="M9 13.5h4" />
+            </svg>
+          </span>
+          <span className="folder-name accent">Выбрать папку на NAS</span>
+        </button>
       </div>
 
       <button
         type="button"
         className="main-button"
         disabled={sending || !link.trim()}
-        onClick={submit}
+        onClick={onSend}
       >
         {sending ? 'Ставлю…' : 'Поставить в очередь'}
       </button>
     </div>
   )
+}
+
+export function describeError(e: unknown): string {
+  if (e instanceof ApiError) return e.detail ?? e.message
+  return 'Не получилось поставить задачу'
 }

@@ -42,6 +42,20 @@ var migrations = []string{
 		updated_at INTEGER NOT NULL
 	);
 	`,
+	`
+	-- Куда пользователь сам складывал загрузки. Раньше «недавние» папки
+	-- брались из задач Download Station, то есть из чужих раздач и старых
+	-- закачек; здесь — только собственная история.
+	CREATE TABLE recent_folders (
+		user_id INTEGER NOT NULL,
+		path    TEXT    NOT NULL,
+		used_at INTEGER NOT NULL,
+		PRIMARY KEY (user_id, path)
+	);
+
+	CREATE INDEX idx_recent_folders_user_time
+		ON recent_folders (user_id, used_at DESC);
+	`,
 }
 
 // Open открывает базу и доводит её схему до актуальной.

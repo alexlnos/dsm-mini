@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // maxPinned — сколько папок можно закрепить.
@@ -115,18 +116,61 @@ func (s *Store) Set(ctx context.Context, userID int64, v Settings) (Settings, er
 	return v, tx.Commit()
 }
 
-// RememberLastUsed запоминает папку последней задачи.
+// RememberLastUsed запоминает папку последней задачи и пополняет историю.
 func (s *Store) RememberLastUsed(ctx context.Context, userID int64, folder string) error {
 	folder = normalize(folder)
 	if folder == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO user_settings (user_id, show_recent, last_used)
 		VALUES (?, 1, ?)
 		ON CONFLICT(user_id) DO UPDATE SET last_used = excluded.last_used`,
-		userID, folder)
-	return err
+		userID, folder); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO recent_folders (user_id, path, used_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(user_id, path) DO UPDATE SET used_at = excluded.used_at`,
+		userID, folder, time.Now().Unix()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// RecentFolders возвращает папки, куда пользователь складывал загрузки,
+// начиная с самой свежей.
+func (s *Store) RecentFolders(ctx context.Context, userID int64, limit int) ([]string, error) {
+	if limit <= 0 {
+		limit = 6
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT path FROM recent_folders
+		WHERE user_id = ?
+		ORDER BY used_at DESC
+		LIMIT ?`, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("не прочитать историю папок: %w", err)
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		out = append(out, path)
+	}
+	return out, rows.Err()
 }
 
 func cleanFolders(in []string) []string {

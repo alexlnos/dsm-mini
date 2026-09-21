@@ -348,16 +348,40 @@ h1 {
 
 .row { display: flex; gap: 8px; margin-top: 10px; }
 
+.input-wrap { position: relative; }
+
+/* Крестик поверх поля: очистить длинную ссылку иначе значит долго держать backspace. */
+.input-clear {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ring-track);
+  color: var(--muted-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Базовая кнопка акцентная: без этого «Выбрать папку» выглядела отключённой. */
 .button {
   flex-grow: 1;
   height: 44px;
   border: 0;
   border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
   font: inherit;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
+
+.button:disabled { opacity: 0.45; cursor: default; }
 
 .button.secondary { background: var(--accent-soft); color: var(--accent); }
 .button.danger { background: var(--bad-soft); color: var(--bad); }
@@ -469,15 +493,33 @@ h1 {
 .folder {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 13px;
+  gap: 8px;
+  padding: 8px 10px 8px 13px;
   width: 100%;
   border: 0;
   font: inherit;
   color: inherit;
   text-align: left;
+}
+
+.folder-main {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 5px 0;
   cursor: pointer;
 }
+
+.folder.pick-any { padding: 13px; cursor: pointer; gap: 12px; }
+.folder-name.accent { color: var(--accent); font-weight: 500; }
+.folder.pick-any .icon { width: 32px; height: 32px; border-radius: 9px; }
 
 .folder.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
 .folder-name { font-size: 15px; font-weight: 500; }

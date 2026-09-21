@@ -26,9 +26,11 @@ interface FilesProps {
   pickMode?: boolean
   onPick?: (path: string) => void
   onCancelPick?: () => void
+  /** С какой папки начать обзор. Пусто — с корня. */
+  initialPath?: string
 }
 
-export function Files({ pickMode, onPick, onCancelPick }: FilesProps = {}) {
+export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProps = {}) {
   const [path, setPath] = useState('/')
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,7 +51,10 @@ export function Files({ pickMode, onPick, onCancelPick }: FilesProps = {}) {
     }
   }, [])
 
-  useEffect(() => { void load('/') }, [load])
+  useEffect(() => {
+    const start = initialPath ? '/' + initialPath.replace(/^\/+/, '') : '/'
+    void load(start)
+  }, [load, initialPath])
   useEffect(() => {
     if (!pickMode || !onCancelPick) return
     return backButton(onCancelPick)

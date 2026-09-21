@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Downloads } from './pages/Downloads'
-import { Add } from './pages/Add'
+import { Add, describeError, type AddDraft } from './pages/Add'
 import { Files } from './pages/Files'
 import { Folders } from './pages/Folders'
 import { TaskDetail } from './pages/TaskDetail'
 import { api, ApiError } from './api'
+import { alertMessage, haptic } from './telegram'
 import type { Overview, Task } from './types'
 
 type Screen =
@@ -15,6 +16,8 @@ type Screen =
   | { name: 'folders' }
   // Обзор NAS в режиме выбора папки: открывается из настройки папок.
   | { name: 'pickFolder' }
+  // Обзор NAS для выбора папки текущей загрузки, начиная с указанной.
+  | { name: 'pickDestination'; from: string }
 
 /** Как часто обновлять список, когда что-то качается. */
 const ACTIVE_POLL = 2500
@@ -24,6 +27,10 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'downloads' })
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Содержимое экрана добавления: переход в обзор NAS размонтирует его, и без
+  // этого введённая ссылка пропадала бы.
+  const [addDraft, setAddDraft] = useState<AddDraft>({ link: '', destination: '' })
+  const [sending, setSending] = useState(false)
 
 
   const refresh = useCallback(async () => {
@@ -72,6 +79,34 @@ export function App() {
     }
   }, [refresh])
 
+  // Папка по умолчанию подставляется, пока пользователь не выбрал свою.
+  useEffect(() => {
+    if (addDraft.destination || !data) return
+    const fallback = data.settings?.last_used || data.folders?.[0] || data.default_destination
+    if (fallback) setAddDraft((current) => ({ ...current, destination: fallback }))
+  }, [data, addDraft.destination])
+
+  const submit = useCallback(async () => {
+    const urls = addDraft.link.split('\n').map((s) => s.trim()).filter(Boolean)
+    if (urls.length === 0) {
+      alertMessage('Вставьте ссылку')
+      return
+    }
+    setSending(true)
+    try {
+      await api.create(urls, addDraft.destination)
+      haptic('success')
+      setAddDraft({ link: '', destination: addDraft.destination })
+      void refresh()
+      setScreen({ name: 'downloads' })
+    } catch (e) {
+      haptic('error')
+      alertMessage(describeError(e))
+    } finally {
+      setSending(false)
+    }
+  }, [addDraft, refresh])
+
   const openTask = (task: Task) => setScreen({ name: 'task', id: task.id })
   const current = screen.name === 'task'
     ? data?.tasks.find((t) => t.id === screen.id)
@@ -112,9 +147,24 @@ export function App() {
         {screen.name === 'add' && (
           <Add
             data={data}
-            onDone={() => { void refresh(); setScreen({ name: 'downloads' }) }}
+            draft={addDraft}
+            onDraftChange={setAddDraft}
+            sending={sending}
+            onSend={() => void submit()}
             onBack={() => setScreen({ name: 'downloads' })}
             onConfigureFolders={() => setScreen({ name: 'folders' })}
+            onBrowse={(from) => setScreen({ name: 'pickDestination', from })}
+          />
+        )}
+        {screen.name === 'pickDestination' && (
+          <Files
+            pickMode
+            initialPath={screen.from}
+            onPick={(path) => {
+              setAddDraft((current) => ({ ...current, destination: path }))
+              setScreen({ name: 'add' })
+            }}
+            onCancelPick={() => setScreen({ name: 'add' })}
           />
         )}
         {screen.name === 'task' && current && (

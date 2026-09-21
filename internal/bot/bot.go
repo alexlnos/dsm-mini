@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
+	"github.com/alexlnos/dsm-mini/internal/store"
 	tg "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
@@ -27,6 +28,7 @@ const maxTorrentSize = 10 << 20
 type Bot struct {
 	api       *tg.Bot
 	ds        downloadstation.Station
+	settings  *store.Store
 	allowed   []int64
 	publicURL string
 	token     string
@@ -39,6 +41,8 @@ type Options struct {
 	Token          string
 	AllowedUserIDs []int64
 	Downloads      downloadstation.Station
+	// Settings — закреплённые папки пользователя и история.
+	Settings *store.Store
 	// PublicURL — адрес Mini App для кнопки «Открыть».
 	PublicURL string
 	Logger    *slog.Logger
@@ -51,6 +55,7 @@ func New(o Options) (*Bot, error) {
 	}
 	b := &Bot{
 		ds:        o.Downloads,
+		settings:  o.Settings,
 		allowed:   o.AllowedUserIDs,
 		publicURL: o.PublicURL,
 		token:     o.Token,
@@ -182,7 +187,7 @@ func (b *Bot) handleText(ctx context.Context, msg *models.Message) {
 			"Это не похоже на ссылку для загрузки. Пришлите magnet:, http(s):// или файл .torrent.")
 		return
 	}
-	b.askDestination(ctx, msg.Chat.ID, pending{URL: link, Title: titleFromLink(link)})
+	b.askDestination(ctx, msg.Chat.ID, msg.From.ID, pending{URL: link, Title: titleFromLink(link)})
 }
 
 func (b *Bot) handleDocument(ctx context.Context, msg *models.Message) {
@@ -203,7 +208,7 @@ func (b *Bot) handleDocument(ctx context.Context, msg *models.Message) {
 		b.reply(ctx, msg.Chat.ID, "Не получилось забрать файл из Telegram.")
 		return
 	}
-	b.askDestination(ctx, msg.Chat.ID, pending{File: data, FileName: name, Title: name})
+	b.askDestination(ctx, msg.Chat.ID, msg.From.ID, pending{File: data, FileName: name, Title: name})
 }
 
 // download забирает файл, присланный в чат, с серверов Telegram.
@@ -230,10 +235,10 @@ func (b *Bot) download(ctx context.Context, fileID string) ([]byte, error) {
 }
 
 // askDestination предлагает папки кнопками.
-func (b *Bot) askDestination(ctx context.Context, chatID int64, p pending) {
+func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, p pending) {
 	key := b.pending.put(p)
 
-	folders := b.folders(ctx)
+	folders := b.folders(ctx, userID)
 	rows := make([][]models.InlineKeyboardButton, 0, len(folders))
 	for i, f := range folders {
 		rows = append(rows, []models.InlineKeyboardButton{{
@@ -260,24 +265,43 @@ func (b *Bot) askDestination(ctx context.Context, chatID int64, p pending) {
 
 // folders собирает список папок для кнопок: папка по умолчанию и те, куда
 // недавно уже качали.
-func (b *Bot) folders(ctx context.Context) []string {
+// folders собирает папки для кнопок: закреплённые пользователем, затем его
+// недавние и папка по умолчанию.
+//
+// Папки существующих задач сюда не идут: это чужие раздачи и давние
+// закачки, к новой загрузке отношения не имеющие.
+func (b *Bot) folders(ctx context.Context, userID int64) []string {
 	seen := map[string]bool{}
-	var out []string
-
-	if def, err := b.ds.DefaultDestination(ctx); err == nil && def != "" {
-		seen[def] = true
-		out = append(out, def)
-	}
-	tasks, err := b.ds.List(ctx)
-	if err != nil {
-		b.log.Warn("не получить список задач для папок", "err", err)
-	}
-	for i := len(tasks) - 1; i >= 0 && len(out) < 5; i-- {
-		d := tasks[i].Destination
-		if d != "" && !seen[d] {
-			seen[d] = true
-			out = append(out, d)
+	out := make([]string, 0, 6)
+	add := func(folder string) {
+		if folder == "" || seen[folder] {
+			return
 		}
+		seen[folder] = true
+		out = append(out, folder)
+	}
+
+	if b.settings != nil {
+		settings, err := b.settings.Get(ctx, userID)
+		if err != nil {
+			b.log.Warn("не прочитать настройки для папок", "user", userID, "err", err)
+		} else {
+			for _, folder := range settings.PinnedFolders {
+				add(folder)
+			}
+			if settings.ShowRecent {
+				recent, err := b.settings.RecentFolders(ctx, userID, 5)
+				if err != nil {
+					b.log.Warn("не прочитать историю папок", "err", err)
+				}
+				for _, folder := range recent {
+					add(folder)
+				}
+			}
+		}
+	}
+	if def, err := b.ds.DefaultDestination(ctx); err == nil {
+		add(def)
 	}
 	return out
 }
@@ -309,7 +333,7 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 		b.answer(ctx, q.ID, "Непонятный выбор")
 		return
 	}
-	folders := b.folders(ctx)
+	folders := b.folders(ctx, q.From.ID)
 	if index < 0 || index >= len(folders) {
 		b.answer(ctx, q.ID, "Папка больше недоступна")
 		return
@@ -331,6 +355,11 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 		return
 	}
 
+	if b.settings != nil {
+		if err := b.settings.RememberLastUsed(ctx, q.From.ID, dest); err != nil {
+			b.log.Warn("не запомнить папку", "err", err)
+		}
+	}
 	b.log.Info("задача из чата поставлена", "user", q.From.ID, "dest", dest)
 	b.answer(ctx, q.ID, "Поставлено")
 	b.reply(ctx, chatOf(q), "Поставил в очередь → "+dest)
