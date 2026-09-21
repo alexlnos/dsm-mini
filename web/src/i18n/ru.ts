@@ -221,6 +221,9 @@ export const ru = {
   'storage.pools': 'Пулы',
   'storage.disks': 'Диски',
   'storage.volumeOk': 'исправен',
+  'storage.rolePool': 'пул {pool}',
+  'storage.roleCache': 'кэш SSD',
+  'storage.roleFree': 'свободен',
   'storage.pool': 'Пул {number}',
   'storage.failed': 'Не получить состояние хранилища',
 

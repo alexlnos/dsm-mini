@@ -200,6 +200,9 @@ export const uk: Record<Key, Phrase> = {
   'storage.pools': 'Пули',
   'storage.disks': 'Диски',
   'storage.volumeOk': 'справний',
+  'storage.rolePool': 'пул {pool}',
+  'storage.roleCache': 'кеш SSD',
+  'storage.roleFree': 'вільний',
   'storage.pool': 'Пул {number}',
   'storage.failed': 'Не вдалося отримати стан сховища',
 

@@ -195,6 +195,9 @@ export const en: Record<Key, Phrase> = {
   'storage.pools': 'Pools',
   'storage.disks': 'Disks',
   'storage.volumeOk': 'healthy',
+  'storage.rolePool': 'pool {pool}',
+  'storage.roleCache': 'SSD cache',
+  'storage.roleFree': 'free',
   'storage.pool': 'Pool {number}',
   'storage.failed': 'Could not get the storage state',
 

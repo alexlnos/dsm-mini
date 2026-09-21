@@ -195,6 +195,9 @@ export const it: Record<Key, Phrase> = {
   'storage.pools': 'Pool',
   'storage.disks': 'Dischi',
   'storage.volumeOk': 'a posto',
+  'storage.rolePool': 'pool {pool}',
+  'storage.roleCache': 'cache SSD',
+  'storage.roleFree': 'libero',
   'storage.pool': 'Pool {number}',
   'storage.failed': 'Impossibile ottenere lo stato dell’archiviazione',
 

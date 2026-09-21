@@ -195,6 +195,9 @@ export const de: Record<Key, Phrase> = {
   'storage.pools': 'Pools',
   'storage.disks': 'Festplatten',
   'storage.volumeOk': 'in Ordnung',
+  'storage.rolePool': 'Pool {pool}',
+  'storage.roleCache': 'SSD-Cache',
+  'storage.roleFree': 'frei',
   'storage.pool': 'Pool {number}',
   'storage.failed': 'Speicherzustand nicht erhalten',
 

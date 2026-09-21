@@ -34,8 +34,13 @@ type Disk struct {
 	Slot int `json:"slot"`
 	// IsSSD отличает M.2 и SSD от обычных дисков.
 	IsSSD bool `json:"is_ssd"`
-	// Role — для чего диск используется: пул, кэш, свободен.
+	// Role — для чего диск используется: "pool", "cache" или "free".
+	//
+	// Здесь код, а не готовая фраза: подпись переводится на стороне
+	// интерфейса, иначе англичанин увидел бы русское «пул reuse_1».
 	Role string `json:"role,omitempty"`
+	// Pool — имя пула, если диск в пуле.
+	Pool string `json:"pool,omitempty"`
 	// Healthy сведён из состояния диска и SMART.
 	Healthy bool `json:"healthy"`
 }
@@ -130,6 +135,7 @@ func (s *Service) Load(ctx context.Context) (Overview, error) {
 			Slot:    d.SlotID,
 			IsSSD:   d.IsSSD,
 			Role:    role(d.UsedBy, d.TrayStatus),
+			Pool:    d.UsedBy,
 			Healthy: healthy,
 		})
 	}
@@ -164,15 +170,15 @@ func (s *Service) Load(ctx context.Context) (Overview, error) {
 	return overview, nil
 }
 
-// role описывает назначение диска человеческими словами.
+// role называет назначение диска кодом, который интерфейс переведёт сам.
 func role(usedBy, tray string) string {
 	switch {
 	case strings.Contains(strings.ToLower(tray), "cache"):
-		return "кэш SSD"
+		return "cache"
 	case usedBy != "":
-		return "пул " + usedBy
+		return "pool"
 	default:
-		return "свободен"
+		return "free"
 	}
 }
 

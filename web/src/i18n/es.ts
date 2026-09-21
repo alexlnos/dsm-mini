@@ -195,6 +195,9 @@ export const es: Record<Key, Phrase> = {
   'storage.pools': 'Grupos',
   'storage.disks': 'Discos',
   'storage.volumeOk': 'correcto',
+  'storage.rolePool': 'grupo {pool}',
+  'storage.roleCache': 'caché SSD',
+  'storage.roleFree': 'libre',
   'storage.pool': 'Grupo {number}',
   'storage.failed': 'No se pudo obtener el estado del almacenamiento',
 

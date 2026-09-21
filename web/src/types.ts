@@ -133,7 +133,10 @@ export interface Disk {
   smart: string
   slot: number
   is_ssd: boolean
+  /** Назначение диска: 'pool' | 'cache' | 'free'. Подпись собирает интерфейс. */
   role?: string
+  /** Имя пула, если диск в пуле. */
+  pool?: string
   healthy: boolean
 }
 

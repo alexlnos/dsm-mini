@@ -200,6 +200,9 @@ export const pl: Record<Key, Phrase> = {
   'storage.pools': 'Pule',
   'storage.disks': 'Dyski',
   'storage.volumeOk': 'sprawny',
+  'storage.rolePool': 'pula {pool}',
+  'storage.roleCache': 'pamięć SSD',
+  'storage.roleFree': 'wolny',
   'storage.pool': 'Pula {number}',
   'storage.failed': 'Nie udało się pobrać stanu pamięci',
 

@@ -195,6 +195,9 @@ export const tr: Record<Key, Phrase> = {
   'storage.pools': 'Havuzlar',
   'storage.disks': 'Diskler',
   'storage.volumeOk': 'sorunsuz',
+  'storage.rolePool': '{pool} havuzu',
+  'storage.roleCache': 'SSD önbellek',
+  'storage.roleFree': 'boş',
   'storage.pool': '{number}. havuz',
   'storage.failed': 'Depolama durumu alınamadı',
 

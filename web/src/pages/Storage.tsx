@@ -12,6 +12,21 @@ interface Props {
   onBack: () => void
 }
 
+/** Номер пула из идентификатора DSM: reuse_1 → 1. */
+function poolNumber(id: string): string {
+  return id.replace('reuse_', '')
+}
+
+/** Назначение диска: сервер присылает код, подпись собираем на своём языке. */
+function diskRole(disk: Disk): string {
+  switch (disk.role) {
+    case 'pool': return t('storage.rolePool', { pool: poolNumber(disk.pool ?? '') })
+    case 'cache': return t('storage.roleCache')
+    case 'free': return t('storage.roleFree')
+    default: return disk.role ?? ''
+  }
+}
+
 /** Температура выше 50 °C заслуживает внимания, выше 55 — тревоги. */
 function tempClass(temp: number): string {
   if (temp >= 55) return 'temp hot'
@@ -149,7 +164,7 @@ export function Storage({ onBack }: Props) {
                 <div className="pool">
                   <div className="volume-head">
                     <span className="volume-name">
-                      {t('storage.pool', { number: p.id.replace('reuse_', '') })}
+                      {t('storage.pool', { number: poolNumber(p.id) })}
                     </span>
                     <span className="muted tnum">{size(p.total)}</span>
                   </div>
@@ -175,7 +190,7 @@ export function Storage({ onBack }: Props) {
               <span className={d.healthy ? 'dot on' : 'dot bad'} aria-hidden="true" />
               <div className="disk-text">
                 <span className="disk-name">{d.id} · {d.model}</span>
-                <span className="disk-meta tnum">{size(d.size)} · {d.role}</span>
+                <span className="disk-meta tnum">{size(d.size)} · {diskRole(d)}</span>
               </div>
               <span className={tempClass(d.temp)}>{d.temp} °C</span>
             </div>
