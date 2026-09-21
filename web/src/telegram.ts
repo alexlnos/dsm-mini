@@ -8,8 +8,14 @@ interface TelegramWebApp {
   initData?: string
   colorScheme?: 'light' | 'dark'
   themeParams?: Record<string, string>
+  viewportStableHeight?: number
+  isVersionAtLeast?: (version: string) => boolean
   ready?: () => void
   expand?: () => void
+  disableVerticalSwipes?: () => void
+  setHeaderColor?: (color: string) => void
+  setBottomBarColor?: (color: string) => void
+  onEvent?: (event: string, handler: () => void) => void
   showConfirm?: (message: string, callback: (ok: boolean) => void) => void
   showAlert?: (message: string, callback?: () => void) => void
   HapticFeedback?: {
@@ -33,7 +39,57 @@ export function initTelegram(): string {
   app?.ready?.()
   app?.expand?.()
   applyTheme(app)
+  applyViewport(app)
+  applyChrome(app)
+
+  // Тема и высота меняются уже после запуска: пользователь переключает
+  // оформление, поворачивает телефон, вытягивает приложение на весь экран.
+  app?.onEvent?.('themeChanged', () => {
+    applyTheme(webApp())
+    applyChrome(webApp())
+  })
+  app?.onEvent?.('viewportChanged', () => applyViewport(webApp()))
+
+  // Вертикальный свайп сворачивает приложение вместо прокрутки списка —
+  // у нас свои прокручиваемые списки, и жест только мешает. Закрыть
+  // приложение по-прежнему можно крестиком и кнопкой «назад».
+  if (supports(app, '7.7')) app?.disableVerticalSwipes?.()
+
   return app?.initData || initDataFromLocation()
+}
+
+/**
+ * Возможности Telegram появлялись в разных версиях Bot API, и у старого
+ * клиента их просто нет. Документация не обещает, что вызов неизвестного
+ * метода безопасен, поэтому спрашиваем заранее.
+ */
+function supports(app: TelegramWebApp | undefined, version: string): boolean {
+  return app?.isVersionAtLeast?.(version) ?? false
+}
+
+/**
+ * Высоту берём у Telegram, а не у браузера.
+ *
+ * Внутри клиента `100dvh` — это высота всего экрана, тогда как приложению
+ * отведена лишь часть: пока оно не раскрыто, нижняя панель вкладок уезжает
+ * за край видимой области. `viewportStableHeight` — та же высота, но без
+ * скачков во время жестов и анимаций.
+ */
+function applyViewport(app?: TelegramWebApp) {
+  const height = app?.viewportStableHeight
+  if (height) document.documentElement.style.setProperty('--app-height', `${height}px`)
+}
+
+/**
+ * Шапка и нижняя полоса самого клиента красятся под приложение: иначе на
+ * стыке видна чужая полоса другого цвета.
+ *
+ * Передаём не свой цвет, а имя цвета темы — тогда клиент сам подставит
+ * нужный оттенок для светлого и тёмного оформления.
+ */
+function applyChrome(app?: TelegramWebApp) {
+  if (supports(app, '6.1')) app?.setHeaderColor?.('secondary_bg_color')
+  if (supports(app, '7.10')) app?.setBottomBarColor?.('bg_color')
 }
 
 /**
