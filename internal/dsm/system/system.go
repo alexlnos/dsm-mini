@@ -1,4 +1,4 @@
-// Package system — состояние NAS: загрузка, сведения о модели, пакеты и журнал.
+// Package system covers the NAS state: load, model details, packages and the log.
 package system
 
 import (
@@ -20,13 +20,13 @@ const (
 	apiFileStation = "SYNO.FileStation.Info"
 )
 
-// Service читает состояние NAS.
+// Service reads the NAS state.
 type Service struct{ c apiClient }
 
-// New создаёт службу.
+// New creates the service.
 func New(c apiClient) *Service { return &Service{c: c} }
 
-// Info — что за устройство и как давно работает.
+// Info is what the device is and how long it has been up.
 type Info struct {
 	Hostname  string `json:"hostname"`
 	Model     string `json:"model"`
@@ -35,11 +35,11 @@ type Info struct {
 	CPUSeries string `json:"cpu_series,omitempty"`
 	CPUCores  int    `json:"cpu_cores"`
 	RAMMB     int64  `json:"ram_mb"`
-	// UptimeSeconds — сколько NAS работает без перезагрузки.
+	// UptimeSeconds is how long the NAS has run without a reboot.
 	UptimeSeconds int64 `json:"uptime_seconds"`
 }
 
-// Usage — текущая загрузка.
+// Usage is the current load.
 type Usage struct {
 	CPUPercent    int   `json:"cpu_percent"`
 	MemoryPercent int   `json:"memory_percent"`
@@ -48,7 +48,7 @@ type Usage struct {
 	NetworkTx     int64 `json:"network_tx"`
 }
 
-// Package — установленный пакет и его состояние.
+// Package is an installed package and its state.
 type Package struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -57,7 +57,7 @@ type Package struct {
 	Running bool   `json:"running"`
 }
 
-// LogEntry — запись системного журнала.
+// LogEntry is a system log record.
 type LogEntry struct {
 	Time    time.Time `json:"time"`
 	Level   string    `json:"level"`
@@ -66,7 +66,7 @@ type LogEntry struct {
 	Who     string    `json:"who,omitempty"`
 }
 
-// Info возвращает сведения об устройстве.
+// Info returns details about the device.
 func (s *Service) Info(ctx context.Context) (Info, error) {
 	var out struct {
 		Hostname    string `json:"hostname"`
@@ -85,7 +85,7 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 
 	hostname := out.Hostname
 	if hostname == "" {
-		// SYNO.Core.System имя хоста не возвращает; у File Station оно есть.
+		// SYNO.Core.System does not return the host name; File Station has it.
 		var fs struct {
 			Hostname string `json:"hostname"`
 		}
@@ -106,7 +106,7 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 	}, nil
 }
 
-// parseUptime разбирает строку вида "226:28:23" — часы, минуты, секунды.
+// parseUptime parses a string like "226:28:23" — hours, minutes, seconds.
 func parseUptime(s string) int64 {
 	parts := strings.Split(strings.TrimSpace(s), ":")
 	if len(parts) != 3 {
@@ -123,11 +123,11 @@ func parseUptime(s string) int64 {
 	return total
 }
 
-// Usage возвращает текущую загрузку процессора, памяти и сети.
+// Usage returns the current CPU, memory and network load.
 func (s *Service) Usage(ctx context.Context) (Usage, error) {
 	var out struct {
 		CPU struct {
-			// Загрузка приходит долями процента: 150 значит 1,5 %.
+			// The load arrives in fractions of a percent: 150 means 1.5%.
 			UserLoad   int `json:"user_load"`
 			SystemLoad int `json:"system_load"`
 			OtherLoad  int `json:"other_load"`
@@ -163,7 +163,7 @@ func (s *Service) Usage(ctx context.Context) (Usage, error) {
 	return usage, nil
 }
 
-// Packages возвращает установленные пакеты с их состоянием.
+// Packages returns the installed packages with their state.
 func (s *Service) Packages(ctx context.Context) ([]Package, error) {
 	var out struct {
 		Packages []struct {
@@ -195,7 +195,7 @@ func (s *Service) Packages(ctx context.Context) ([]Package, error) {
 	return packages, nil
 }
 
-// PackageState сообщает, установлен ли пакет и работает ли он.
+// PackageState reports whether a package is installed and whether it runs.
 func (s *Service) PackageState(ctx context.Context, id string) (Package, bool) {
 	packages, err := s.Packages(ctx)
 	if err != nil {
@@ -209,17 +209,17 @@ func (s *Service) PackageState(ctx context.Context, id string) (Package, bool) {
 	return Package{}, false
 }
 
-// Log возвращает последние записи системного журнала.
+// Log returns the latest system log records.
 //
-// Фильтр по уровню на стороне NAS не работает: параметр принимается, но ответ
-// не меняется. Поэтому отбираем нужное здесь, взяв запас записей.
+// Filtering by level on the NAS side does not work: the parameter is accepted
+// but the answer does not change. So we filter here, taking spare records.
 func (s *Service) Log(ctx context.Context, limit int, onlyProblems bool) ([]LogEntry, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 	fetch := limit
 	if onlyProblems {
-		// Ошибки редки: чтобы набрать нужное число, берём с запасом.
+		// Errors are rare: to gather enough we take them with a margin.
 		fetch = limit * 10
 		if fetch > 1000 {
 			fetch = 1000
@@ -262,7 +262,7 @@ func (s *Service) Log(ctx context.Context, limit int, onlyProblems bool) ([]LogE
 	return entries, nil
 }
 
-// parseLogTime разбирает время журнала: "2026/09/21 06:36:05" в местной зоне NAS.
+// parseLogTime parses the log time: "2026/09/21 06:36:05" in the NAS local zone.
 func parseLogTime(s string) time.Time {
 	t, err := time.ParseInLocation("2006/01/02 15:04:05", strings.TrimSpace(s), time.Local)
 	if err != nil {

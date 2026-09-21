@@ -1,12 +1,12 @@
-// Package downloadstation — работа с пакетом Download Station на Synology NAS.
+// Package downloadstation works with the Download Station package on a Synology NAS.
 //
-// У Synology сосуществуют два поколения API:
+// Synology has two API generations living side by side:
 //
-//	SYNO.DownloadStation2.*  — DSM 7, статусы числами, requestFormat JSON
-//	SYNO.DownloadStation.*   — легаси, есть и в DSM 6, статусы строками
+//	SYNO.DownloadStation2.*  — DSM 7, numeric statuses, requestFormat JSON
+//	SYNO.DownloadStation.*   — legacy, present in DSM 6 too, string statuses
 //
-// Обе реализации спрятаны за интерфейсом Station; нужная выбирается в рантайме
-// по тому, что реально отдаёт SYNO.API.Info на конкретном NAS.
+// Both implementations hide behind the Station interface; the right one is
+// chosen at runtime from what SYNO.API.Info actually reports on this NAS.
 package downloadstation
 
 import (
@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Status — состояние задачи.
+// Status is the state of a task.
 type Status string
 
 const (
@@ -30,11 +30,11 @@ const (
 	StatusUnknown      Status = "unknown"
 )
 
-// statusByCode — числовые коды DownloadStation2.
+// statusByCode holds the numeric codes of DownloadStation2.
 //
-// Легаси-API отдаёт те же состояния строками, поэтому числа нужны только
-// современному пути. Код 5 подтверждён на живом DSM 7.2.2 сверкой обоих
-// API на одной задаче; остальные — из схемы Synology.
+// The legacy API reports the same states as strings, so the numbers are only
+// needed on the modern path. Code 5 was confirmed on a live DSM 7.2.2 by
+// comparing both APIs on one task; the rest come from Synology's schema.
 var statusByCode = map[int]Status{
 	1:  StatusWaiting,
 	2:  StatusDownloading,
@@ -43,12 +43,12 @@ var statusByCode = map[int]Status{
 	5:  StatusFinished,
 	6:  StatusHashChecking,
 	7:  StatusSeeding,
-	8:  StatusWaiting, // filehosting_waiting — для пользователя это то же ожидание
+	8:  StatusWaiting, // filehosting_waiting — to the user this is the same waiting
 	9:  StatusExtracting,
 	10: StatusError,
 }
 
-// StatusFromCode переводит числовой код DownloadStation2 в Status.
+// StatusFromCode translates a numeric DownloadStation2 code into a Status.
 func StatusFromCode(code int) Status {
 	if s, ok := statusByCode[code]; ok {
 		return s
@@ -56,7 +56,7 @@ func StatusFromCode(code int) Status {
 	return StatusUnknown
 }
 
-// StatusFromString переводит строку легаси-API в Status.
+// StatusFromString translates a legacy API string into a Status.
 func StatusFromString(s string) Status {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "waiting", "filehosting_waiting":
@@ -82,8 +82,8 @@ func StatusFromString(s string) Status {
 	}
 }
 
-// Active сообщает, что задача ещё в работе и её состояние будет меняться.
-// По этому признаку решается, нужно ли часто опрашивать NAS.
+// Active reports that the task is still running and its state will keep
+// changing. It decides whether the NAS has to be polled often.
 func (s Status) Active() bool {
 	switch s {
 	case StatusWaiting, StatusDownloading, StatusFinishing, StatusHashChecking, StatusExtracting:
@@ -92,20 +92,20 @@ func (s Status) Active() bool {
 	return false
 }
 
-// Terminal сообщает, что задача досчиталась или упала и больше не изменится
-// сама по себе. По нему watcher решает, о чём слать уведомление.
+// Terminal reports that the task finished or failed and will not change on
+// its own any more. The watcher uses it to decide what to notify about.
 func (s Status) Terminal() bool {
 	return s == StatusFinished || s == StatusError
 }
 
-// Task — задача загрузки в том виде, в каком её показывает Mini App.
-// Структура одинакова для обоих поколений API.
+// Task is a download task in the shape the Mini App shows it.
+// The struct is the same for both API generations.
 type Task struct {
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	Type        string    `json:"type"` // bt, http, ftp, nzb, emule
 	Status      Status    `json:"status"`
-	StatusExtra string    `json:"status_extra,omitempty"` // причина ошибки, если есть
+	StatusExtra string    `json:"status_extra,omitempty"` // failure reason, if any
 	Size        int64     `json:"size"`
 	Downloaded  int64     `json:"downloaded"`
 	Uploaded    int64     `json:"uploaded"`
@@ -119,7 +119,7 @@ type Task struct {
 	CompletedAt time.Time `json:"completed_at,omitzero"`
 }
 
-// Progress — доля загруженного от 0 до 1.
+// Progress is the downloaded share, from 0 to 1.
 func (t Task) Progress() float64 {
 	if t.Size <= 0 {
 		return 0
@@ -131,8 +131,8 @@ func (t Task) Progress() float64 {
 	return p
 }
 
-// ETA — оценка оставшегося времени. Второе значение false, если посчитать
-// нельзя: задача стоит, досчиталась или скорость нулевая.
+// ETA estimates the remaining time. The second value is false when it cannot
+// be computed: the task is stopped, finished, or the speed is zero.
 func (t Task) ETA() (time.Duration, bool) {
 	if t.SpeedDown <= 0 || t.Size <= 0 {
 		return 0, false
@@ -144,27 +144,27 @@ func (t Task) ETA() (time.Duration, bool) {
 	return time.Duration(left/t.SpeedDown) * time.Second, true
 }
 
-// Stats — сводная статистика по всем задачам.
+// Stats is the summary across all tasks.
 type Stats struct {
 	SpeedDown int64 `json:"speed_down"`
 	SpeedUp   int64 `json:"speed_up"`
 }
 
-// Volume — том NAS и место на нём.
+// Volume is a NAS volume and the space on it.
 type Volume struct {
 	MountPoint string `json:"mount_point"`
 	SizeFree   int64  `json:"size_free"`
 	SizeTotal  int64  `json:"size_total"`
 }
 
-// CreateRequest — запрос на постановку задачи.
+// CreateRequest asks for a task to be queued.
 type CreateRequest struct {
-	// URLs — magnet-ссылки или прямые ссылки. Взаимоисключимо с TorrentFile.
+	// URLs are magnet or direct links. Mutually exclusive with TorrentFile.
 	URLs []string
-	// TorrentFile — содержимое .torrent, если задача ставится файлом.
+	// TorrentFile is the contents of a .torrent when the task comes as a file.
 	TorrentFile []byte
 	FileName    string
-	// Destination — путь от корня общей папки, например "Media/TV Shows".
-	// Пусто — папка по умолчанию из настроек Download Station.
+	// Destination is a path from the shared folder root, e.g. "Media/TV Shows".
+	// Empty means the default folder from the Download Station settings.
 	Destination string
 }

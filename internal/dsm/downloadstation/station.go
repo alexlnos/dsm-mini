@@ -8,9 +8,9 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
-// apiClient — та часть клиента DSM, которая нужна этому пакету.
-// Интерфейс, а не *dsm.Client, чтобы реализации можно было тестировать
-// без живого NAS.
+// apiClient is the part of the DSM client this package needs.
+// An interface rather than *dsm.Client so that implementations can be tested
+// without a live NAS.
 type apiClient interface {
 	Call(ctx context.Context, api, method string, version int, params map[string]any, out any) error
 	CallUpload(ctx context.Context, api, method string, version int,
@@ -19,39 +19,39 @@ type apiClient interface {
 	APIMaxVersion(ctx context.Context, api string) int
 }
 
-// Station — операции над Download Station, одинаковые для обоих поколений API.
+// Station covers Download Station operations shared by both API generations.
 type Station interface {
-	// List возвращает все задачи со сведениями о ходе загрузки.
+	// List returns every task together with its progress.
 	List(ctx context.Context) ([]Task, error)
-	// Pause останавливает задачи.
+	// Pause stops tasks.
 	Pause(ctx context.Context, ids []string) error
-	// Resume возобновляет задачи.
+	// Resume restarts tasks.
 	Resume(ctx context.Context, ids []string) error
-	// Delete удаляет задачи. forceComplete — удалить, считая незавершённое
-	// законченным (файлы на диске остаются).
+	// Delete removes tasks. forceComplete means delete while treating the
+	// unfinished part as done (files stay on disk).
 	Delete(ctx context.Context, ids []string, forceComplete bool) error
-	// Create ставит новую задачу.
+	// Create queues a new task.
 	Create(ctx context.Context, req CreateRequest) error
-	// Stats возвращает суммарные скорости.
+	// Stats returns the combined speeds.
 	Stats(ctx context.Context) (Stats, error)
-	// Volumes перечисляет тома NAS и место на них.
+	// Volumes lists the NAS volumes and the space on them.
 	Volumes(ctx context.Context) ([]Volume, error)
-	// DefaultDestination — папка назначения по умолчанию.
+	// DefaultDestination is the default destination folder.
 	DefaultDestination(ctx context.Context) (string, error)
-	// Generation — какое поколение API используется: "v2" или "legacy".
-	// Нужно для диагностики в логе и в /healthz.
+	// Generation tells which API generation is in use: "v2" or "legacy".
+	// Needed for diagnostics in the log and in /healthz.
 	Generation() string
 
-	// Files перечисляет файлы внутри раздачи. Работает только у активной
-	// задачи — иначе ErrNotActive.
+	// Files lists the files inside a torrent. Works only for an active task —
+	// otherwise ErrNotActive.
 	Files(ctx context.Context, taskID string) ([]File, error)
-	// SetFile меняет приоритет файла и признак «качать ли его».
+	// SetFile changes a file's priority and whether to download it at all.
 	SetFile(ctx context.Context, taskID string, indexes []int, priority FilePriority, wanted *bool) error
-	// Trackers перечисляет трекеры раздачи.
+	// Trackers lists the torrent's trackers.
 	Trackers(ctx context.Context, taskID string) ([]Tracker, error)
-	// SetDestination переносит задачи в другую папку.
+	// SetDestination moves tasks to another folder.
 	SetDestination(ctx context.Context, taskIDs []string, destination string) error
-	// SetPriority меняет приоритет задач в очереди.
+	// SetPriority changes the queue priority of tasks.
 	SetPriority(ctx context.Context, taskIDs []string, priority FilePriority) error
 }
 
@@ -67,30 +67,30 @@ const (
 	apiStatsLegacy = "SYNO.DownloadStation.Statistic"
 )
 
-// Generation — какое поколение API использовать.
+// Generation is which API generation to use.
 type Generation string
 
 const (
-	// GenerationAuto — выбрать лучшее из доступного на этом NAS.
+	// GenerationAuto picks the best of what this NAS offers.
 	GenerationAuto Generation = "auto"
-	// GenerationV2 — принудительно SYNO.DownloadStation2 (DSM 7).
+	// GenerationV2 forces SYNO.DownloadStation2 (DSM 7).
 	GenerationV2 Generation = "v2"
-	// GenerationLegacy — принудительно SYNO.DownloadStation (DSM 6 и старше).
+	// GenerationLegacy forces SYNO.DownloadStation (DSM 6 and older).
 	GenerationLegacy Generation = "legacy"
 )
 
-// NewWithGeneration создаёт реализацию заданного поколения.
-// Нужно для отладки и для тестов: на DSM 7 живы оба API сразу.
+// NewWithGeneration creates an implementation of the given generation.
+// Needed for debugging and for tests: on DSM 7 both APIs are alive at once.
 func NewWithGeneration(ctx context.Context, c apiClient, gen Generation) (Station, error) {
 	switch gen {
 	case GenerationV2:
 		if !c.HasAPI(ctx, apiTaskV2) {
-			return nil, fmt.Errorf("на этом NAS нет %s", apiTaskV2)
+			return nil, fmt.Errorf("this NAS has no %s", apiTaskV2)
 		}
 		return &stationV2{c: c}, nil
 	case GenerationLegacy:
 		if !c.HasAPI(ctx, apiTaskLegacy) {
-			return nil, fmt.Errorf("на этом NAS нет %s", apiTaskLegacy)
+			return nil, fmt.Errorf("this NAS has no %s", apiTaskLegacy)
 		}
 		return &stationLegacy{c: c}, nil
 	default:
@@ -98,10 +98,10 @@ func NewWithGeneration(ctx context.Context, c apiClient, gen Generation) (Statio
 	}
 }
 
-// New выбирает реализацию под конкретный NAS.
+// New picks the implementation for a particular NAS.
 //
-// Предпочитается DownloadStation2 (DSM 7): у него богаче сведения о задачах.
-// Если его нет — работаем через легаси-API, который есть и в DSM 6.
+// DownloadStation2 (DSM 7) is preferred: it reports richer task details.
+// When it is missing we work through the legacy API, present in DSM 6 too.
 func New(ctx context.Context, c apiClient) (Station, error) {
 	if c.HasAPI(ctx, apiTaskV2) {
 		return &stationV2{c: c}, nil
@@ -109,20 +109,20 @@ func New(ctx context.Context, c apiClient) (Station, error) {
 	if c.HasAPI(ctx, apiTaskLegacy) {
 		return &stationLegacy{c: c}, nil
 	}
-	return nil, fmt.Errorf("на этом NAS не найден пакет Download Station: " +
-		"установите его в Центре пакетов и убедитесь, что у учётной записи есть к нему доступ")
+	return nil, fmt.Errorf("the Download Station package was not found on this NAS: " +
+		"install it from Package Center and make sure the account has access to it")
 }
 
-// actionResult принимает результат пакетного действия в любой из форм,
-// которыми отвечает Download Station.
+// actionResult accepts the result of a batch action in any of the shapes
+// Download Station answers with.
 //
-// Формы, снятые с живого DSM 7.2.2 (в документации Synology их нет):
+// Shapes observed on a live DSM 7.2.2 (Synology documents none of them):
 //
-//	v2 resume/delete → {"failed_task": [{"id", "error"}]}   объект
-//	legacy delete    → [{"id", "error"}]                     голый массив
+//	v2 resume/delete → {"failed_task": [{"id", "error"}]}   object
+//	legacy delete    → [{"id", "error"}]                     bare array
 //
-// Третью форму — отказ через error.errors.failed_task при success:false —
-// разбирает сам клиент DSM и отдаёт готовым APIError.
+// The third shape — a refusal through error.errors.failed_task with
+// success:false — is handled by the DSM client itself and arrives as APIError.
 type actionResult struct {
 	Failed []dsm.ItemFailure
 }
@@ -140,16 +140,16 @@ func (a *actionResult) UnmarshalJSON(b []byte) error {
 		a.Failed = obj.FailedTask
 		return nil
 	}
-	// Незнакомая форма ответа — не повод ронять действие, которое,
-	// возможно, выполнено. Молчаливых отказов это не прячет: они приходят
-	// в двух формах выше.
+	// An unfamiliar response shape is no reason to fail an action that may
+	// well have gone through. It does not hide silent refusals either: those
+	// come in the two shapes above.
 	return nil
 }
 
-// failuresToError превращает отказы по отдельным задачам в ошибку.
+// failuresToError turns per-task refusals into an error.
 //
-// Без этого действие выглядит выполненным: Download Station отвечает
-// success даже тогда, когда ни одна задача его не приняла.
+// Without it the action looks successful: Download Station answers success
+// even when not a single task accepted it.
 func failuresToError(api, method string, res actionResult) error {
 	var failed []dsm.ItemFailure
 	for _, it := range res.Failed {

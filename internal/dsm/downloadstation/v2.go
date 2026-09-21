@@ -10,15 +10,15 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
-// stationV2 — реализация поверх SYNO.DownloadStation2.* (DSM 7).
+// stationV2 is the implementation on top of SYNO.DownloadStation2.* (DSM 7).
 type stationV2 struct{ c apiClient }
 
 func (s *stationV2) Generation() string { return "v2" }
 
-// taskV2 повторяет форму ответа DownloadStation2.
+// taskV2 mirrors the shape of a DownloadStation2 response.
 //
-// Имена полей здесь отличаются от легаси-API мелочами, на которых легко
-// ошибиться: created_time против create_time, seed_elapsed против seedelapsed.
+// Field names here differ from the legacy API in small details that are easy
+// to get wrong: created_time vs create_time, seed_elapsed vs seedelapsed.
 type taskV2 struct {
 	ID         string `json:"id"`
 	Title      string `json:"title"`
@@ -70,8 +70,8 @@ func (s *stationV2) List(ctx context.Context) ([]Task, error) {
 		Total int      `json:"total"`
 		Task  []taskV2 `json:"task"`
 	}
-	// limit -1 — отдать все задачи; постраничность тут только мешает,
-	// список задач Download Station на домашнем NAS измеряется десятками.
+	// limit -1 means give me every task; paging only gets in the way here, as
+	// a Download Station list on a home NAS is measured in tens.
 	err := s.c.Call(ctx, apiTaskV2, "list", 2, map[string]any{
 		"additional": []string{"detail", "transfer"},
 		"limit":      -1,
@@ -102,15 +102,15 @@ func (s *stationV2) Delete(ctx context.Context, ids []string, forceComplete bool
 
 func (s *stationV2) action(ctx context.Context, method string, ids []string, extra map[string]any) error {
 	if len(ids) == 0 {
-		return fmt.Errorf("не указано ни одной задачи")
+		return fmt.Errorf("no tasks given")
 	}
 	params := map[string]any{"id": ids}
 	for k, v := range extra {
 		params[k] = v
 	}
 
-	// Ответ — массив результатов по каждой задаче. Проверять его обязательно:
-	// DSM отвечает success даже тогда, когда часть задач действие не приняла.
+	// The answer is an array of per-task results. Checking it is mandatory:
+	// DSM answers success even when some tasks refused the action.
 	var out actionResult
 	if err := s.c.Call(ctx, apiTaskV2, method, 2, params, &out); err != nil {
 		return err
@@ -120,29 +120,29 @@ func (s *stationV2) action(ctx context.Context, method string, ids []string, ext
 
 func (s *stationV2) Create(ctx context.Context, req CreateRequest) error {
 	if len(req.TorrentFile) == 0 && len(req.URLs) == 0 {
-		return fmt.Errorf("не указано ни ссылки, ни файла")
+		return fmt.Errorf("neither a link nor a file was given")
 	}
 
-	// В отличие от легаси-API, здесь destination обязателен: без него NAS
-	// отвечает кодом 120 «destination required», даже когда папка по
-	// умолчанию задана в настройках. Подставляем её сами.
+	// Unlike the legacy API, destination is mandatory here: without it the NAS
+	// answers with code 120 "destination required", even when a default folder
+	// is configured. We fill it in ourselves.
 	dest := req.Destination
 	if dest == "" {
 		var err error
 		dest, err = s.DefaultDestination(ctx)
 		if err != nil {
-			return fmt.Errorf("не определить папку назначения: %w", err)
+			return fmt.Errorf("cannot determine the destination folder: %w", err)
 		}
 		if dest == "" {
-			return fmt.Errorf("не задана папка назначения: укажите её в запросе " +
-				"или в настройках Download Station")
+			return fmt.Errorf("no destination folder is set: give one in the request " +
+				"or in the Download Station settings")
 		}
 	}
 
-	// Путь идёт как обычная строка, относительно корня общей папки.
-	// Ведущий слеш ("/Media/TV Shows") NAS отвергает кодом 403.
-	// create_list=false обязателен: с true задача не создаётся, а уходит
-	// в режим предварительного выбора файлов.
+	// The path goes as a plain string, relative to the shared folder root.
+	// A leading slash ("/Media/TV Shows") is rejected by the NAS with code 403.
+	// create_list=false is mandatory: with true the task is not created but
+	// goes into the pre-select files mode instead.
 	dest = strings.TrimPrefix(dest, "/")
 
 	if len(req.TorrentFile) > 0 {
@@ -158,12 +158,12 @@ func (s *stationV2) Create(ctx context.Context, req CreateRequest) error {
 	return s.c.Call(ctx, apiTaskV2, "create", 2, params, nil)
 }
 
-// createFromFile ставит задачу из содержимого .torrent.
+// createFromFile queues a task from the contents of a .torrent.
 //
-// Здесь своя кодировка параметров, не совпадающая ни с обычными вызовами, ни
-// с загрузкой в File Station: значения полей формы идут КАК JSON — строки в
-// кавычках, списки в скобках, — тогда как File Station в том же multipart ждёт
-// их без кавычек. Имя части с файлом должно совпадать с элементом "file".
+// It has its own parameter encoding, matching neither ordinary calls nor a
+// File Station upload: form field values go AS JSON — strings quoted, lists
+// in brackets — while File Station in the same multipart expects them without
+// quotes. The file part name must match the "file" element.
 func (s *stationV2) createFromFile(ctx context.Context, req CreateRequest, dest string) error {
 	name := req.FileName
 	if name == "" {
@@ -191,7 +191,7 @@ func (s *stationV2) Stats(ctx context.Context) (Stats, error) {
 }
 
 func (s *stationV2) Volumes(ctx context.Context) ([]Volume, error) {
-	// Размеры тут приходят строками, а не числами.
+	// Sizes arrive as strings here, not numbers.
 	var out struct {
 		VolumeList []struct {
 			MountPoint string `json:"mount_point"`

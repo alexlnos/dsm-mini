@@ -1,4 +1,4 @@
-// Package vmm — виртуальные машины Synology Virtual Machine Manager.
+// Package vmm covers virtual machines in Synology Virtual Machine Manager.
 package vmm
 
 import (
@@ -17,13 +17,13 @@ const (
 	apiHost   = "SYNO.Virtualization.API.Host"
 )
 
-// Service управляет виртуальными машинами.
+// Service manages virtual machines.
 type Service struct{ c apiClient }
 
-// New создаёт службу.
+// New creates the service.
 func New(c apiClient) *Service { return &Service{c: c} }
 
-// Guest — виртуальная машина.
+// Guest is a virtual machine.
 type Guest struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -32,14 +32,14 @@ type Guest struct {
 	VCPU    int    `json:"vcpu"`
 	RAMMB   int64  `json:"ram_mb"`
 	DiskMB  int64  `json:"disk_mb"`
-	// Autorun — запускается ли вместе с NAS.
+	// Autorun tells whether it starts together with the NAS.
 	Autorun bool   `json:"autorun"`
 	Storage string `json:"storage,omitempty"`
-	// MACs пригодятся, чтобы сопоставить машину с адресом в сети.
+	// MACs help match a machine to an address on the network.
 	MACs []string `json:"macs,omitempty"`
 }
 
-// Host — ресурсы самого NAS под виртуализацию.
+// Host is the NAS resources available for virtualisation.
 type Host struct {
 	Name       string `json:"name"`
 	FreeRAMMB  int64  `json:"free_ram_mb"`
@@ -49,7 +49,7 @@ type Host struct {
 	TotalVMs   int    `json:"total_vms"`
 }
 
-// List возвращает все машины.
+// List returns every machine.
 func (s *Service) List(ctx context.Context) ([]Guest, error) {
 	var out struct {
 		Guests []struct {
@@ -92,7 +92,7 @@ func (s *Service) List(ctx context.Context) ([]Guest, error) {
 			VCPU:    g.VCPUNum,
 			RAMMB:   g.VRAMSize,
 			DiskMB:  disk,
-			// Ненулевое значение означает автозапуск; какое именно — неважно.
+			// A non-zero value means autostart; which one exactly does not matter.
 			Autorun: g.Autorun != 0,
 			Storage: g.Storage,
 			MACs:    macs,
@@ -101,7 +101,7 @@ func (s *Service) List(ctx context.Context) ([]Guest, error) {
 	return guests, nil
 }
 
-// Host возвращает сводку по ресурсам виртуализации.
+// Host returns the summary of virtualisation resources.
 func (s *Service) Host(ctx context.Context) (Host, error) {
 	guests, err := s.List(ctx)
 	if err != nil {
@@ -109,23 +109,23 @@ func (s *Service) Host(ctx context.Context) (Host, error) {
 	}
 	res, err := s.Resources(ctx)
 	if err != nil {
-		// Сводка полезна и без сведений о памяти хоста.
+		// The summary is useful even without the host memory figures.
 		res = Resources{}
 	}
 	return s.HostFor(guests, res), nil
 }
 
-// Resources — то, что известно только самому NAS: свободная память хоста.
+// Resources is what only the NAS itself knows: the host's free memory.
 type Resources struct {
 	Name       string `json:"name"`
 	FreeRAMMB  int64  `json:"free_ram_mb"`
 	TotalRAMMB int64  `json:"total_ram_mb"`
 }
 
-// Resources запрашивает у NAS сведения о хосте виртуализации.
+// Resources asks the NAS about the virtualisation host.
 //
-// Вызов небыстрый (около полусекунды), а меняется в нём только свободная
-// память — поэтому снаружи его держат в кэше.
+// The call is slow (about half a second) and only the free memory changes in
+// it — which is why callers keep it in a cache.
 func (s *Service) Resources(ctx context.Context) (Resources, error) {
 	var out struct {
 		Hosts []struct {
@@ -147,10 +147,10 @@ func (s *Service) Resources(ctx context.Context) (Resources, error) {
 	}, nil
 }
 
-// HostFor считает сводку по уже полученному списку машин и сведениям о хосте.
+// HostFor builds the summary from an already fetched machine list and host details.
 //
-// Список и ресурсы передаются готовыми, чтобы не запрашивать их повторно:
-// обработчик берёт и то, и другое из кэша.
+// The list and the resources are passed in ready so they are not requested
+// twice: the handler takes both from the cache.
 func (s *Service) HostFor(guests []Guest, res Resources) Host {
 	host := Host{
 		TotalVMs:   len(guests),
@@ -168,22 +168,22 @@ func (s *Service) HostFor(guests []Guest, res Resources) Host {
 	return host
 }
 
-// PowerOn запускает машину.
+// PowerOn starts a machine.
 func (s *Service) PowerOn(ctx context.Context, id string) error {
 	return s.action(ctx, "poweron", id)
 }
 
-// Shutdown просит гостевую систему завершить работу.
+// Shutdown asks the guest system to power off.
 //
-// Это мягкая остановка: ей нужен установленный в машине гостевой агент.
-// Без него машина не выключится, и это ограничение самой виртуализации.
+// This is a soft stop: it needs the guest agent installed in the machine.
+// Without it nothing happens — a limit of virtualisation itself, not ours.
 func (s *Service) Shutdown(ctx context.Context, id string) error {
 	return s.action(ctx, "shutdown", id)
 }
 
 func (s *Service) action(ctx context.Context, method, id string) error {
 	if strings.TrimSpace(id) == "" {
-		return fmt.Errorf("не указана машина")
+		return fmt.Errorf("no machine given")
 	}
 	return s.c.Call(ctx, apiAction, method, 1, map[string]any{"guest_id": id}, nil)
 }

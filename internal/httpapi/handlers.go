@@ -12,12 +12,12 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
-// maxUploadSize ограничивает файл, который примет Mini App.
-// Через webview больше обычно и не отправляют, а лимит защищает память.
+// maxUploadSize limits the file the Mini App will accept.
+// A webview rarely sends more, and the limit protects memory.
 const maxUploadSize = 256 << 20
 
-// taskView — задача в виде, удобном интерфейсу: всё уже посчитано на сервере,
-// чтобы Mini App не занимался арифметикой.
+// taskView is a task in the shape the interface likes: everything is already
+// computed on the server so the Mini App does no arithmetic.
 type taskView struct {
 	downloadstation.Task
 	Progress   float64 `json:"progress"`
@@ -33,8 +33,8 @@ func view(t downloadstation.Task) taskView {
 	return v
 }
 
-// handleOverview отдаёт всё, что нужно для первого экрана, одним запросом:
-// задачи, суммарные скорости, тома и папку по умолчанию.
+// handleOverview serves everything the first screen needs in one request:
+// tasks, combined speeds, volumes and the default folder.
 func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -48,19 +48,19 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		views = append(views, view(t))
 	}
 
-	// Остальное не критично: если NAS о чём-то умолчал, экран всё равно
-	// должен открыться со списком задач.
+	// The rest is not critical: if the NAS kept quiet about something, the
+	// screen must still open with the task list.
 	stats, err := s.ds.Stats(ctx)
 	if err != nil {
-		s.log.Warn("не получить статистику", "err", err)
+		s.log.Warn("cannot get the statistics", "err", err)
 	}
 	volumes, err := s.ds.Volumes(ctx)
 	if err != nil {
-		s.log.Warn("не получить тома", "err", err)
+		s.log.Warn("cannot get the volumes", "err", err)
 	}
 	dest, err := s.ds.DefaultDestination(ctx)
 	if err != nil {
-		s.log.Warn("не получить папку по умолчанию", "err", err)
+		s.log.Warn("cannot get the default folder", "err", err)
 	}
 
 	u, _ := userFrom(ctx)
@@ -123,16 +123,16 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err, "api.create")
 		return
 	}
-	// Список только что изменился — кэш обязан это заметить.
+	// The list has just changed — the cache must notice.
 	s.tasksCache.Invalidate()
 
 	u, _ := userFrom(r.Context())
 	if s.settings != nil && req.Destination != "" {
 		if err := s.settings.RememberLastUsed(r.Context(), u.ID, req.Destination); err != nil {
-			s.log.Warn("не запомнить папку", "user", u.ID, "err", err)
+			s.log.Warn("cannot remember the folder", "user", u.ID, "err", err)
 		}
 	}
-	s.log.Info("задача поставлена", "user", u.ID, "count", len(urls), "dest", req.Destination)
+	s.log.Info("task queued", "user", u.ID, "count", len(urls), "dest", req.Destination)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "count": len(urls)})
 }
 
@@ -173,7 +173,7 @@ func (s *Server) handleTaskAction(w http.ResponseWriter, r *http.Request) {
 	s.tasksCache.Invalidate()
 
 	u, _ := userFrom(ctx)
-	s.log.Info("действие над задачами", "user", u.ID, "action", req.Action, "count", len(ids))
+	s.log.Info("action on tasks", "user", u.ID, "action", req.Action, "count", len(ids))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -241,7 +241,7 @@ func (s *Server) handleDeleteFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := userFrom(r.Context())
-	s.log.Info("файлы удалены", "user", u.ID, "count", len(paths))
+	s.log.Info("files deleted", "user", u.ID, "count", len(paths))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -284,12 +284,12 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := userFrom(r.Context())
-	s.log.Info("файл загружен", "user", u.ID, "folder", folder, "name", name, "bytes", len(data))
+	s.log.Info("file uploaded", "user", u.ID, "folder", folder, "name", name, "bytes", len(data))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "name": name})
 }
 
-// sanitizeFileName оставляет от присланного имени только базовую часть:
-// клиент может прислать что угодно, включая путь с "..".
+// sanitizeFileName keeps only the base part of the name it was sent:
+// a client may send anything, including a path with "..".
 func sanitizeFileName(name string) string {
 	name = strings.TrimSpace(name)
 	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
@@ -339,7 +339,7 @@ func decode(w http.ResponseWriter, r *http.Request, dst any, s *Server) bool {
 	return true
 }
 
-// bad отвечает на негодный запрос сообщением на языке того, кто его прислал.
+// bad answers a bad request in the language of whoever sent it.
 func (s *Server) bad(w http.ResponseWriter, r *http.Request, key string, params ...i18n.P) {
 	u, _ := userFrom(r.Context())
 	writeJSON(w, http.StatusBadRequest, map[string]string{
@@ -347,8 +347,8 @@ func (s *Server) bad(w http.ResponseWriter, r *http.Request, key string, params 
 	})
 }
 
-// failKey выбирает сообщение по действию: копирование и перенос ошибаются
-// одинаково, а звучать должны по-разному.
+// failKey picks the message by action: copying and moving fail the same way
+// but must read differently.
 func failKey(move bool) string {
 	if move {
 		return "api.moveFailed"
@@ -356,14 +356,14 @@ func failKey(move bool) string {
 	return "api.copyFailed"
 }
 
-// fail отвечает ошибкой и пишет её в журнал.
+// fail answers with an error and writes it to the log.
 //
-// Человек получает сообщение на своём языке, журнал остаётся русским: его
-// читает владелец NAS, а не тот, кто нажал кнопку. Код ошибки DSM уходит
-// отдельным полем — число понятно на любом языке и помогает в разборе.
+// The person gets the message in their own language; the log stays English,
+// like the rest of the code. The DSM error code goes as a separate field — a
+// number reads the same in any language and helps when digging.
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error, key string) {
 	u, _ := userFrom(r.Context())
-	s.log.Error(i18n.T("ru", key), "user", u.ID, "path", r.URL.Path, "err", err)
+	s.log.Error(i18n.T(i18n.Fallback, key), "user", u.ID, "path", r.URL.Path, "err", err)
 
 	status := http.StatusBadGateway
 	body := map[string]any{

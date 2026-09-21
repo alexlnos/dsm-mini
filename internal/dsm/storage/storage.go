@@ -1,4 +1,4 @@
-// Package storage — диски, пулы и тома NAS.
+// Package storage covers the NAS disks, pools and volumes.
 package storage
 
 import (
@@ -13,39 +13,39 @@ type apiClient interface {
 
 const apiStorage = "SYNO.Storage.CGI.Storage"
 
-// Service читает состояние хранилища.
+// Service reads the storage state.
 type Service struct{ c apiClient }
 
-// New создаёт службу.
+// New creates the service.
 func New(c apiClient) *Service { return &Service{c: c} }
 
-// Disk — физический диск.
+// Disk is a physical disk.
 type Disk struct {
 	ID     string `json:"id"`
 	Model  string `json:"model"`
 	Vendor string `json:"vendor,omitempty"`
 	Size   int64  `json:"size"`
-	// Temp — температура в градусах Цельсия.
+	// Temp is the temperature in degrees Celsius.
 	Temp int `json:"temp"`
-	// Status и Smart приходят словами: normal, warning, critical.
+	// Status and Smart arrive as words: normal, warning, critical.
 	Status string `json:"status"`
 	Smart  string `json:"smart"`
-	// Slot — номер отсека; у дисков M.2 нумерация своя.
+	// Slot is the bay number; M.2 disks are numbered separately.
 	Slot int `json:"slot"`
-	// IsSSD отличает M.2 и SSD от обычных дисков.
+	// IsSSD tells M.2 and SSD apart from spinning disks.
 	IsSSD bool `json:"is_ssd"`
-	// Role — для чего диск используется: "pool", "cache" или "free".
+	// Role is what the disk is used for: "pool", "cache" or "free".
 	//
-	// Здесь код, а не готовая фраза: подпись переводится на стороне
-	// интерфейса, иначе англичанин увидел бы русское «пул reuse_1».
+	// A code rather than a ready phrase: the caption is translated on the
+	// interface side, otherwise an English reader would see Russian.
 	Role string `json:"role,omitempty"`
-	// Pool — имя пула, если диск в пуле.
+	// Pool is the pool name when the disk belongs to one.
 	Pool string `json:"pool,omitempty"`
-	// Healthy сведён из состояния диска и SMART.
+	// Healthy combines the disk state and SMART.
 	Healthy bool `json:"healthy"`
 }
 
-// Pool — группа дисков.
+// Pool is a group of disks.
 type Pool struct {
 	ID     string   `json:"id"`
 	RAID   string   `json:"raid,omitempty"`
@@ -55,7 +55,7 @@ type Pool struct {
 	Disks  []string `json:"disks"`
 }
 
-// Volume — том, на котором лежат общие папки.
+// Volume is a volume that holds shared folders.
 type Volume struct {
 	ID     string `json:"id"`
 	Name   string `json:"name,omitempty"`
@@ -65,18 +65,18 @@ type Volume struct {
 	Used   int64  `json:"used"`
 }
 
-// Overview — всё хранилище одним ответом.
+// Overview is the whole storage in one answer.
 type Overview struct {
 	Disks   []Disk   `json:"disks"`
 	Pools   []Pool   `json:"pools"`
 	Volumes []Volume `json:"volumes"`
-	// Healthy — всё ли в порядке: хватает одного сбойного диска, чтобы стало false.
+	// Healthy is whether all is well: one failing disk makes it false.
 	Healthy bool `json:"healthy"`
 }
 
-// Load читает состояние хранилища целиком.
+// Load reads the storage state as a whole.
 //
-// DSM отдаёт диски, пулы и тома одним вызовом, поэтому дробить его не на что.
+// DSM hands back disks, pools and volumes in one call, so there is nothing to split.
 func (s *Service) Load(ctx context.Context) (Overview, error) {
 	var out struct {
 		Disks []struct {
@@ -170,7 +170,7 @@ func (s *Service) Load(ctx context.Context) (Overview, error) {
 	return overview, nil
 }
 
-// role называет назначение диска кодом, который интерфейс переведёт сам.
+// role names the disk purpose with a code the interface translates itself.
 func role(usedBy, tray string) string {
 	switch {
 	case strings.Contains(strings.ToLower(tray), "cache"):
@@ -187,7 +187,7 @@ func isNormal(status string) bool {
 	return s == "" || s == "normal" || s == "healthy"
 }
 
-// parseSize читает размер: DSM отдаёт его строкой, иногда пустой.
+// parseSize reads a size: DSM returns it as a string, sometimes empty.
 func parseSize(s string) int64 {
 	v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 	if err != nil {

@@ -9,8 +9,8 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm/filestation"
 )
 
-// maxPreviewSize ограничивает предпросмотр: через мессенджер смотрят заметки
-// и картинки, а не гигабайтные архивы.
+// maxPreviewSize limits the preview: people look at notes and pictures
+// through a messenger, not at gigabyte archives.
 const maxPreviewSize = 8 << 20
 
 type transferRequest struct {
@@ -53,7 +53,7 @@ func (s *Server) startTransfer(w http.ResponseWriter, r *http.Request, move bool
 	}
 
 	u, _ := userFrom(r.Context())
-	s.log.Info("перенос файлов начат", "user", u.ID, "move", move,
+	s.log.Info("file transfer started", "user", u.ID, "move", move,
 		"count", len(paths), "dest", req.Destination)
 	writeJSON(w, http.StatusOK, map[string]any{"task_id": taskID})
 }
@@ -86,10 +86,10 @@ func (s *Server) handleTransferStop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// handleThumb отдаёт миниатюру изображения.
+// handleThumb serves an image thumbnail.
 //
-// Отсутствие миниатюры — обычное дело: у текста и архивов её нет. Отвечаем
-// 404, чтобы интерфейс просто не показывал картинку.
+// A missing thumbnail is routine: text and archives have none. We answer 404
+// so that the interface simply shows no picture.
 func (s *Server) handleThumb(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimSpace(r.URL.Query().Get("path"))
 	if path == "" {
@@ -100,22 +100,22 @@ func (s *Server) handleThumb(w http.ResponseWriter, r *http.Request) {
 
 	content, err := s.fs.Thumbnail(r.Context(), path, size)
 	if err != nil {
-		s.log.Debug("миниатюра недоступна", "path", path, "err", err)
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "предпросмотр недоступен"})
+		s.log.Debug("thumbnail unavailable", "path", path, "err", err)
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no preview available"})
 		return
 	}
 	defer content.Body.Close()
 
 	w.Header().Set("Content-Type", content.ContentType)
-	// Миниатюра неизменна, пока файл на месте, но в приложении её всё равно
-	// перезапрашивают редко — держим недолго.
+	// A thumbnail does not change while the file is in place, but the app
+	// rarely asks for it again anyway — we keep it briefly.
 	w.Header().Set("Cache-Control", "private, max-age=600")
 	if _, err := io.Copy(w, io.LimitReader(content.Body, maxPreviewSize)); err != nil {
-		s.log.Debug("миниатюра не доотдалась", "err", err)
+		s.log.Debug("the thumbnail was not fully sent", "err", err)
 	}
 }
 
-// handlePreview отдаёт содержимое файла для просмотра в приложении.
+// handlePreview serves file contents for viewing inside the app.
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimSpace(r.URL.Query().Get("path"))
 	if path == "" {
@@ -132,7 +132,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 
 	if content.Length > maxPreviewSize {
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
-			"error": "файл слишком большой для просмотра",
+			"error": "the file is too large to preview",
 			"size":  content.Length,
 		})
 		return
@@ -142,11 +142,11 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	if content.Length >= 0 {
 		w.Header().Set("Content-Length", strconv.FormatInt(content.Length, 10))
 	}
-	// Содержимое чужих файлов не должно исполняться как страница.
+	// Someone else's file contents must not execute as a page.
 	w.Header().Set("Content-Security-Policy", "sandbox")
 	w.Header().Set("Cache-Control", "private, max-age=60")
 
 	if _, err := io.Copy(w, io.LimitReader(content.Body, maxPreviewSize+1)); err != nil {
-		s.log.Debug("файл не доотдался", "err", err)
+		s.log.Debug("the file was not fully sent", "err", err)
 	}
 }

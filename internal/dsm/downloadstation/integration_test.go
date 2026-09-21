@@ -1,14 +1,14 @@
 //go:build integration
 
-// Интеграционные тесты против настоящего NAS.
+// Integration tests against a real NAS.
 //
-// Запуск:
+// Run with:
 //
 //	DSM_URL=https://nas:5001 DSM_USER=... DSM_PASSWORD=... \
 //	  go test -tags=integration ./internal/dsm/downloadstation/ -v
 //
-// Тесты только читают состояние: ни одна задача не создаётся, не ставится на
-// паузу и не удаляется.
+// The tests only read state: no task is created, paused
+// or deleted.
 package downloadstation
 
 import (
@@ -25,7 +25,7 @@ func newClient(t *testing.T) *dsm.Client {
 	t.Helper()
 	url, user, pass := os.Getenv("DSM_URL"), os.Getenv("DSM_USER"), os.Getenv("DSM_PASSWORD")
 	if url == "" || user == "" || pass == "" {
-		t.Skip("не заданы DSM_URL / DSM_USER / DSM_PASSWORD — интеграционные тесты пропущены")
+		t.Skip("DSM_URL / DSM_USER / DSM_PASSWORD are not set — integration tests skipped")
 	}
 	insecure, _ := strconv.ParseBool(os.Getenv("DSM_INSECURE_TLS"))
 	return dsm.New(dsm.Options{
@@ -34,14 +34,14 @@ func newClient(t *testing.T) *dsm.Client {
 	})
 }
 
-// TestBothGenerations проверяет, что современный и легаси путь видят NAS
-// одинаково. На DSM 7 доступны оба API сразу, и это единственная возможность
-// убедиться, что легаси-ветка не сгнила, не имея под рукой DSM 6.
+// TestBothGenerations checks that the modern and the legacy path see the NAS
+// the same way. On DSM 7 both APIs are available at once, and that is the only
+// chance to make sure the legacy branch has not rotted without a DSM 6 at hand.
 func TestBothGenerations(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t)
 	if err := c.Login(ctx); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 
@@ -51,15 +51,15 @@ func TestBothGenerations(t *testing.T) {
 	for _, gen := range gens {
 		st, err := NewWithGeneration(ctx, c, gen)
 		if err != nil {
-			t.Fatalf("%s: создание: %v", gen, err)
+			t.Fatalf("%s: creation: %v", gen, err)
 		}
 
 		tasks, err := st.List(ctx)
 		if err != nil {
-			t.Fatalf("%s: список задач: %v", gen, err)
+			t.Fatalf("%s: task list: %v", gen, err)
 		}
 		byGen[gen] = tasks
-		t.Logf("%s: задач %d", gen, len(tasks))
+		t.Logf("%s: %d tasks", gen, len(tasks))
 		for _, task := range tasks {
 			t.Logf("  %s | %s | %s | %.1f%% | %d B | %s",
 				task.ID, task.Status, task.Type, task.Progress()*100, task.Size, task.Destination)
@@ -67,35 +67,35 @@ func TestBothGenerations(t *testing.T) {
 
 		stats, err := st.Stats(ctx)
 		if err != nil {
-			t.Errorf("%s: статистика: %v", gen, err)
+			t.Errorf("%s: statistics: %v", gen, err)
 		} else {
-			t.Logf("%s: скорость ↓%d ↑%d B/s", gen, stats.SpeedDown, stats.SpeedUp)
+			t.Logf("%s: speed ↓%d ↑%d B/s", gen, stats.SpeedDown, stats.SpeedUp)
 		}
 
 		dest, err := st.DefaultDestination(ctx)
 		if err != nil {
-			t.Errorf("%s: папка по умолчанию: %v", gen, err)
+			t.Errorf("%s: default folder: %v", gen, err)
 		} else if dest == "" {
-			t.Errorf("%s: папка по умолчанию пуста", gen)
+			t.Errorf("%s: the default folder is empty", gen)
 		} else {
-			t.Logf("%s: папка по умолчанию %q", gen, dest)
+			t.Logf("%s: default folder %q", gen, dest)
 		}
 
 		vols, err := st.Volumes(ctx)
 		if err != nil {
-			t.Errorf("%s: тома: %v", gen, err)
+			t.Errorf("%s: volumes: %v", gen, err)
 		}
 		for _, v := range vols {
-			t.Logf("%s: том %s — свободно %d из %d B", gen, v.MountPoint, v.SizeFree, v.SizeTotal)
+			t.Logf("%s: volume %s — %d free of %d B", gen, v.MountPoint, v.SizeFree, v.SizeTotal)
 		}
 	}
 
 	v2, legacy := byGen[GenerationV2], byGen[GenerationLegacy]
 	if len(v2) != len(legacy) {
-		t.Fatalf("разное число задач: v2 %d, legacy %d", len(v2), len(legacy))
+		t.Fatalf("different task counts: v2 %d, legacy %d", len(v2), len(legacy))
 	}
 
-	// Порядок задач у двух API совпадает, но полагаться на это не стоит.
+	// The task order matches between the two APIs, but relying on it is unwise.
 	legacyByID := make(map[string]Task, len(legacy))
 	for _, task := range legacy {
 		legacyByID[task.ID] = task
@@ -103,48 +103,48 @@ func TestBothGenerations(t *testing.T) {
 	for _, a := range v2 {
 		b, ok := legacyByID[a.ID]
 		if !ok {
-			t.Errorf("задача %s есть в v2, но не в legacy", a.ID)
+			t.Errorf("task %s is in v2 but not in legacy", a.ID)
 			continue
 		}
-		// Главная проверка: числовой код статуса в v2 и строка в legacy
-		// должны приводиться к одному и тому же состоянию.
+		// The main check: the numeric status code in v2 and the string in
+		// legacy must map to one and the same state.
 		if a.Status != b.Status {
-			t.Errorf("задача %s: статус v2 %q, legacy %q", a.ID, a.Status, b.Status)
+			t.Errorf("task %s: status v2 %q, legacy %q", a.ID, a.Status, b.Status)
 		}
 		if a.Title != b.Title {
-			t.Errorf("задача %s: название v2 %q, legacy %q", a.ID, a.Title, b.Title)
+			t.Errorf("task %s: title v2 %q, legacy %q", a.ID, a.Title, b.Title)
 		}
 		if a.Size != b.Size {
-			t.Errorf("задача %s: размер v2 %d, legacy %d", a.ID, a.Size, b.Size)
+			t.Errorf("task %s: size v2 %d, legacy %d", a.ID, a.Size, b.Size)
 		}
 		if a.Destination != b.Destination {
-			t.Errorf("задача %s: папка v2 %q, legacy %q", a.ID, a.Destination, b.Destination)
+			t.Errorf("task %s: folder v2 %q, legacy %q", a.ID, a.Destination, b.Destination)
 		}
 		if !a.CreatedAt.Equal(b.CreatedAt) {
-			t.Errorf("задача %s: создана v2 %s, legacy %s — проверьте created_time против create_time",
+			t.Errorf("task %s: created v2 %s, legacy %s — check created_time against create_time",
 				a.ID, a.CreatedAt, b.CreatedAt)
 		}
 	}
 }
 
-// TestAutoPicksV2 убеждается, что на DSM 7 автовыбор берёт современный API.
+// TestAutoPicksV2 makes sure the automatic choice takes the modern API on DSM 7.
 func TestAutoPicksV2(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t)
 	if err := c.Login(ctx); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 
 	st, err := New(ctx, c)
 	if err != nil {
-		t.Fatalf("автовыбор: %v", err)
+		t.Fatalf("automatic choice: %v", err)
 	}
-	t.Logf("автовыбор дал поколение %q", st.Generation())
+	t.Logf("the automatic choice gave generation %q", st.Generation())
 	if !c.HasAPI(ctx, apiTaskV2) {
-		t.Skip("на этом NAS нет DownloadStation2 — сравнивать не с чем")
+		t.Skip("this NAS has no DownloadStation2 — nothing to compare with")
 	}
 	if st.Generation() != "v2" {
-		t.Errorf("при доступном DownloadStation2 ожидалось v2, получено %q", st.Generation())
+		t.Errorf("with DownloadStation2 available v2 was expected, got %q", st.Generation())
 	}
 }

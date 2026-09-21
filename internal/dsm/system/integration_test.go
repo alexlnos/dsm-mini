@@ -20,75 +20,75 @@ func newClient(t *testing.T) *dsm.Client {
 	t.Helper()
 	url, user, pass := os.Getenv("DSM_URL"), os.Getenv("DSM_USER"), os.Getenv("DSM_PASSWORD")
 	if url == "" || user == "" || pass == "" {
-		t.Skip("не заданы DSM_URL / DSM_USER / DSM_PASSWORD")
+		t.Skip("DSM_URL / DSM_USER / DSM_PASSWORD are not set")
 	}
 	insecure, _ := strconv.ParseBool(os.Getenv("DSM_INSECURE_TLS"))
 	c := dsm.New(dsm.Options{BaseURL: url, User: user, Password: pass,
 		InsecureTLS: insecure, Timeout: 30 * time.Second})
 	if err := c.Login(context.Background()); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 	return c
 }
 
-// TestSystemOverview читает состояние NAS. Ничего не меняет.
+// TestSystemOverview reads the NAS state. It changes nothing.
 func TestSystemOverview(t *testing.T) {
 	ctx := context.Background()
 	svc := system.New(newClient(t))
 
 	info, err := svc.Info(ctx)
 	if err != nil {
-		t.Fatalf("сведения о системе: %v", err)
+		t.Fatalf("system details: %v", err)
 	}
-	t.Logf("модель %s, прошивка %s, ядер %d, память %d МБ, аптайм %d ч",
+	t.Logf("model %s, firmware %s, %d cores, %d MB memory, uptime %d h",
 		info.Model, info.Firmware, info.CPUCores, info.RAMMB, info.UptimeSeconds/3600)
 	if info.Model == "" || info.CPUCores == 0 {
-		t.Error("сведения о системе пусты")
+		t.Error("the system details are empty")
 	}
 	if info.UptimeSeconds == 0 {
-		t.Error("аптайм не разобрался")
+		t.Error("the uptime did not parse")
 	}
 
 	usage, err := svc.Usage(ctx)
 	if err != nil {
-		t.Fatalf("загрузка: %v", err)
+		t.Fatalf("load: %v", err)
 	}
-	t.Logf("CPU %d%%, память %d%% из %d МБ, сеть ↓%d ↑%d Б/с",
+	t.Logf("CPU %d%%, memory %d%% of %d MB, network ↓%d ↑%d B/s",
 		usage.CPUPercent, usage.MemoryPercent, usage.MemoryTotalMB,
 		usage.NetworkRx, usage.NetworkTx)
 	if usage.MemoryPercent <= 0 || usage.MemoryPercent > 100 {
-		t.Errorf("доля занятой памяти вне диапазона: %d", usage.MemoryPercent)
+		t.Errorf("the used memory share is out of range: %d", usage.MemoryPercent)
 	}
 
 	packages, err := svc.Packages(ctx)
 	if err != nil {
-		t.Fatalf("пакеты: %v", err)
+		t.Fatalf("packages: %v", err)
 	}
-	t.Logf("пакетов: %d", len(packages))
+	t.Logf("packages: %d", len(packages))
 	for _, id := range []string{"DownloadStation", "FileStation", "Virtualization", "ContainerManager"} {
 		p, ok := svc.PackageState(ctx, id)
 		if !ok {
-			t.Logf("  %s: не установлен", id)
+			t.Logf("  %s: not installed", id)
 			continue
 		}
-		t.Logf("  %s: %s, работает=%v", p.Name, p.Version, p.Running)
+		t.Logf("  %s: %s, running=%v", p.Name, p.Version, p.Running)
 	}
 }
 
-// TestSystemLog читает журнал и проверяет отбор проблемных записей.
+// TestSystemLog reads the log and checks the filtering of problem records.
 func TestSystemLog(t *testing.T) {
 	ctx := context.Background()
 	svc := system.New(newClient(t))
 
 	entries, err := svc.Log(ctx, 10, false)
 	if err != nil {
-		t.Fatalf("журнал: %v", err)
+		t.Fatalf("log: %v", err)
 	}
 	if len(entries) == 0 {
-		t.Fatal("журнал пуст")
+		t.Fatal("the log is empty")
 	}
-	t.Logf("последних записей: %d", len(entries))
+	t.Logf("latest records: %d", len(entries))
 	for i, e := range entries {
 		if i >= 4 {
 			break
@@ -96,90 +96,90 @@ func TestSystemLog(t *testing.T) {
 		t.Logf("  [%s] %s %s", e.Level, e.Time.Format("02.01 15:04"), trim(e.Message, 60))
 	}
 	if entries[0].Time.IsZero() {
-		t.Error("время записи не разобралось")
+		t.Error("the record time did not parse")
 	}
 
-	// Фильтр по уровню на стороне NAS не работает, отбор делается у нас.
+	// Filtering by level on the NAS side does not work, we filter here.
 	problems, err := svc.Log(ctx, 10, true)
 	if err != nil {
-		t.Fatalf("журнал проблем: %v", err)
+		t.Fatalf("problem log: %v", err)
 	}
-	t.Logf("проблемных записей: %d", len(problems))
+	t.Logf("problem records: %d", len(problems))
 	for _, e := range problems {
 		if e.Level != "error" && e.Level != "warn" {
-			t.Errorf("в отбор попала запись уровня %q", e.Level)
+			t.Errorf("a record of level %q got into the selection", e.Level)
 		}
 	}
 }
 
-// TestStorageOverview читает диски, пулы и тома.
+// TestStorageOverview reads disks, pools and volumes.
 func TestStorageOverview(t *testing.T) {
 	ctx := context.Background()
 	svc := storage.New(newClient(t))
 
 	overview, err := svc.Load(ctx)
 	if err != nil {
-		t.Fatalf("хранилище: %v", err)
+		t.Fatalf("storage: %v", err)
 	}
-	t.Logf("дисков %d, пулов %d, томов %d, всё исправно=%v",
+	t.Logf("%d disks, %d pools, %d volumes, all healthy=%v",
 		len(overview.Disks), len(overview.Pools), len(overview.Volumes), overview.Healthy)
 
 	if len(overview.Disks) == 0 {
-		t.Fatal("список дисков пуст")
+		t.Fatal("the disk list is empty")
 	}
 	for _, d := range overview.Disks {
-		t.Logf("  %s %s %d ГБ %d°C %s (%s)",
+		t.Logf("  %s %s %d GB %d°C %s (%s)",
 			d.ID, trim(d.Model, 22), d.Size/1e9, d.Temp, d.Status, d.Role)
 		if d.Size == 0 {
-			t.Errorf("у диска %s не разобрался размер", d.ID)
+			t.Errorf("the size of disk %s did not parse", d.ID)
 		}
 	}
 	for _, v := range overview.Volumes {
 		if v.Total == 0 {
-			t.Errorf("у тома %s не разобрался размер", v.ID)
+			t.Errorf("the size of volume %s did not parse", v.ID)
 			continue
 		}
-		t.Logf("  том %s: %.2f из %.2f ТБ (%d%%)", v.ID,
+		t.Logf("  volume %s: %.2f of %.2f TB (%d%%)", v.ID,
 			float64(v.Used)/1e12, float64(v.Total)/1e12, v.Used*100/v.Total)
 	}
 }
 
-// TestVirtualMachines читает список машин и сводку по ресурсам.
+// TestVirtualMachines reads the machine list and the resource summary.
 func TestVirtualMachines(t *testing.T) {
 	ctx := context.Background()
 	svc := vmm.New(newClient(t))
 
 	guests, err := svc.List(ctx)
 	if err != nil {
-		t.Fatalf("список машин: %v", err)
+		t.Fatalf("machine list: %v", err)
 	}
-	t.Logf("машин: %d", len(guests))
+	t.Logf("machines: %d", len(guests))
 	for _, g := range guests {
-		t.Logf("  %-18s %-9s %d vCPU, %d МБ, диск %d МБ, автозапуск=%v",
+		t.Logf("  %-18s %-9s %d vCPU, %d MB, disk %d MB, autostart=%v",
 			g.Name, g.Status, g.VCPU, g.RAMMB, g.DiskMB, g.Autorun)
 		if g.ID == "" || g.Name == "" {
-			t.Error("у машины нет имени или идентификатора")
+			t.Error("a machine has no name or id")
 		}
 	}
 
 	host, err := svc.Host(ctx)
 	if err != nil {
-		t.Fatalf("сводка хоста: %v", err)
+		t.Fatalf("host summary: %v", err)
 	}
-	t.Logf("работает %d из %d, занято %d vCPU, свободно %d МБ",
+	t.Logf("%d of %d running, %d vCPU busy, %d MB free",
 		host.RunningVMs, host.TotalVMs, host.UsedVCPU, host.FreeRAMMB)
 }
 
-// TestContainers читает список контейнеров. Пустой список — нормально.
+// TestContainers reads the container list. An empty list is fine.
 func TestContainers(t *testing.T) {
 	ctx := context.Background()
 	svc := containers.New(newClient(t))
 
 	list, err := svc.List(ctx)
 	if err != nil {
-		t.Fatalf("контейнеры: %v", err)
+		t.Fatalf("containers: %v", err)
 	}
-	t.Logf("контейнеров: %d", len(list))
+	t.Logf("containers: %d", len(list))
 	for _, c := range list {
 		t.Logf("  %s (%s) %s", c.Name, c.Image, c.Status)
 	}

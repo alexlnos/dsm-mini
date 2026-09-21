@@ -9,9 +9,9 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
-// FilePriority — приоритет файла внутри раздачи.
+// FilePriority is the priority of a file inside a torrent.
 //
-// Download Station передаёт его строкой, а не числом.
+// Download Station passes it as a string, not a number.
 type FilePriority string
 
 const (
@@ -20,8 +20,8 @@ const (
 	PriorityHigh   FilePriority = "high"
 )
 
-// Valid сообщает, знаком ли приоритет. Неизвестное значение отправлять на NAS
-// не стоит: он ответит невнятной ошибкой.
+// Valid reports whether the priority is known. Sending an unknown value to
+// the NAS is a bad idea: it answers with an unhelpful error.
 func (p FilePriority) Valid() bool {
 	switch p {
 	case PriorityLow, PriorityNormal, PriorityHigh:
@@ -30,18 +30,18 @@ func (p FilePriority) Valid() bool {
 	return false
 }
 
-// File — файл внутри раздачи.
+// File is a file inside a torrent.
 type File struct {
 	Index      int          `json:"index"`
 	Name       string       `json:"name"`
 	Size       int64        `json:"size"`
 	Downloaded int64        `json:"downloaded"`
 	Priority   FilePriority `json:"priority"`
-	// Wanted — качать ли файл вообще.
+	// Wanted tells whether to download the file at all.
 	Wanted bool `json:"wanted"`
 }
 
-// Progress — доля загруженного от 0 до 1.
+// Progress is the downloaded share, from 0 to 1.
 func (f File) Progress() float64 {
 	if f.Size <= 0 {
 		return 0
@@ -53,7 +53,7 @@ func (f File) Progress() float64 {
 	return p
 }
 
-// Tracker — трекер раздачи.
+// Tracker is a torrent tracker.
 type Tracker struct {
 	URL    string `json:"url"`
 	Status string `json:"status"`
@@ -61,15 +61,15 @@ type Tracker struct {
 	Peers  int    `json:"peers"`
 }
 
-// ErrNotActive означает, что сведения доступны только у работающей задачи.
+// ErrNotActive means the details are only available for a running task.
 //
-// Download Station закрывает BT-сессию завершённой или остановленной задачи и
-// отвечает кодом 1913 на любой запрос файлов, трекеров и пиров.
-var ErrNotActive = fmt.Errorf("сведения доступны, только пока задача качается или раздаётся")
+// Download Station closes the BT session of a finished or stopped task and
+// answers code 1913 to any request for files, trackers or peers.
+var ErrNotActive = fmt.Errorf("details are available only while the task is downloading or seeding")
 
 const codeNotActive = 1913
 
-// Files возвращает файлы внутри раздачи.
+// Files returns the files inside a torrent.
 func (s *stationV2) Files(ctx context.Context, taskID string) ([]File, error) {
 	var out struct {
 		Items []struct {
@@ -85,8 +85,8 @@ func (s *stationV2) Files(ctx context.Context, taskID string) ([]File, error) {
 	err := s.c.Call(ctx, apiFileV2, "list", 2, map[string]any{
 		"task_id": taskID,
 		"offset":  0,
-		// Раздачи с тысячами файлов встречаются; больше за раз всё равно не
-		// покажем, а список грузится в один запрос.
+		// Torrents with thousands of files do happen; we would not show more
+		// at once anyway, and the list loads in a single request.
 		"limit": 1000,
 	}, &out)
 	if err != nil {
@@ -110,17 +110,17 @@ func (s *stationV2) Files(ctx context.Context, taskID string) ([]File, error) {
 	return files, nil
 }
 
-// SetFile меняет приоритет файла и признак «качать ли его».
+// SetFile changes a file's priority and whether to download it.
 func (s *stationV2) SetFile(ctx context.Context, taskID string, indexes []int,
 	priority FilePriority, wanted *bool) error {
 
 	if len(indexes) == 0 {
-		return fmt.Errorf("не выбран ни один файл")
+		return fmt.Errorf("no files selected")
 	}
 	params := map[string]any{"task_id": taskID, "index": indexes}
 	if priority != "" {
 		if !priority.Valid() {
-			return fmt.Errorf("неизвестный приоритет %q", priority)
+			return fmt.Errorf("unknown priority %q", priority)
 		}
 		params["priority"] = string(priority)
 	}
@@ -128,7 +128,7 @@ func (s *stationV2) SetFile(ctx context.Context, taskID string, indexes []int,
 		params["wanted"] = *wanted
 	}
 	if len(params) == 2 {
-		return fmt.Errorf("нечего менять")
+		return fmt.Errorf("nothing to change")
 	}
 
 	err := s.c.Call(ctx, apiFileV2, "set", 2, params, nil)
@@ -138,7 +138,7 @@ func (s *stationV2) SetFile(ctx context.Context, taskID string, indexes []int,
 	return err
 }
 
-// Trackers возвращает трекеры раздачи.
+// Trackers returns the torrent's trackers.
 func (s *stationV2) Trackers(ctx context.Context, taskID string) ([]Tracker, error) {
 	var out struct {
 		Items []Tracker `json:"items"`
@@ -155,19 +155,19 @@ func (s *stationV2) Trackers(ctx context.Context, taskID string) ([]Tracker, err
 	return out.Items, nil
 }
 
-// SetDestination переносит задачу в другую папку.
+// SetDestination moves a task to another folder.
 //
-// Путь идёт от корня общей папки и без ведущего слеша: несуществующая папка
-// даёт код 1203.
+// The path goes from the shared folder root and without a leading slash: a
+// missing folder gives code 1203.
 func (s *stationV2) SetDestination(ctx context.Context, taskIDs []string, destination string) error {
 	if len(taskIDs) == 0 {
-		return fmt.Errorf("не указано ни одной задачи")
+		return fmt.Errorf("no tasks given")
 	}
 	destination = strings.Trim(strings.TrimSpace(destination), "/")
 	if destination == "" {
-		return fmt.Errorf("не указана папка")
+		return fmt.Errorf("no folder given")
 	}
-	// Здесь параметр называется id, а не task_id, как у файлов того же API.
+	// Here the parameter is called id, not task_id as for files of the same API.
 	var res actionResult
 	if err := s.c.Call(ctx, apiTaskV2, "edit", 2, map[string]any{
 		"id": taskIDs, "destination": destination,
@@ -177,18 +177,18 @@ func (s *stationV2) SetDestination(ctx context.Context, taskIDs []string, destin
 	return failuresToError(apiTaskV2, "edit", res)
 }
 
-// SetPriority меняет приоритет задачи в очереди.
+// SetPriority changes a task's priority in the queue.
 //
-// Осторожно: в Download Station это свойство задач eMule, а не BT. Для
-// торрентов NAS принимает вызов и отвечает успехом, но приоритет не
-// сохраняется и ни в одном ответе не возвращается — интерфейс такого
-// переключателя не показывает. Метод оставлен для тех, у кого eMule включён.
+// Careful: in Download Station this property belongs to eMule tasks, not BT.
+// For torrents the NAS accepts the call and answers success, but the priority
+// is not stored and never comes back in any response — the interface shows no
+// such switch. The method is kept for those who have eMule enabled.
 func (s *stationV2) SetPriority(ctx context.Context, taskIDs []string, priority FilePriority) error {
 	if len(taskIDs) == 0 {
-		return fmt.Errorf("не указано ни одной задачи")
+		return fmt.Errorf("no tasks given")
 	}
 	if !priority.Valid() {
-		return fmt.Errorf("неизвестный приоритет %q", priority)
+		return fmt.Errorf("unknown priority %q", priority)
 	}
 	var res actionResult
 	if err := s.c.Call(ctx, apiTaskV2, "edit", 2, map[string]any{

@@ -14,20 +14,20 @@ import (
 	"strings"
 )
 
-// UploadFile — файл, передаваемый в multipart-запросе.
+// UploadFile is a file sent in a multipart request.
 type UploadFile struct {
-	// Field — имя части. File Station ждёт "file", Download Station — "file".
+	// Field is the part name. File Station expects "file", Download Station too.
 	Field string
 	Name  string
 	Data  []byte
 }
 
-// CallUpload выполняет запрос multipart/form-data (RFC 1867).
+// CallUpload performs a multipart/form-data request (RFC 1867).
 //
-// Отличие от обычного вызова: значения полей идут КАК ЕСТЬ, без кодирования
-// в JSON, даже у API с requestFormat "JSON" — так задано в спецификации
-// Synology и так работает на деле. Бинарные данные обязаны быть последней
-// частью запроса, иначе DSM отвечает ошибкой 1800.
+// The difference from an ordinary call: field values go AS THEY ARE, without
+// JSON encoding, even for APIs with requestFormat "JSON" — that is what the
+// Synology specification says and what works in practice. Binary data must be
+// the last part of the request, otherwise DSM answers with error 1800.
 func (c *Client) CallUpload(ctx context.Context, api, method string, version int,
 	fields map[string]string, file UploadFile, out any) error {
 
@@ -50,7 +50,7 @@ func (c *Client) CallUpload(ctx context.Context, api, method string, version int
 		return nil
 	}
 	if err := json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("%s.%s: не разобрать ответ: %w", api, method, err)
+		return fmt.Errorf("%s.%s: cannot parse the response: %w", api, method, err)
 	}
 	return nil
 }
@@ -70,8 +70,8 @@ func (c *Client) upload(ctx context.Context, api, method string, version int,
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 
-	// Порядок частей повторяет пример Synology: служебные поля, потом
-	// прикладные, файл — последним.
+	// The order of the parts follows Synology's example: service fields, then
+	// application ones, the file last.
 	ordered := []struct{ k, v string }{
 		{"api", api},
 		{"version", strconv.Itoa(version)},
@@ -106,8 +106,8 @@ func (c *Client) upload(ctx context.Context, api, method string, version int,
 		return nil, err
 	}
 
-	// Идентификатор сессии здесь идёт в строке запроса, а не частью формы:
-	// из тела multipart DSM его не читает и отвечает 119 «SID не найден».
+	// The session id goes in the query string here rather than as a form part:
+	// DSM does not read it from a multipart body and answers 119 "SID not found".
 	endpoint := c.baseURL + "/webapi/" + info.Path
 	if sid != "" {
 		endpoint += "?" + url.Values{"_sid": {sid}}.Encode()
@@ -121,13 +121,13 @@ func (c *Client) upload(ctx context.Context, api, method string, version int,
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("загрузка на DSM не удалась: %w", err)
+		return nil, fmt.Errorf("the upload to DSM failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
-		return nil, fmt.Errorf("не прочитать ответ DSM: %w", err)
+		return nil, fmt.Errorf("cannot read the DSM response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, &HTTPError{Status: resp.StatusCode}
@@ -135,7 +135,7 @@ func (c *Client) upload(ctx context.Context, api, method string, version int,
 
 	var out response
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, fmt.Errorf("ответ DSM не является JSON: %w", err)
+		return nil, fmt.Errorf("the DSM response is not JSON: %w", err)
 	}
 	if !out.Success {
 		e := &APIError{API: api, Method: method}

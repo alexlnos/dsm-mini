@@ -12,13 +12,13 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
-// handleSystem отдаёт всё для главного экрана одним запросом: устройство,
-// загрузка и состояние пакетов.
+// handleSystem serves everything for the home screen in one request: device,
+// load and package states.
 func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Три независимых запроса к NAS идут разом: последовательно они
-	// складывались в две с лишним секунды ожидания на главном экране.
+	// Three independent requests to the NAS go at once: one after another they
+	// added up to over two seconds of waiting on the home screen.
 	var (
 		info     system.Info
 		infoErr  error
@@ -30,29 +30,29 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 		what string
 		run  func()
 	}{
-		{"сведения о NAS", func() {
+		{"nas details", func() {
 			info, infoErr = s.infoCache.GetStale(ctx, s.system.Info)
 		}},
-		{"загрузка NAS", func() {
+		{"nas load", func() {
 			value, err := s.usageCache.GetStale(ctx, s.system.Usage)
 			if err != nil {
-				s.log.Warn("не получить загрузку", "err", err)
+				s.log.Warn("cannot get the load", "err", err)
 				return
 			}
 			usage = value
 		}},
-		{"список пакетов", func() {
+		{"package list", func() {
 			value, err := s.packagesCache.GetStale(ctx, s.system.Packages)
 			if err != nil {
-				s.log.Warn("не получить список пакетов", "err", err)
+				s.log.Warn("cannot get the package list", "err", err)
 				return
 			}
 			packages = value
 		}},
 	}
 
-	// Счётчик берётся из самого списка: разойдись он с числом запущенных
-	// горутин — и обработчик завис бы навсегда, что уже случалось.
+	// The count comes from the slice itself: let it drift from the number of
+	// started goroutines and the handler would hang forever, as it already did.
 	var wg sync.WaitGroup
 	wg.Add(len(tasks))
 	for _, task := range tasks {
@@ -65,7 +65,7 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Интерфейсу важно только то, доступен ли раздел приложения.
+	// The interface only cares whether a section of the app is available.
 	state := make(map[string]any, 4)
 	for _, id := range []string{"DownloadStation", "FileStation", "Virtualization", "ContainerManager"} {
 		found := false
@@ -122,11 +122,11 @@ func (s *Server) handleVMs(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err, "api.vms")
 		return
 	}
-	// Сводка считается по готовым данным: иначе список и сведения о хосте
-	// запрашивались бы у NAS заново, и экран снова ждал бы секунду.
+	// The summary is built from data already at hand: otherwise the list and
+	// the host details would be fetched again and the screen would wait a second.
 	res, err := s.vmHostCache.GetStale(ctx, s.vms.Resources)
 	if err != nil {
-		s.log.Warn("не получить сведения о хосте виртуализации", "err", err)
+		s.log.Warn("cannot get the virtualisation host details", "err", err)
 	}
 	host := s.vms.HostFor(guests, res)
 	writeJSON(w, http.StatusOK, map[string]any{"guests": guests, "host": host})
@@ -159,11 +159,11 @@ func (s *Server) handleVMAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Машина меняет состояние не мгновенно, но список надо перечитать.
+	// A machine does not change state instantly, but the list must be re-read.
 	s.vmsCache.Invalidate()
 
 	u, _ := userFrom(ctx)
-	s.log.Info("действие над машиной", "user", u.ID, "vm", req.ID, "action", req.Action)
+	s.log.Info("action on a machine", "user", u.ID, "vm", req.ID, "action", req.Action)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -206,29 +206,29 @@ func (s *Server) handleContainerAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u, _ := userFrom(ctx)
-	s.log.Info("действие над контейнером", "user", u.ID, "name", req.Name, "action", req.Action)
+	s.log.Info("action on a container", "user", u.ID, "name", req.Name, "action", req.Action)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// inBackground запускает часть работы запроса в отдельной горутине.
+// inBackground runs part of a request's work in a separate goroutine.
 //
-// Восстановление здесь обязательно: recover в middleware ловит панику только
-// в своей горутине, а паника в соседней роняет процесс целиком — так уже
-// падал весь сервис из-за одного неинициализированного кэша.
+// Recovering here is mandatory: recover in middleware catches a panic only in
+// its own goroutine, while a panic in a neighbouring one takes the whole
+// process down — that is how the service already died over one uninitialised cache.
 func (s *Server) inBackground(wg *sync.WaitGroup, what string, run func()) {
 	defer wg.Done()
 	defer func() {
 		if v := recover(); v != nil {
-			s.log.Error("паника в фоновой части запроса", "что", what, "panic", v)
+			s.log.Error("panic in the background part of a request", "what", what, "panic", v)
 		}
 	}()
 	run()
 }
 
-// Warmup заранее наполняет кэши состояния NAS.
+// Warmup fills the NAS state caches in advance.
 //
-// Без него первый, кто откроет приложение, ждёт полный обход DSM. Прогрев в
-// фоне превращает это ожидание в чтение готовых значений.
+// Without it the first person to open the app waits out a full DSM round
+// trip. Warming up in the background turns that wait into reading ready values.
 func (s *Server) Warmup(ctx context.Context) {
 	if s.system == nil {
 		return
@@ -238,31 +238,31 @@ func (s *Server) Warmup(ctx context.Context) {
 		what string
 		run  func()
 	}{
-		{"сведения о NAS", func() { _, _ = s.infoCache.Get(ctx, s.system.Info) }},
-		{"загрузка NAS", func() { _, _ = s.usageCache.Get(ctx, s.system.Usage) }},
-		{"список пакетов", func() { _, _ = s.packagesCache.Get(ctx, s.system.Packages) }},
+		{"nas details", func() { _, _ = s.infoCache.Get(ctx, s.system.Info) }},
+		{"nas load", func() { _, _ = s.usageCache.Get(ctx, s.system.Usage) }},
+		{"package list", func() { _, _ = s.packagesCache.Get(ctx, s.system.Packages) }},
 	}
 	if s.ds != nil {
 		tasks = append(tasks, struct {
 			what string
 			run  func()
-		}{"задачи", func() { _, _ = s.tasksCache.Get(ctx, s.ds.List) }})
+		}{"tasks", func() { _, _ = s.tasksCache.Get(ctx, s.ds.List) }})
 	}
 	if s.vms != nil {
 		tasks = append(tasks, struct {
 			what string
 			run  func()
-		}{"машины", func() { _, _ = s.vmsCache.Get(ctx, s.vms.List) }})
+		}{"machines", func() { _, _ = s.vmsCache.Get(ctx, s.vms.List) }})
 		tasks = append(tasks, struct {
 			what string
 			run  func()
-		}{"ресурсы виртуализации", func() { _, _ = s.vmHostCache.Get(ctx, s.vms.Resources) }})
+		}{"virtualisation resources", func() { _, _ = s.vmHostCache.Get(ctx, s.vms.Resources) }})
 	}
 	if s.storage != nil {
 		tasks = append(tasks, struct {
 			what string
 			run  func()
-		}{"хранилище", func() { _, _ = s.storageCache.Get(ctx, s.storage.Load) }})
+		}{"storage", func() { _, _ = s.storageCache.Get(ctx, s.storage.Load) }})
 	}
 
 	var wg sync.WaitGroup
@@ -273,10 +273,10 @@ func (s *Server) Warmup(ctx context.Context) {
 	wg.Wait()
 }
 
-// KeepWarm обновляет кэши, пока жив контекст.
+// KeepWarm refreshes the caches for as long as the context lives.
 //
-// Интервал меньше самого короткого срока жизни не нужен: чаще, чем меняются
-// данные, их всё равно не прочитать, а NAS не стоит дёргать зря.
+// An interval shorter than the shortest lifetime is pointless: the data
+// cannot be read fresher than it changes, and the NAS should not be poked for nothing.
 func (s *Server) KeepWarm(ctx context.Context, interval time.Duration) {
 	if interval <= 0 {
 		interval = 20 * time.Second

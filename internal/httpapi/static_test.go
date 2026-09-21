@@ -10,12 +10,12 @@ import (
 	"testing/fstest"
 )
 
-// TestServesMiniApp: статика отдаётся без авторизации — подпись Telegram
-// приходит уже из загруженной страницы, поэтому саму страницу закрывать
-// нечем и незачем. Закрыты данные, а не оболочка.
+// TestServesMiniApp: static files are served without authorisation — the
+// Telegram signature arrives from an already loaded page, so there is nothing
+// to lock the page itself with, and no reason to. The data is locked, not the shell.
 func TestServesMiniApp(t *testing.T) {
 	static := fstest.MapFS{
-		"index.html":    {Data: []byte("<!doctype html><title>Загрузки</title>")},
+		"index.html":    {Data: []byte("<!doctype html><title>Downloads</title>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
 	}
 	s := New(Options{
@@ -25,28 +25,28 @@ func TestServesMiniApp(t *testing.T) {
 	})
 
 	for _, tc := range []struct{ path, want string }{
-		{"/", "Загрузки"},
+		{"/", "Downloads"},
 		{"/assets/app.js", "console.log"},
-		// Неизвестный путь отдаёт оболочку: навигация внутри Mini App
-		// происходит без обращения к серверу.
-		{"/files", "Загрузки"},
+		// An unknown path serves the shell: navigation inside the Mini App
+		// happens without touching the server.
+		{"/files", "Downloads"},
 	} {
 		r := httptest.NewRequest(http.MethodGet, tc.path, nil)
 		w := httptest.NewRecorder()
 		s.Handler().ServeHTTP(w, r)
 
 		if w.Code != http.StatusOK {
-			t.Errorf("%s: код %d", tc.path, w.Code)
+			t.Errorf("%s: code %d", tc.path, w.Code)
 			continue
 		}
 		if !strings.Contains(w.Body.String(), tc.want) {
-			t.Errorf("%s: в ответе нет %q", tc.path, tc.want)
+			t.Errorf("%s: the response lacks %q", tc.path, tc.want)
 		}
 	}
 }
 
-// TestNoStaticStillServesAPI: без собранного фронтенда сервис остаётся
-// рабочим ботом, а не падает.
+// TestNoStaticStillServesAPI: without a built frontend the service stays a
+// working bot instead of crashing.
 func TestNoStaticStillServesAPI(t *testing.T) {
 	s, _ := newTestServer(t, []int64{42})
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -54,14 +54,14 @@ func TestNoStaticStillServesAPI(t *testing.T) {
 	s.Handler().ServeHTTP(w, r)
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("без статики главная вернула %d, ожидался 404", w.Code)
+		t.Errorf("without static files the home page returned %d, expected 404", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "не собрано") {
-		t.Errorf("ответ не объясняет причину: %s", w.Body.String())
+	if !strings.Contains(w.Body.String(), "not built") {
+		t.Errorf("the response does not explain why: %s", w.Body.String())
 	}
 }
 
-// TestSecurityHeaders: заголовки, уместные для страницы внутри webview.
+// TestSecurityHeaders: headers suited to a page inside a webview.
 func TestSecurityHeaders(t *testing.T) {
 	s, _ := newTestServer(t, []int64{42})
 	r := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -76,11 +76,11 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
-// TestCacheHeaders: index.html перепроверяется каждый раз, ресурсы с хешем в
-// имени кешируются навсегда.
+// TestCacheHeaders: index.html is revalidated every time, assets with a hash
+// in the name are cached forever.
 //
-// Без этого Telegram продолжает открывать старую сборку после обновления:
-// он держит index.html в кеше, а тот ссылается на прежние файлы.
+// Without this Telegram keeps opening the old build after an update: it holds
+// index.html in cache, and that one points at the previous files.
 func TestCacheHeaders(t *testing.T) {
 	static := fstest.MapFS{
 		"index.html":             {Data: []byte("<!doctype html>")},
@@ -102,7 +102,7 @@ func TestCacheHeaders(t *testing.T) {
 		s.Handler().ServeHTTP(w, r)
 
 		if got := w.Header().Get("Cache-Control"); got != tc.want {
-			t.Errorf("%s: Cache-Control = %q, ожидалось %q", tc.path, got, tc.want)
+			t.Errorf("%s: Cache-Control = %q, expected %q", tc.path, got, tc.want)
 		}
 	}
 }

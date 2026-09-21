@@ -7,11 +7,11 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
-// settingsView — настройки вместе с тем, что нужно интерфейсу для их показа.
+// settingsView is the settings plus what the interface needs to show them.
 type settingsView struct {
 	store.Settings
-	// Suggested — папки, которые можно закрепить: папка по умолчанию из
-	// Download Station и те, куда недавно качали.
+	// Suggested are folders worth pinning: the Download Station default and
+	// the ones downloaded into recently.
 	Suggested []string `json:"suggested"`
 }
 
@@ -39,7 +39,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err, "api.settings")
 		return
 	}
-	s.log.Info("настройки сохранены", "user", u.ID, "pinned", len(saved.PinnedFolders))
+	s.log.Info("settings saved", "user", u.ID, "pinned", len(saved.PinnedFolders))
 	writeJSON(w, http.StatusOK, settingsView{
 		Settings:  saved,
 		Suggested: s.suggestFolders(r),
@@ -52,20 +52,19 @@ func (s *Server) userSettings(ctx context.Context, userID int64) store.Settings 
 	}
 	settings, err := s.settings.Get(ctx, userID)
 	if err != nil {
-		// Настройки — не то, ради чего стоит отказывать в работе: показываем
-		// значения по умолчанию и пишем в журнал.
-		s.log.Warn("не прочитать настройки", "user", userID, "err", err)
+		// Settings are not worth refusing service over: we show the defaults
+		// and write to the log.
+		s.log.Warn("cannot read the settings", "user", userID, "err", err)
 		return store.Defaults()
 	}
 	return settings
 }
 
-// suggestFolders предлагает папки, которые есть смысл закрепить: папку по
-// умолчанию из Download Station и те, куда пользователь уже складывал
-// загрузки сам.
+// suggestFolders offers folders worth pinning: the Download Station default
+// one and those the user has already put downloads into themselves.
 //
-// Папки существующих задач сюда не попадают намеренно: это чужие раздачи и
-// давние закачки, к которым новая загрузка отношения не имеет.
+// Folders of existing tasks deliberately stay out: those are other people's
+// torrents and long-past downloads, unrelated to a new one.
 func (s *Server) suggestFolders(r *http.Request) []string {
 	ctx := r.Context()
 	u, _ := userFrom(ctx)
@@ -86,7 +85,7 @@ func (s *Server) suggestFolders(r *http.Request) []string {
 	if s.settings != nil {
 		recent, err := s.settings.RecentFolders(ctx, u.ID, 8)
 		if err != nil {
-			s.log.Warn("не прочитать историю папок", "err", err)
+			s.log.Warn("cannot read the folder history", "err", err)
 		}
 		for _, folder := range recent {
 			add(folder)
@@ -95,9 +94,8 @@ func (s *Server) suggestFolders(r *http.Request) []string {
 	return out
 }
 
-// folderChoices возвращает папки для экрана добавления в том порядке, в каком
-// их увидит пользователь: сначала закреплённые, затем, если разрешено,
-// недавние.
+// folderChoices returns the folders for the add screen in the order the user
+// will see them: pinned first, then, if allowed, the recent ones.
 func (s *Server) folderChoices(r *http.Request, userID int64) []string {
 	settings := s.userSettings(r.Context(), userID)
 
@@ -114,7 +112,7 @@ func (s *Server) folderChoices(r *http.Request, userID int64) []string {
 	for _, f := range settings.PinnedFolders {
 		add(f)
 	}
-	// Недавние — это собственная история, а не папки задач Download Station.
+	// Recent means the user's own history, not Download Station task folders.
 	if settings.ShowRecent || len(out) == 0 {
 		for _, f := range s.suggestFolders(r) {
 			add(f)

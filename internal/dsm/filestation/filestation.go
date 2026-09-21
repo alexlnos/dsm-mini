@@ -1,9 +1,9 @@
-// Package filestation — работа с файлами на NAS через SYNO.FileStation.*.
+// Package filestation works with files on the NAS through SYNO.FileStation.*.
 //
-// Главная особенность: File Station НЕ принимает limit = -1. В отличие от
-// Download Station, где это штатный способ получить всё разом, здесь такой
-// запрос роняет обработчик в HTTP 502 — на любой версии API. Поэтому списки
-// читаются страницами. Подробности в docs/synology-api.md.
+// The main quirk: File Station does NOT accept limit = -1. Unlike Download
+// Station, where that is the normal way to get everything at once, here such
+// a request crashes the handler into HTTP 502 — on any API version. So lists
+// are read page by page. Details in docs/synology-api.md.
 package filestation
 
 import (
@@ -17,10 +17,10 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
-// pageSize — размер страницы при чтении списков.
+// pageSize is the page size when reading lists.
 //
-// Значение -1 («всё разом»), привычное по Download Station, File Station не
-// принимает: запрос падает с HTTP 502 на любой версии API.
+// The value -1 ("everything at once"), familiar from Download Station, is not
+// accepted by File Station: the request fails with HTTP 502 on any API version.
 const pageSize = 500
 
 const (
@@ -34,7 +34,7 @@ const (
 	apiCoreShar = "SYNO.Core.Share"
 )
 
-// Entry — файл или папка.
+// Entry is a file or a folder.
 type Entry struct {
 	Name     string    `json:"name"`
 	Path     string    `json:"path"`
@@ -43,12 +43,12 @@ type Entry struct {
 	Modified time.Time `json:"modified,omitzero"`
 }
 
-// Station — операции над файлами NAS.
+// Station covers operations on NAS files.
 type Station struct {
 	c *dsm.Client
 }
 
-// New создаёт клиент File Station.
+// New creates a File Station client.
 func New(c *dsm.Client) *Station { return &Station{c: c} }
 
 type rawFile struct {
@@ -71,10 +71,10 @@ func (f rawFile) toEntry() Entry {
 	return e
 }
 
-// Shares перечисляет общие папки — верхний уровень файлового дерева.
+// Shares lists the shared folders — the top level of the file tree.
 //
-// Если у File Station сломан list_share, берём список из SYNO.Core.Share:
-// он отдаёт те же папки и требует лишь прав администратора.
+// When File Station's list_share is broken, we take the list from
+// SYNO.Core.Share: it returns the same folders and needs only admin rights.
 func (s *Station) Shares(ctx context.Context) ([]Entry, error) {
 	var out struct {
 		Shares []rawFile `json:"shares"`
@@ -96,8 +96,8 @@ func (s *Station) Shares(ctx context.Context) ([]Entry, error) {
 	if e := s.c.Call(ctx, apiCoreShar, "list", 1, map[string]any{
 		"limit": pageSize, "offset": 0,
 	}, &fallback); e != nil {
-		// Сообщаем исходную причину: она полезнее ошибки запасного пути.
-		return nil, fmt.Errorf("не получить список общих папок: %w", err)
+		// Report the original cause: it is more useful than the fallback's error.
+		return nil, fmt.Errorf("cannot get the list of shared folders: %w", err)
 	}
 
 	entries := make([]Entry, 0, len(fallback.Shares))
@@ -107,16 +107,16 @@ func (s *Station) Shares(ctx context.Context) ([]Entry, error) {
 	return entries, nil
 }
 
-// List перечисляет содержимое папки. folder — путь от корня общей папки,
-// например "/Media/Music".
+// List returns the contents of a folder. folder is a path from the shared
+// folder root, for example "/Media/Music".
 func (s *Station) List(ctx context.Context, folder string) ([]Entry, error) {
 	folder = normalize(folder)
 	if folder == "/" {
 		return s.Shares(ctx)
 	}
 
-	// Читаем страницами: limit = -1 здесь недопустим, а папки на домашнем
-	// NAS легко перешагивают тысячу файлов.
+	// Read page by page: limit = -1 is not allowed here, and folders on a home
+	// NAS easily go past a thousand files.
 	var files []rawFile
 	for offset := 0; ; {
 		var out struct {
@@ -141,7 +141,7 @@ func (s *Station) List(ctx context.Context, folder string) ([]Entry, error) {
 	}
 
 	entries := toEntries(files, false)
-	// Папки выше файлов — так привычнее и совпадает с File Station.
+	// Folders above files — that is more familiar and matches File Station.
 	dirs := make([]Entry, 0, len(entries))
 	plain := make([]Entry, 0, len(entries))
 	for _, e := range entries {
@@ -154,13 +154,13 @@ func (s *Station) List(ctx context.Context, folder string) ([]Entry, error) {
 	return append(dirs, plain...), nil
 }
 
-// Delete удаляет файлы и папки безвозвратно.
+// Delete removes files and folders for good.
 //
-// Используется синхронный вариант: на домашних объёмах он проще, а
-// асинхронный (start/status/stop с taskid) нужен для очень больших деревьев.
+// The synchronous variant is used: it is simpler at home-sized volumes, while
+// the asynchronous one (start/status/stop with a taskid) is for huge trees.
 func (s *Station) Delete(ctx context.Context, paths []string) error {
 	if len(paths) == 0 {
-		return fmt.Errorf("не указано ни одного пути")
+		return fmt.Errorf("no paths given")
 	}
 	clean := make([]string, 0, len(paths))
 	for _, p := range paths {
@@ -172,17 +172,17 @@ func (s *Station) Delete(ctx context.Context, paths []string) error {
 	}, nil)
 }
 
-// Rename переименовывает файл или папку. Возвращает новый путь.
+// Rename renames a file or a folder. Returns the new path.
 func (s *Station) Rename(ctx context.Context, target, newName string) (string, error) {
 	if strings.ContainsAny(newName, `/\`) {
-		return "", fmt.Errorf("имя не может содержать разделители пути")
+		return "", fmt.Errorf("a name cannot contain path separators")
 	}
 	if newName == "" || newName == "." || newName == ".." {
-		return "", fmt.Errorf("недопустимое имя")
+		return "", fmt.Errorf("invalid name")
 	}
 	target = normalize(target)
 
-	// path и name здесь — массивы даже для одного элемента.
+	// path and name are arrays here even for a single item.
 	err := s.c.CallVersioned(ctx, apiRename, "rename", []int{2, 1}, map[string]any{
 		"path": []string{target},
 		"name": []string{newName},
@@ -193,10 +193,10 @@ func (s *Station) Rename(ctx context.Context, target, newName string) (string, e
 	return path.Join(path.Dir(target), newName), nil
 }
 
-// CreateFolder создаёт папку внутри parent.
+// CreateFolder creates a folder inside parent.
 func (s *Station) CreateFolder(ctx context.Context, parent, name string) (string, error) {
 	if strings.ContainsAny(name, `/\`) || name == "" {
-		return "", fmt.Errorf("недопустимое имя папки")
+		return "", fmt.Errorf("invalid folder name")
 	}
 	parent = normalize(parent)
 	err := s.c.CallVersioned(ctx, apiCreate, "create", []int{2, 1}, map[string]any{
@@ -210,23 +210,23 @@ func (s *Station) CreateFolder(ctx context.Context, parent, name string) (string
 	return path.Join(parent, name), nil
 }
 
-// Upload кладёт файл в папку на NAS.
+// Upload puts a file into a folder on the NAS.
 //
-// overwrite=false означает «пропустить, если файл уже есть»: без явного
-// значения DSM отвечает ошибкой при совпадении имени.
+// overwrite=false means "skip if the file is already there": without an
+// explicit value DSM answers with an error on a name clash.
 func (s *Station) Upload(ctx context.Context, folder, name string, data []byte, overwrite bool) error {
 	if name == "" {
-		return fmt.Errorf("не указано имя файла")
+		return fmt.Errorf("no file name given")
 	}
 	if len(data) == 0 {
-		return fmt.Errorf("пустой файл")
+		return fmt.Errorf("empty file")
 	}
 	folder = normalize(folder)
 	if folder == "/" {
-		return fmt.Errorf("нельзя загружать в корень: укажите общую папку")
+		return fmt.Errorf("cannot upload into the root: name a shared folder")
 	}
 
-	// В multipart значения идут как есть, без JSON-кавычек.
+	// In multipart the values go as they are, without JSON quotes.
 	return s.c.CallUpload(ctx, apiUpload, "upload", 2, map[string]string{
 		"path":           folder,
 		"create_parents": "false",
@@ -246,9 +246,9 @@ func toEntries(raw []rawFile, dirs bool) []Entry {
 	return out
 }
 
-// normalize приводит путь к виду, который понимает File Station: с ведущим
-// слешем и без завершающего. В отличие от Download Station, где путь идёт
-// без ведущего слеша, здесь он обязателен.
+// normalize brings a path to the shape File Station understands: with a
+// leading slash and without a trailing one. Unlike Download Station, where
+// the path goes without a leading slash, here it is mandatory.
 func normalize(p string) string {
 	p = strings.TrimSpace(p)
 	if p == "" {

@@ -1,4 +1,4 @@
-// Package containers — контейнеры Container Manager (Docker) на NAS.
+// Package containers covers Container Manager (Docker) containers on the NAS.
 package containers
 
 import (
@@ -13,25 +13,25 @@ type apiClient interface {
 
 const apiContainer = "SYNO.Docker.Container"
 
-// Service управляет контейнерами.
+// Service manages containers.
 type Service struct{ c apiClient }
 
-// New создаёт службу.
+// New creates the service.
 func New(c apiClient) *Service { return &Service{c: c} }
 
-// Container — контейнер.
+// Container is a container.
 type Container struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Image   string `json:"image"`
 	Status  string `json:"status"`
 	Running bool   `json:"running"`
-	// CPU в процентах, Memory в байтах — как их отдаёт DSM.
+	// CPU in percent, Memory in bytes — the way DSM hands them back.
 	CPU    float64 `json:"cpu"`
 	Memory int64   `json:"memory"`
 }
 
-// List возвращает контейнеры.
+// List returns the containers.
 func (s *Service) List(ctx context.Context) ([]Container, error) {
 	var out struct {
 		Containers []struct {
@@ -66,24 +66,24 @@ func (s *Service) List(ctx context.Context) ([]Container, error) {
 	return list, nil
 }
 
-// Start запускает контейнер.
+// Start starts a container.
 func (s *Service) Start(ctx context.Context, name string) error {
 	return s.action(ctx, "start", name)
 }
 
-// Stop останавливает контейнер.
+// Stop stops a container.
 func (s *Service) Stop(ctx context.Context, name string) error {
 	return s.action(ctx, "stop", name)
 }
 
-// Restart перезапускает контейнер.
+// Restart restarts a container.
 func (s *Service) Restart(ctx context.Context, name string) error {
 	return s.action(ctx, "restart", name)
 }
 
 func (s *Service) action(ctx context.Context, method, name string) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("не указан контейнер")
+		return fmt.Errorf("no container given")
 	}
 	return s.c.Call(ctx, apiContainer, method, 1, map[string]any{"name": name}, nil)
 }

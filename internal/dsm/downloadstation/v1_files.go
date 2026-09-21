@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-// Ниже — возможности, которых у легаси-API нет.
+// Below are the capabilities the legacy API does not have.
 //
-// Файлы, трекеры и приоритеты появились только в SYNO.DownloadStation2, и
-// подменять их чем-то похожим смысла нет: лучше честно сказать, что на этом
-// NAS они недоступны, чем показать пустой список.
+// Files, trackers and priorities appeared only in SYNO.DownloadStation2, and
+// substituting something similar makes no sense: it is better to say plainly
+// that they are unavailable on this NAS than to show an empty list.
 var errLegacyUnsupported = fmt.Errorf(
-	"эта возможность требует Download Station с API DownloadStation2 (DSM 7 и новее)")
+	"this feature needs Download Station with the DownloadStation2 API (DSM 7 and newer)")
 
 func (s *stationLegacy) Files(context.Context, string) ([]File, error) {
 	return nil, errLegacyUnsupported
@@ -30,15 +30,15 @@ func (s *stationLegacy) SetPriority(context.Context, []string, FilePriority) err
 	return errLegacyUnsupported
 }
 
-// SetDestination у легаси-API есть: метод edit принимает destination с
-// версии 2 и документирован Synology.
+// SetDestination does exist in the legacy API: the edit method takes
+// destination from version 2 and is documented by Synology.
 func (s *stationLegacy) SetDestination(ctx context.Context, taskIDs []string, destination string) error {
 	if len(taskIDs) == 0 {
-		return fmt.Errorf("не указано ни одной задачи")
+		return fmt.Errorf("no tasks given")
 	}
 	destination = strings.Trim(strings.TrimSpace(destination), "/")
 	if destination == "" {
-		return fmt.Errorf("не указана папка")
+		return fmt.Errorf("no folder given")
 	}
 	var res actionResult
 	if err := s.c.Call(ctx, apiTaskLegacy, "edit", 2, map[string]any{

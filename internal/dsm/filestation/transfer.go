@@ -10,24 +10,24 @@ import (
 
 const apiCopyMove = "SYNO.FileStation.CopyMove"
 
-// TransferStatus — ход копирования или переноса.
+// TransferStatus is the progress of a copy or a move.
 type TransferStatus struct {
 	TaskID   string  `json:"task_id"`
 	Finished bool    `json:"finished"`
 	Progress float64 `json:"progress"`
-	// Processing — файл, который обрабатывается сейчас.
+	// Processing is the file being handled right now.
 	Processing string `json:"processing,omitempty"`
-	// Skipped — были ли пропущены файлы с совпадающими именами.
+	// Skipped tells whether files with clashing names were skipped.
 	Skipped bool `json:"skipped,omitempty"`
 }
 
-// Copy копирует файлы и папки. Возвращает идентификатор задачи: операция
-// асинхронная, за ходом следят через Status.
+// Copy copies files and folders. Returns a task id: the operation is
+// asynchronous and is followed through Status.
 func (s *Station) Copy(ctx context.Context, paths []string, destination string, overwrite bool) (string, error) {
 	return s.transfer(ctx, paths, destination, overwrite, false)
 }
 
-// Move переносит файлы и папки.
+// Move moves files and folders.
 func (s *Station) Move(ctx context.Context, paths []string, destination string, overwrite bool) (string, error) {
 	return s.transfer(ctx, paths, destination, overwrite, true)
 }
@@ -36,29 +36,29 @@ func (s *Station) transfer(ctx context.Context, paths []string, destination stri
 	overwrite, removeSource bool) (string, error) {
 
 	if len(paths) == 0 {
-		return "", fmt.Errorf("не выбрано ни одного файла")
+		return "", fmt.Errorf("no files selected")
 	}
 	clean := make([]string, 0, len(paths))
 	for _, p := range paths {
 		p = normalize(p)
 		if p == "/" {
-			return "", fmt.Errorf("нельзя переносить общую папку целиком")
+			return "", fmt.Errorf("a whole shared folder cannot be moved")
 		}
 		clean = append(clean, p)
 	}
 
-	// Завершающий слеш в пути назначения DSM считает недопустимым именем и
-	// отвечает ошибкой 418 — normalize его убирает.
+	// A trailing slash in the destination is treated by DSM as an invalid name
+	// and answered with error 418 — normalize strips it.
 	dest := normalize(destination)
 	if dest == "/" {
-		return "", fmt.Errorf("укажите папку назначения")
+		return "", fmt.Errorf("name a destination folder")
 	}
 	for _, p := range clean {
 		if p == dest {
-			return "", fmt.Errorf("папка назначения совпадает с источником")
+			return "", fmt.Errorf("the destination folder is the same as the source")
 		}
 		if strings.HasPrefix(dest+"/", p+"/") {
-			return "", fmt.Errorf("нельзя перенести папку внутрь самой себя")
+			return "", fmt.Errorf("a folder cannot be moved inside itself")
 		}
 	}
 
@@ -76,15 +76,15 @@ func (s *Station) transfer(ctx context.Context, paths []string, destination stri
 		return "", err
 	}
 	if out.TaskID == "" {
-		return "", fmt.Errorf("NAS не вернул идентификатор задачи")
+		return "", fmt.Errorf("the NAS returned no task id")
 	}
 	return out.TaskID, nil
 }
 
-// Status сообщает, как идёт копирование или перенос.
+// Status reports how the copy or move is going.
 func (s *Station) Status(ctx context.Context, taskID string) (TransferStatus, error) {
 	if strings.TrimSpace(taskID) == "" {
-		return TransferStatus{}, fmt.Errorf("не указана задача")
+		return TransferStatus{}, fmt.Errorf("no task given")
 	}
 	var out struct {
 		Finished       bool    `json:"finished"`
@@ -107,16 +107,16 @@ func (s *Station) Status(ctx context.Context, taskID string) (TransferStatus, er
 	}, nil
 }
 
-// Stop прерывает копирование или перенос.
+// Stop interrupts a copy or a move.
 func (s *Station) Stop(ctx context.Context, taskID string) error {
 	if strings.TrimSpace(taskID) == "" {
-		return fmt.Errorf("не указана задача")
+		return fmt.Errorf("no task given")
 	}
 	return s.c.CallVersioned(ctx, apiCopyMove, "stop", []int{3, 2, 1},
 		map[string]any{"taskid": taskID}, nil)
 }
 
-// ThumbSize — размер миниатюры.
+// ThumbSize is a thumbnail size.
 type ThumbSize string
 
 const (
@@ -125,15 +125,15 @@ const (
 	ThumbLarge  ThumbSize = "large"
 )
 
-// Thumbnail возвращает миниатюру изображения.
+// Thumbnail returns an image thumbnail.
 //
-// Работает только для картинок; для видео — лишь когда они лежат в общей
-// папке photo. Для остальных файлов NAS отвечает ошибкой, и это нормально:
-// предпросмотра у них нет.
+// Works only for pictures; for video only when it lives in the photo shared
+// folder. For everything else the NAS answers with an error, and that is
+// fine: those files have no preview.
 func (s *Station) Thumbnail(ctx context.Context, path string, size ThumbSize) (*dsm.Content, error) {
 	path = normalize(path)
 	if path == "/" {
-		return nil, fmt.Errorf("не указан файл")
+		return nil, fmt.Errorf("no file given")
 	}
 	if size == "" {
 		size = ThumbSmall
@@ -144,15 +144,15 @@ func (s *Station) Thumbnail(ctx context.Context, path string, size ThumbSize) (*
 	})
 }
 
-// Download отдаёт содержимое файла.
+// Download hands back the contents of a file.
 func (s *Station) Download(ctx context.Context, path string) (*dsm.Content, error) {
 	path = normalize(path)
 	if path == "/" {
-		return nil, fmt.Errorf("не указан файл")
+		return nil, fmt.Errorf("no file given")
 	}
 	return s.c.Fetch(ctx, apiDownload, "download", 2, map[string]any{
 		"path": []string{path},
-		// open — отдать содержимое; download просит браузер сохранить файл.
+		// open hands back the contents; download asks the browser to save it.
 		"mode": "open",
 	})
 }

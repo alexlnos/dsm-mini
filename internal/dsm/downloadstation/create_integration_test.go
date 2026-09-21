@@ -14,25 +14,25 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
-// torrentURL — официальный торрент Ubuntu Server: легальный, с живыми сидами
-// и стабильным адресом. Задача создаётся и тут же удаляется, скачаться ничего
-// не успевает.
+// torrentURL is the official Ubuntu Server torrent: legal, with live seeds
+// and a stable address. The task is created and deleted right away, nothing
+// has time to download.
 const torrentURL = "https://releases.ubuntu.com/24.04/ubuntu-24.04.5-live-server-amd64.iso.torrent"
 
-// TestCreateAndDelete проверяет полный цикл управления задачей на живом NAS.
+// TestCreateAndDelete checks the full task lifecycle on a live NAS.
 //
-// Тест ИЗМЕНЯЕТ состояние Download Station, поэтому требует отдельного
-// разрешения через DSM_TEST_MUTATIONS=1 — одного тега integration мало.
-// Созданная задача удаляется в t.Cleanup даже при падении теста.
+// The test CHANGES Download Station state, so it needs separate permission
+// through DSM_TEST_MUTATIONS=1 — the integration tag alone is not enough.
+// The created task is removed in t.Cleanup even when the test fails.
 func TestCreateAndDelete(t *testing.T) {
 	if os.Getenv("DSM_TEST_MUTATIONS") != "1" {
-		t.Skip("тест меняет состояние NAS; запуск только с DSM_TEST_MUTATIONS=1")
+		t.Skip("the test changes NAS state; run only with DSM_TEST_MUTATIONS=1")
 	}
 
 	ctx := context.Background()
 	c := newClient(t)
 	if err := c.Login(ctx); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 
@@ -40,81 +40,81 @@ func TestCreateAndDelete(t *testing.T) {
 		t.Run(string(gen), func(t *testing.T) {
 			st, err := NewWithGeneration(ctx, c, gen)
 			if err != nil {
-				t.Fatalf("создание: %v", err)
+				t.Fatalf("creation: %v", err)
 			}
 
-			// Кладём в папку по умолчанию, но передаём её ЯВНО: именно на
-			// явном destination проявляется разница в кавычировании между
-			// поколениями API. Новых папок при этом не появляется.
+			// We drop it into the default folder but pass that folder EXPLICITLY:
+			// the difference in destination quoting between generations shows up
+			// exactly on an explicit destination. No new folders appear either.
 			dest, err := st.DefaultDestination(ctx)
 			if err != nil {
-				t.Fatalf("папка по умолчанию: %v", err)
+				t.Fatalf("default folder: %v", err)
 			}
 
 			before, err := taskIDs(ctx, st)
 			if err != nil {
-				t.Fatalf("список до создания: %v", err)
+				t.Fatalf("list before creation: %v", err)
 			}
 
 			if err := st.Create(ctx, CreateRequest{URLs: []string{torrentURL}, Destination: dest}); err != nil {
-				t.Fatalf("создание задачи: %v", err)
+				t.Fatalf("task creation: %v", err)
 			}
 
 			task, err := waitForNewTask(ctx, t, st, before)
 			if err != nil {
-				t.Fatalf("новая задача не появилась: %v", err)
+				t.Fatalf("the new task did not appear: %v", err)
 			}
 
-			// Удаляем при любом исходе проверок ниже.
+			// Delete whatever the checks below decide.
 			t.Cleanup(func() {
 				if err := st.Delete(context.Background(), []string{task.ID}, false); err != nil {
-					t.Errorf("УБОРКА НЕ УДАЛАСЬ, задачу %s (%s) надо удалить вручную: %v",
+					t.Errorf("CLEANUP FAILED, task %s (%s) must be deleted by hand: %v",
 						task.ID, task.Title, err)
 					return
 				}
-				t.Logf("задача %s удалена", task.ID)
+				t.Logf("task %s deleted", task.ID)
 			})
 
-			t.Logf("создана %s | %s | статус %s | папка %q",
+			t.Logf("created %s | %s | status %s | folder %q",
 				task.ID, task.Title, task.Status, task.Destination)
 
 			if task.Destination != dest {
-				t.Errorf("папка назначения %q, ожидалась %q — проверьте кавычирование destination",
+				t.Errorf("destination folder %q, expected %q — check the destination quoting",
 					task.Destination, dest)
 			}
-			// Поколения расходятся: v2 распознаёт .torrent по ссылке и сразу
-			// заводит bt-задачу, легаси сначала качает сам файл как https.
-			t.Logf("тип задачи %q", task.Type)
+			// The generations diverge: v2 recognises a .torrent by the link and
+			// starts a bt task at once, legacy first downloads the file over https.
+			t.Logf("task type %q", task.Type)
 
 			if err := st.Pause(ctx, []string{task.ID}); err != nil {
-				t.Errorf("пауза: %v", err)
+				t.Errorf("pause: %v", err)
 			} else if got := waitForStatus(ctx, st, task.ID, StatusPaused); got != StatusPaused {
-				t.Errorf("после паузы статус %q, ожидался paused", got)
+				t.Errorf("after pausing the status is %q, expected paused", got)
 			} else {
-				t.Log("пауза сработала")
+				t.Log("pausing worked")
 			}
 
 			if err := st.Resume(ctx, []string{task.ID}); err != nil {
-				t.Errorf("возобновление: %v", err)
+				t.Errorf("resume: %v", err)
 			} else {
-				t.Logf("возобновление сработало, статус %q",
+				t.Logf("resuming worked, status %q",
 					waitForStatus(ctx, st, task.ID, StatusDownloading))
 			}
 		})
 	}
 
-	// После всех уборок задач быть не должно.
+	// After all the cleanups there must be no tasks left.
 	st, err := New(ctx, c)
 	if err != nil {
-		t.Fatalf("проверка после уборки: %v", err)
+		t.Fatalf("check after cleanup: %v", err)
 	}
 	tasks, err := st.List(ctx)
 	if err != nil {
-		t.Fatalf("список после уборки: %v", err)
+		t.Fatalf("list after cleanup: %v", err)
 	}
 	for _, task := range tasks {
 		if task.Title != "" && contains(task.Title, "ubuntu-24.04") {
-			t.Errorf("осталась тестовая задача %s (%s) — удалите вручную", task.ID, task.Title)
+			t.Errorf("a test task is left over: %s (%s) — delete it by hand", task.ID, task.Title)
 		}
 	}
 }
@@ -131,9 +131,9 @@ func taskIDs(ctx context.Context, st Station) (map[string]bool, error) {
 	return ids, nil
 }
 
-// waitForNewTask ждёт задачу, которой не было до создания. Download Station
-// сначала скачивает сам .torrent и только потом заводит задачу, так что
-// мгновенного появления ждать нельзя.
+// waitForNewTask waits for a task that was not there before creation. Download
+// Station first downloads the .torrent itself and only then starts the task,
+// so it cannot be expected to appear instantly.
 func waitForNewTask(ctx context.Context, t *testing.T, st Station, before map[string]bool) (Task, error) {
 	deadline := time.Now().Add(45 * time.Second)
 	for time.Now().Before(deadline) {
@@ -185,39 +185,39 @@ func indexOf(s, sub string) int {
 	return -1
 }
 
-// TestCreateFromTorrentFile ставит задачу содержимым .torrent — путь, которым
-// пойдёт бот, когда файл присылают прямо в чат.
+// TestCreateFromTorrentFile queues a task from .torrent contents — the path
+// the bot takes when the file is sent straight into the chat.
 //
-// Меняет состояние NAS: требует DSM_TEST_MUTATIONS=1, задачу удаляет за собой.
+// Changes NAS state: needs DSM_TEST_MUTATIONS=1, removes the task afterwards.
 func TestCreateFromTorrentFile(t *testing.T) {
 	if os.Getenv("DSM_TEST_MUTATIONS") != "1" {
-		t.Skip("тест меняет состояние NAS; запуск только с DSM_TEST_MUTATIONS=1")
+		t.Skip("the test changes NAS state; run only with DSM_TEST_MUTATIONS=1")
 	}
 
 	ctx := context.Background()
 	c := newClient(t)
 	if err := c.Login(ctx); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 
 	torrent := fetchTorrent(t)
-	t.Logf("торрент получен, %d Б", len(torrent))
+	t.Logf("torrent fetched, %d B", len(torrent))
 
 	for _, gen := range []Generation{GenerationV2, GenerationLegacy} {
 		t.Run(string(gen), func(t *testing.T) {
 			st, err := NewWithGeneration(ctx, c, gen)
 			if err != nil {
-				t.Fatalf("создание: %v", err)
+				t.Fatalf("creation: %v", err)
 			}
 			dest, err := st.DefaultDestination(ctx)
 			if err != nil {
-				t.Fatalf("папка по умолчанию: %v", err)
+				t.Fatalf("default folder: %v", err)
 			}
 
 			before, err := taskIDs(ctx, st)
 			if err != nil {
-				t.Fatalf("список до: %v", err)
+				t.Fatalf("list before: %v", err)
 			}
 
 			err = st.Create(ctx, CreateRequest{
@@ -226,36 +226,36 @@ func TestCreateFromTorrentFile(t *testing.T) {
 				Destination: dest,
 			})
 			if err != nil {
-				// На DSM 7 легаси-обработчик загрузки файла отвечает 101 на
-				// всех трёх своих версиях: его заменил DownloadStation2.
-				// Ветка остаётся для DSM 6, где проверить её нечем.
+				// On DSM 7 the legacy file upload handler answers 101 on all
+				// three of its versions: DownloadStation2 replaced it. The
+				// branch stays for DSM 6, where there is nothing to test it on.
 				var apiErr *dsm.APIError
 				if gen == GenerationLegacy && errors.As(err, &apiErr) && apiErr.Code == 101 {
-					t.Skipf("легаси-загрузка файла недоступна на этом DSM (код 101) — ожидаемо для DSM 7")
+					t.Skipf("legacy file upload is unavailable on this DSM (code 101) — expected on DSM 7")
 				}
-				t.Fatalf("создание из файла: %v", err)
+				t.Fatalf("creation from a file: %v", err)
 			}
 
 			task, err := waitForNewTask(ctx, t, st, before)
 			if err != nil {
-				t.Fatalf("задача не появилась: %v", err)
+				t.Fatalf("the task did not appear: %v", err)
 			}
 			t.Cleanup(func() {
 				if err := st.Delete(context.Background(), []string{task.ID}, false); err != nil {
-					t.Errorf("УБОРКА НЕ УДАЛАСЬ, удалите %s вручную: %v", task.ID, err)
+					t.Errorf("CLEANUP FAILED, delete %s by hand: %v", task.ID, err)
 					return
 				}
-				t.Logf("задача %s удалена", task.ID)
+				t.Logf("task %s deleted", task.ID)
 			})
 
-			t.Logf("создана %s | %s | тип %s | папка %q", task.ID, task.Title, task.Type, task.Destination)
-			// Файл .torrent разбирается на NAS, поэтому задача сразу
-			// торрентная — в отличие от постановки по ссылке на тот же файл.
+			t.Logf("created %s | %s | type %s | folder %q", task.ID, task.Title, task.Type, task.Destination)
+			// The .torrent file is parsed on the NAS, so the task is a torrent
+			// right away — unlike queueing by a link to the same file.
 			if task.Type != "bt" {
-				t.Errorf("тип задачи %q, ожидался bt", task.Type)
+				t.Errorf("task type %q, expected bt", task.Type)
 			}
 			if task.Destination != dest {
-				t.Errorf("папка %q, ожидалась %q", task.Destination, dest)
+				t.Errorf("folder %q, expected %q", task.Destination, dest)
 			}
 		})
 	}
@@ -266,147 +266,147 @@ func fetchTorrent(t *testing.T) []byte {
 	if p := os.Getenv("DSM_TEST_TORRENT"); p != "" {
 		data, err := os.ReadFile(p)
 		if err != nil {
-			t.Fatalf("не прочитать %s: %v", p, err)
+			t.Fatalf("cannot read %s: %v", p, err)
 		}
 		return data
 	}
 	req, err := http.NewRequest(http.MethodGet, torrentURL, nil)
 	if err != nil {
-		t.Fatalf("запрос: %v", err)
+		t.Fatalf("request: %v", err)
 	}
 	resp, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
 	if err != nil {
-		t.Skipf("не скачать торрент (нет интернета?): %v", err)
+		t.Skipf("cannot download the torrent (no internet?): %v", err)
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatalf("чтение торрента: %v", err)
+		t.Fatalf("reading the torrent: %v", err)
 	}
 	return data
 }
 
-// TestCreateFromMagnet ставит задачу из magnet-ссылки, заданной в
-// DSM_TEST_MAGNET, и удаляет её. Нужен, чтобы проверить путь целиком на
-// настоящей ссылке, а не на торрент-файле по HTTP.
+// TestCreateFromMagnet queues a task from the magnet link given in
+// DSM_TEST_MAGNET and deletes it. Needed to check the whole path on a real
+// link rather than on a torrent file over HTTP.
 func TestCreateFromMagnet(t *testing.T) {
 	if os.Getenv("DSM_TEST_MUTATIONS") != "1" {
-		t.Skip("тест меняет состояние NAS; запуск только с DSM_TEST_MUTATIONS=1")
+		t.Skip("the test changes NAS state; run only with DSM_TEST_MUTATIONS=1")
 	}
 	magnet := os.Getenv("DSM_TEST_MAGNET")
 	if magnet == "" {
-		t.Skip("не задан DSM_TEST_MAGNET")
+		t.Skip("DSM_TEST_MAGNET is not set")
 	}
 
 	ctx := context.Background()
 	c := newClient(t)
 	if err := c.Login(ctx); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 
 	st, err := New(ctx, c)
 	if err != nil {
-		t.Fatalf("создание: %v", err)
+		t.Fatalf("creation: %v", err)
 	}
 	dest := os.Getenv("DSM_TEST_FOLDER_DS")
 	if dest == "" {
 		if dest, err = st.DefaultDestination(ctx); err != nil {
-			t.Fatalf("папка по умолчанию: %v", err)
+			t.Fatalf("default folder: %v", err)
 		}
 	}
 
 	before, err := taskIDs(ctx, st)
 	if err != nil {
-		t.Fatalf("список до: %v", err)
+		t.Fatalf("list before: %v", err)
 	}
 
 	if err := st.Create(ctx, CreateRequest{URLs: []string{magnet}, Destination: dest}); err != nil {
-		t.Fatalf("создание из magnet: %v", err)
+		t.Fatalf("creation from magnet: %v", err)
 	}
 
 	task, err := waitForNewTask(ctx, t, st, before)
 	if err != nil {
-		t.Fatalf("задача не появилась: %v", err)
+		t.Fatalf("the task did not appear: %v", err)
 	}
 
 	keep := os.Getenv("DSM_TEST_KEEP") == "1"
 	if !keep {
 		t.Cleanup(func() {
 			if err := st.Delete(context.Background(), []string{task.ID}, false); err != nil {
-				t.Errorf("УБОРКА НЕ УДАЛАСЬ, удалите %s вручную: %v", task.ID, err)
+				t.Errorf("CLEANUP FAILED, delete %s by hand: %v", task.ID, err)
 				return
 			}
-			t.Logf("задача %s удалена", task.ID)
+			t.Logf("task %s deleted", task.ID)
 		})
 	} else {
-		t.Logf("DSM_TEST_KEEP=1 — задача %s оставлена качаться", task.ID)
+		t.Logf("DSM_TEST_KEEP=1 — task %s left downloading", task.ID)
 	}
 
-	t.Logf("создана %s", task.ID)
-	t.Logf("  название: %s", task.Title)
-	t.Logf("  тип: %s, статус: %s, размер: %d Б", task.Type, task.Status, task.Size)
-	t.Logf("  папка: %s", task.Destination)
+	t.Logf("created %s", task.ID)
+	t.Logf("  title: %s", task.Title)
+	t.Logf("  type: %s, status: %s, size: %d B", task.Type, task.Status, task.Size)
+	t.Logf("  folder: %s", task.Destination)
 
 	if task.Type != "bt" {
-		t.Errorf("тип %q, ожидался bt", task.Type)
+		t.Errorf("type %q, expected bt", task.Type)
 	}
 	if task.Destination != dest {
-		t.Errorf("папка %q, ожидалась %q", task.Destination, dest)
+		t.Errorf("folder %q, expected %q", task.Destination, dest)
 	}
 }
 
-// TestActiveTaskDetails проверяет всё, что доступно только у работающей
-// задачи: список файлов, приоритеты, трекеры и смену папки.
+// TestActiveTaskDetails checks everything available only for a running task:
+// the file list, priorities, trackers and changing the folder.
 //
-// Задача создаётся, проверяется и удаляется. Требует DSM_TEST_MUTATIONS=1.
+// The task is created, checked and deleted. Needs DSM_TEST_MUTATIONS=1.
 func TestActiveTaskDetails(t *testing.T) {
 	if os.Getenv("DSM_TEST_MUTATIONS") != "1" {
-		t.Skip("тест меняет состояние NAS; запуск только с DSM_TEST_MUTATIONS=1")
+		t.Skip("the test changes NAS state; run only with DSM_TEST_MUTATIONS=1")
 	}
 
 	ctx := context.Background()
 	c := newClient(t)
 	if err := c.Login(ctx); err != nil {
-		t.Fatalf("вход в DSM: %v", err)
+		t.Fatalf("sign in to DSM: %v", err)
 	}
 	t.Cleanup(func() { _ = c.Logout(context.Background()) })
 
 	st, err := New(ctx, c)
 	if err != nil {
-		t.Fatalf("создание: %v", err)
+		t.Fatalf("creation: %v", err)
 	}
 	if st.Generation() != "v2" {
-		t.Skip("файлы и приоритеты доступны только через DownloadStation2")
+		t.Skip("files and priorities are available only through DownloadStation2")
 	}
 
 	dest, err := st.DefaultDestination(ctx)
 	if err != nil {
-		t.Fatalf("папка по умолчанию: %v", err)
+		t.Fatalf("default folder: %v", err)
 	}
 	before, err := taskIDs(ctx, st)
 	if err != nil {
-		t.Fatalf("список до: %v", err)
+		t.Fatalf("list before: %v", err)
 	}
 	if err := st.Create(ctx, CreateRequest{
 		TorrentFile: fetchTorrent(t),
 		FileName:    "test.torrent",
 		Destination: dest,
 	}); err != nil {
-		t.Fatalf("создание задачи: %v", err)
+		t.Fatalf("task creation: %v", err)
 	}
 
 	task, err := waitForNewTask(ctx, t, st, before)
 	if err != nil {
-		t.Fatalf("задача не появилась: %v", err)
+		t.Fatalf("the task did not appear: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := st.Delete(context.Background(), []string{task.ID}, false); err != nil {
-			t.Errorf("УБОРКА НЕ УДАЛАСЬ, удалите %s вручную: %v", task.ID, err)
+			t.Errorf("CLEANUP FAILED, delete %s by hand: %v", task.ID, err)
 		}
 	})
 
-	// Файлы появляются не сразу: сначала NAS проверяет хеши.
+	// Files do not appear at once: the NAS checks the hashes first.
 	var files []File
 	deadline := time.Now().Add(40 * time.Second)
 	for time.Now().Before(deadline) {
@@ -417,75 +417,75 @@ func TestActiveTaskDetails(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	}
 	if err != nil {
-		t.Fatalf("файлы задачи: %v", err)
+		t.Fatalf("task files: %v", err)
 	}
 	if len(files) == 0 {
-		t.Fatal("список файлов пуст")
+		t.Fatal("the file list is empty")
 	}
-	t.Logf("файлов: %d", len(files))
+	t.Logf("files: %d", len(files))
 	for _, f := range files {
-		t.Logf("  [%d] %s — %d Б, приоритет %s, качать=%v",
+		t.Logf("  [%d] %s — %d B, priority %s, download=%v",
 			f.Index, f.Name, f.Size, f.Priority, f.Wanted)
 	}
 
-	// Приоритет и признак «качать».
+	// Priority and the "download it" flag.
 	if err := st.SetFile(ctx, task.ID, []int{files[0].Index}, PriorityLow, nil); err != nil {
-		t.Fatalf("смена приоритета файла: %v", err)
+		t.Fatalf("changing the file priority: %v", err)
 	}
 	no := false
 	if err := st.SetFile(ctx, task.ID, []int{files[0].Index}, "", &no); err != nil {
-		t.Fatalf("снятие признака wanted: %v", err)
+		t.Fatalf("clearing the wanted flag: %v", err)
 	}
 
 	updated, err := st.Files(ctx, task.ID)
 	if err != nil {
-		t.Fatalf("файлы после изменения: %v", err)
+		t.Fatalf("files after the change: %v", err)
 	}
 	if updated[0].Priority != PriorityLow {
-		t.Errorf("приоритет %q, ожидался low", updated[0].Priority)
+		t.Errorf("priority %q, expected low", updated[0].Priority)
 	}
 	if updated[0].Wanted {
-		t.Error("файл остался в списке на загрузку")
+		t.Error("the file stayed on the download list")
 	}
-	t.Logf("после изменения: приоритет %s, качать=%v", updated[0].Priority, updated[0].Wanted)
+	t.Logf("after the change: priority %s, download=%v", updated[0].Priority, updated[0].Wanted)
 
 	if trackers, err := st.Trackers(ctx, task.ID); err != nil {
-		t.Errorf("трекеры: %v", err)
+		t.Errorf("trackers: %v", err)
 	} else {
-		t.Logf("трекеров: %d", len(trackers))
+		t.Logf("trackers: %d", len(trackers))
 	}
 
-	// Приоритет задачи в очереди.
+	// The task priority in the queue.
 	if err := st.SetPriority(ctx, []string{task.ID}, PriorityHigh); err != nil {
-		t.Errorf("приоритет задачи: %v", err)
+		t.Errorf("task priority: %v", err)
 	}
 
-	// Смена папки: берём общую папку, отличную от текущей.
+	// Changing the folder: take a shared folder other than the current one.
 	target := os.Getenv("DSM_TEST_FOLDER_DS")
 	if target == "" {
 		target = "Download"
 	}
 	if err := st.SetDestination(ctx, []string{task.ID}, target); err != nil {
-		t.Fatalf("смена папки на %q: %v", target, err)
+		t.Fatalf("changing the folder to %q: %v", target, err)
 	}
 	tasks, err := st.List(ctx)
 	if err != nil {
-		t.Fatalf("список после смены папки: %v", err)
+		t.Fatalf("list after the folder change: %v", err)
 	}
 	for _, tk := range tasks {
 		if tk.ID == task.ID {
 			if tk.Destination != target {
-				t.Errorf("папка %q, ожидалась %q", tk.Destination, target)
+				t.Errorf("folder %q, expected %q", tk.Destination, target)
 			} else {
-				t.Logf("папка сменилась на %s", tk.Destination)
+				t.Logf("the folder changed to %s", tk.Destination)
 			}
 		}
 	}
 
-	// Несуществующая папка должна отвергаться понятной ошибкой.
-	if err := st.SetDestination(ctx, []string{task.ID}, "ПапкиТакойНет"); err == nil {
-		t.Error("смена на несуществующую папку прошла успешно")
+	// A missing folder must be refused with a clear error.
+	if err := st.SetDestination(ctx, []string{task.ID}, "NoSuchFolder"); err == nil {
+		t.Error("changing to a missing folder succeeded")
 	} else {
-		t.Logf("несуществующая папка → %v", err)
+		t.Logf("missing folder → %v", err)
 	}
 }

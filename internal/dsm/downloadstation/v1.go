@@ -8,15 +8,15 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
-// stationLegacy — реализация поверх SYNO.DownloadStation.* .
+// stationLegacy is the implementation on top of SYNO.DownloadStation.* .
 //
-// Этот путь нужен для DSM 6 и старых NAS, где SYNO.DownloadStation2 нет.
-// Отличия от v2, на которых легко ошибиться:
-//   - список задач лежит в поле "tasks", а не "task";
-//   - статус приходит строкой, а не числом;
-//   - additional передаётся строкой через запятую, а не массивом;
-//   - идентификаторы задач в действиях — тоже строка через запятую;
-//   - время создания называется create_time, а не created_time.
+// This path is for DSM 6 and older NAS units without SYNO.DownloadStation2.
+// Differences from v2 that are easy to get wrong:
+//   - the task list is in the "tasks" field, not "task";
+//   - the status arrives as a string, not a number;
+//   - additional is passed as a comma-separated string, not an array;
+//   - task ids in actions are a comma-separated string too;
+//   - the creation time is called create_time, not created_time.
 type stationLegacy struct{ c apiClient }
 
 func (s *stationLegacy) Generation() string { return "legacy" }
@@ -102,15 +102,15 @@ func (s *stationLegacy) Delete(ctx context.Context, ids []string, forceComplete 
 
 func (s *stationLegacy) action(ctx context.Context, method string, ids []string, extra map[string]any) error {
 	if len(ids) == 0 {
-		return fmt.Errorf("не указано ни одной задачи")
+		return fmt.Errorf("no tasks given")
 	}
 	params := map[string]any{"id": strings.Join(ids, ",")}
 	for k, v := range extra {
 		params[k] = v
 	}
 
-	// Легаси-API кладёт результат каждой задачи в массив и при этом
-	// рапортует success: без разбора массива провал выглядит как успех.
+	// The legacy API puts each task's result into an array while still
+	// reporting success: without parsing the array a failure looks like one.
 	var out actionResult
 	if err := s.c.Call(ctx, apiTaskLegacy, method, 1, params, &out); err != nil {
 		return err
@@ -120,7 +120,7 @@ func (s *stationLegacy) action(ctx context.Context, method string, ids []string,
 
 func (s *stationLegacy) Create(ctx context.Context, req CreateRequest) error {
 	if len(req.TorrentFile) == 0 && len(req.URLs) == 0 {
-		return fmt.Errorf("не указано ни ссылки, ни файла")
+		return fmt.Errorf("neither a link nor a file was given")
 	}
 
 	if len(req.TorrentFile) > 0 {
@@ -132,15 +132,15 @@ func (s *stationLegacy) Create(ctx context.Context, req CreateRequest) error {
 		if req.Destination != "" {
 			fields["destination"] = req.Destination
 		}
-		// Легаси-API принимает файл в части с именем "file" — так он назван
-		// в документации Synology.
+		// The legacy API takes the file in a part named "file" — that is what
+		// Synology's documentation calls it.
 		return s.c.CallUpload(ctx, apiTaskLegacy, "create", 1, fields,
 			dsm.UploadFile{Field: "file", Name: name, Data: req.TorrentFile}, nil)
 	}
 
 	params := map[string]any{"uri": strings.Join(req.URLs, ",")}
 	if req.Destination != "" {
-		// В отличие от v2, здесь путь передаётся как есть, без добавочных кавычек.
+		// Unlike v2, the path is passed as-is here, without extra quotes.
 		params["destination"] = req.Destination
 	}
 	return s.c.Call(ctx, apiTaskLegacy, "create", 1, params, nil)
@@ -157,9 +157,9 @@ func (s *stationLegacy) Stats(ctx context.Context) (Stats, error) {
 	return Stats{SpeedDown: out.SpeedDownload, SpeedUp: out.SpeedUpload}, nil
 }
 
-// Volumes у легаси-API нет: сведения о томах появились только в
-// DownloadStation2.Settings.Global. Возвращаем пусто — Mini App просто не
-// покажет блок со свободным местом.
+// The legacy API has no Volumes: volume details appeared only in
+// DownloadStation2.Settings.Global. We return nothing — the Mini App simply
+// will not show the free space block.
 func (s *stationLegacy) Volumes(ctx context.Context) ([]Volume, error) {
 	return nil, nil
 }

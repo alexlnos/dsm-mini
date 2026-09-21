@@ -18,12 +18,12 @@ import (
 
 const testToken = "123456:TEST-TOKEN-NOT-REAL"
 
-// stubStation подставляется вместо NAS: тесты авторизации не должны от него зависеть.
+// stubStation stands in for the NAS: authorisation tests must not depend on it.
 type stubStation struct{ called bool }
 
 func (s *stubStation) List(context.Context) ([]downloadstation.Task, error) {
 	s.called = true
-	return []downloadstation.Task{{ID: "dbid_1", Title: "тест"}}, nil
+	return []downloadstation.Task{{ID: "dbid_1", Title: "test"}}, nil
 }
 func (s *stubStation) Pause(context.Context, []string) error        { s.called = true; return nil }
 func (s *stubStation) Resume(context.Context, []string) error       { s.called = true; return nil }
@@ -72,17 +72,17 @@ func newTestServer(t *testing.T, allowed []int64) (*Server, *stubStation) {
 	return s, stub
 }
 
-// signedInitData собирает подлинную строку initData, как её выдал бы Telegram.
+// signedInitData builds a genuine initData string, as Telegram would issue it.
 func signedInitData(t *testing.T, userID int64, issued time.Time) string {
 	t.Helper()
 	u, err := json.Marshal(map[string]any{
 		"id":            userID,
-		"first_name":    "Тест",
+		"first_name":    "Test",
 		"username":      "tester",
 		"language_code": "ru",
 	})
 	if err != nil {
-		t.Fatalf("не собрать пользователя: %v", err)
+		t.Fatalf("cannot build the user: %v", err)
 	}
 	values := url.Values{
 		"auth_date": {strconv.FormatInt(issued.Unix(), 10)},
@@ -91,7 +91,7 @@ func signedInitData(t *testing.T, userID int64, issued time.Time) string {
 	}
 	hash, err := initdata.SignQueryString(values.Encode(), testToken, issued)
 	if err != nil {
-		t.Fatalf("не подписать initData: %v", err)
+		t.Fatalf("cannot sign initData: %v", err)
 	}
 	values.Set("hash", hash)
 	return values.Encode()
@@ -108,114 +108,114 @@ func request(t *testing.T, s *Server, auth string) *httptest.ResponseRecorder {
 	return w
 }
 
-// TestRejectsMissingInitData: без подписи внутрь не пускают.
+// TestRejectsMissingInitData: without a signature nobody gets in.
 func TestRejectsMissingInitData(t *testing.T) {
 	s, stub := newTestServer(t, []int64{42})
 	if got := request(t, s, "").Code; got != http.StatusUnauthorized {
-		t.Errorf("без initData код %d, ожидался 401", got)
+		t.Errorf("without initData code %d, expected 401", got)
 	}
 	if stub.called {
-		t.Error("запрос без авторизации дошёл до NAS")
+		t.Error("an unauthorised request reached the NAS")
 	}
 }
 
-// TestRejectsForgedSignature: подпись чужим ключом не проходит.
+// TestRejectsForgedSignature: a signature made with someone else's key fails.
 //
-// Это главная защита: адрес Mini App публичен, и открыть его может кто угодно.
+// This is the main defence: the Mini App address is public and anyone can open it.
 func TestRejectsForgedSignature(t *testing.T) {
 	s, stub := newTestServer(t, []int64{42})
 
 	issued := time.Now()
 	values := url.Values{
 		"auth_date": {strconv.FormatInt(issued.Unix(), 10)},
-		"user":      {`{"id":42,"first_name":"Злоумышленник"}`},
+		"user":      {`{"id":42,"first_name":"Attacker"}`},
 	}
 	hash, err := initdata.SignQueryString(values.Encode(), "999999:WRONG-TOKEN", issued)
 	if err != nil {
-		t.Fatalf("не подписать: %v", err)
+		t.Fatalf("cannot sign: %v", err)
 	}
 	values.Set("hash", hash)
 
 	if got := request(t, s, values.Encode()).Code; got != http.StatusUnauthorized {
-		t.Errorf("подделанная подпись дала код %d, ожидался 401", got)
+		t.Errorf("a forged signature gave code %d, expected 401", got)
 	}
 	if stub.called {
-		t.Error("запрос с подделанной подписью дошёл до NAS")
+		t.Error("a request with a forged signature reached the NAS")
 	}
 }
 
-// TestRejectsTamperedUser: подменить id пользователя в подписанной строке нельзя.
+// TestRejectsTamperedUser: the user id inside a signed string cannot be swapped.
 func TestRejectsTamperedUser(t *testing.T) {
 	s, _ := newTestServer(t, []int64{42})
 
 	raw := signedInitData(t, 999, time.Now())
 	values, err := url.ParseQuery(raw)
 	if err != nil {
-		t.Fatalf("разбор: %v", err)
+		t.Fatalf("parse: %v", err)
 	}
-	// Подпись оставляем прежней, id меняем на разрешённый.
-	values.Set("user", `{"id":42,"first_name":"Подмена"}`)
+	// The signature stays as it was, the id is changed to an allowed one.
+	values.Set("user", `{"id":42,"first_name":"Swapped"}`)
 
 	if got := request(t, s, values.Encode()).Code; got != http.StatusUnauthorized {
-		t.Errorf("подмена пользователя дала код %d, ожидался 401", got)
+		t.Errorf("swapping the user gave code %d, expected 401", got)
 	}
 }
 
-// TestRejectsExpired: просроченная строка не принимается.
+// TestRejectsExpired: an expired string is not accepted.
 func TestRejectsExpired(t *testing.T) {
 	s, _ := newTestServer(t, []int64{42})
 	old := time.Now().Add(-authTTL - time.Hour)
 	if got := request(t, s, signedInitData(t, 42, old)).Code; got != http.StatusUnauthorized {
-		t.Errorf("просроченная initData дала код %d, ожидался 401", got)
+		t.Errorf("expired initData gave code %d, expected 401", got)
 	}
 }
 
-// TestRejectsUserOutsideAllowlist: подлинная подпись не заменяет разрешения.
+// TestRejectsUserOutsideAllowlist: a genuine signature is no substitute for permission.
 //
-// Бота может открыть любой человек и получить настоящую подписанную строку —
-// поэтому список разрешённых проверяется отдельно.
+// Anyone can open the bot and get a real signed string — which is why the
+// allow list is checked separately.
 func TestRejectsUserOutsideAllowlist(t *testing.T) {
 	s, stub := newTestServer(t, []int64{42})
 	w := request(t, s, signedInitData(t, 777, time.Now()))
 	if w.Code != http.StatusForbidden {
-		t.Errorf("посторонний пользователь получил код %d, ожидался 403", w.Code)
+		t.Errorf("an outsider got code %d, expected 403", w.Code)
 	}
 	if stub.called {
-		t.Error("посторонний запрос дошёл до NAS")
+		t.Error("an outsider request reached the NAS")
 	}
 }
 
-// TestEmptyAllowlistBlocksEveryone: пустой список закрывает доступ, а не открывает.
+// TestEmptyAllowlistBlocksEveryone: an empty list closes access, it does not open it.
 func TestEmptyAllowlistBlocksEveryone(t *testing.T) {
 	s, _ := newTestServer(t, nil)
 	if got := request(t, s, signedInitData(t, 42, time.Now())).Code; got != http.StatusForbidden {
-		t.Errorf("при пустом списке код %d, ожидался 403", got)
+		t.Errorf("with an empty list code %d, expected 403", got)
 	}
 }
 
-// TestAllowsValidUser: разрешённый пользователь с подлинной подписью проходит.
+// TestAllowsValidUser: an allowed user with a genuine signature gets through.
 func TestAllowsValidUser(t *testing.T) {
 	s, stub := newTestServer(t, []int64{42})
 	w := request(t, s, signedInitData(t, 42, time.Now()))
 	if w.Code != http.StatusOK {
-		t.Fatalf("разрешённый пользователь получил код %d: %s", w.Code, w.Body.String())
+		t.Fatalf("an allowed user got code %d: %s", w.Code, w.Body.String())
 	}
 	if !stub.called {
-		t.Error("запрос не дошёл до NAS")
+		t.Error("the request did not reach the NAS")
 	}
 
 	var body struct {
 		Tasks []taskView `json:"tasks"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-		t.Fatalf("ответ не разобрался: %v", err)
+		t.Fatalf("the response did not parse: %v", err)
 	}
 	if len(body.Tasks) != 1 || body.Tasks[0].ID != "dbid_1" {
-		t.Errorf("неожиданный ответ: %s", w.Body.String())
+		t.Errorf("unexpected response: %s", w.Body.String())
 	}
 }
 
-// TestHealthNeedsNoAuth: проверка живости доступна без подписи и молчит о NAS.
+// TestHealthNeedsNoAuth: the liveness check needs no signature and stays quiet about the NAS.
 func TestHealthNeedsNoAuth(t *testing.T) {
 	s, stub := newTestServer(t, []int64{42})
 	r := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -223,9 +223,9 @@ func TestHealthNeedsNoAuth(t *testing.T) {
 	s.Handler().ServeHTTP(w, r)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("healthz вернул %d", w.Code)
+		t.Errorf("healthz returned %d", w.Code)
 	}
 	if stub.called {
-		t.Error("healthz обращался к NAS")
+		t.Error("healthz reached out to the NAS")
 	}
 }
