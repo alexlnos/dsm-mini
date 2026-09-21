@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Собирает пакет .spk для Центра пакетов Synology.
+#
+# Официальный тулкит Synology (pkgscripts-ng) требует chroot с их сборочным
+# окружением. Нам он не нужен: бинарник статический и ни от чего не зависит,
+# поэтому пакет собирается обычным tar — ровно так же, как это делает spksrc.
+#
+#   tools/build-spk.sh amd64 1.2.3
+#
+# Результат: dist/dsm-mini-1.2.3-amd64.spk
+set -euo pipefail
+
+ARCH="${1:-amd64}"
+VERSION="${2:-0.0.0}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUT_DIR="${OUT_DIR:-$ROOT/dist}"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# Значения arch — имена платформ Synology, а не названия процессоров. Один
+# пакет покрывает все модели с одной архитектурой: бинарник у них общий.
+case "$ARCH" in
+    amd64)
+        GOARCH=amd64
+        SYNO_ARCH="x86_64 apollolake avoton braswell broadwell broadwellnk broadwellnkv2 broadwellntbap bromolow cedarview denverton epyc7002 epyc7003 epyc7003ntb geminilake geminilakenk grantley kvmx64 purley r1000 r1000nk v1000 v1000nk"
+        ;;
+    arm64)
+        GOARCH=arm64
+        SYNO_ARCH="aarch64 rtd1296 rtd1619b armada37xx"
+        ;;
+    *)
+        echo "неизвестная архитектура: $ARCH (нужна amd64 или arm64)" >&2
+        exit 1
+        ;;
+esac
+
+# Версия DSM понимает только цифры и разделители . - _
+SPK_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//')"
+case "$SPK_VERSION" in
+    *-*) : ;;                      # номер сборки уже есть
+    *) SPK_VERSION="$SPK_VERSION-1" ;;
+esac
+
+echo "→ сборка бинарника ($GOARCH)"
+mkdir -p "$WORK/staging/bin"
+CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -C "$ROOT" -trimpath \
+    -ldflags "-s -w -X main.version=$SPK_VERSION" \
+    -o "$WORK/staging/bin/dsm-mini" ./cmd/dsm-mini
+
+echo "→ package.tgz"
+( cd "$WORK/staging" && tar cpzf "$WORK/package.tgz" --owner=root --group=root . )
+
+echo "→ INFO"
+cat > "$WORK/INFO" <<EOF
+package="dsm-mini"
+version="$SPK_VERSION"
+os_min_ver="7.0-40000"
+displayname="dsm-mini"
+description="Telegram bot with a Mini App to manage your Synology NAS: downloads, files, disks, containers."
+maintainer="alexlnos"
+maintainer_url="https://github.com/alexlnos/dsm-mini"
+support_url="https://github.com/alexlnos/dsm-mini/issues"
+arch="$SYNO_ARCH"
+thirdparty="yes"
+startable="yes"
+silent_install="no"
+silent_upgrade="no"
+silent_uninstall="no"
+ctl_stop="yes"
+EOF
+
+cp -r "$ROOT/spk/scripts" "$ROOT/spk/conf" "$ROOT/spk/WIZARD_UIFILES" "$WORK/"
+cp "$ROOT/spk/PACKAGE_ICON.PNG" "$ROOT/spk/PACKAGE_ICON_256.PNG" "$WORK/"
+cp "$ROOT/LICENSE" "$WORK/LICENSE"
+chmod 755 "$WORK"/scripts/*
+
+echo "→ .spk"
+mkdir -p "$OUT_DIR"
+SPK="$OUT_DIR/dsm-mini-$SPK_VERSION-$ARCH.spk"
+# Порядок файлов тот же, что у spksrc: DSM читает INFO, не разворачивая всё.
+( cd "$WORK" && tar cpf "$SPK" --owner=root --group=root \
+    package.tgz INFO scripts PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG WIZARD_UIFILES conf LICENSE )
+
+echo "готово: $SPK ($(du -h "$SPK" | cut -f1))"

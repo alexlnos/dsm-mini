@@ -1,0 +1,37 @@
+#!/bin/sh
+# Сохраняет то, что человек ввёл в мастере установки.
+#
+# Значения из мастера приходят переменными окружения с теми же именами, что
+# у ключей в WIZARD_UIFILES.
+
+VAR="${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}"
+ENV_FILE="$VAR/config.env"
+
+# При обновлении настройки не трогаем: мастер там не показывался, а файл
+# человек мог править руками.
+if [ "$SYNOPKG_PKG_STATUS" = "UPGRADE" ] && [ -f "$ENV_FILE" ]; then
+    exit 0
+fi
+
+# Значение уходит в файл, который потом читается через `.`, поэтому кавычки
+# обязательны: пароль с пробелом или знаком доллара иначе развалит запуск.
+put() {
+    escaped=$(printf '%s' "$2" | sed "s/'/'\\\\''/g")
+    printf "%s='%s'\n" "$1" "$escaped" >> "$ENV_FILE"
+}
+
+umask 077
+: > "$ENV_FILE"
+
+put DSM_URL "${wizard_dsm_url:-https://localhost:5001}"
+put DSM_USER "$wizard_dsm_user"
+put DSM_PASSWORD "$wizard_dsm_password"
+put DSM_INSECURE_TLS "true"
+put TELEGRAM_BOT_TOKEN "$wizard_bot_token"
+put ALLOWED_USER_IDS "$wizard_allowed_ids"
+put PUBLIC_URL "$wizard_public_url"
+put LISTEN_ADDR ":${wizard_port:-8080}"
+put LOG_LEVEL "info"
+
+chmod 600 "$ENV_FILE"
+exit 0

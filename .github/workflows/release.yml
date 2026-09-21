@@ -1,0 +1,60 @@
+# Пакеты Synology для страницы релизов.
+#
+# Срабатывает на тег вида v1.2.3: собирает .spk под обе архитектуры и
+# прикладывает их к релизу. Docker-образ на тот же тег собирает docker.yml.
+name: Релиз
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Версия для пробной сборки (без тега ничего не публикуется)
+        required: false
+        default: 0.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  spk:
+    name: Собрать пакеты DSM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Версия
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Сборка
+        run: |
+          ./tools/build-spk.sh amd64 "${{ steps.version.outputs.value }}"
+          ./tools/build-spk.sh arm64 "${{ steps.version.outputs.value }}"
+          ls -la dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spk
+          path: dist/*.spk
+
+      - name: Приложить к релизу
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/*.spk \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            || gh release upload "${GITHUB_REF_NAME}" dist/*.spk --clobber

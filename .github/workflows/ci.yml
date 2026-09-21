@@ -68,6 +68,34 @@ jobs:
             exit 1
           fi
 
+  spk:
+    name: Пакет DSM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Пакет собирается обычным tar, без тулкита Synology: бинарник
+      # статический. Проверяем, что он вообще собирается и внутри лежит то,
+      # что нужно, — иначе поломку заметит только тот, кто скачал релиз.
+      - name: Собрать .spk
+        run: ./tools/build-spk.sh amd64 0.0.0-ci
+
+      - name: Проверить состав
+        run: |
+          spk=dist/dsm-mini-0.0.0-ci-amd64.spk
+          for entry in package.tgz INFO scripts/start-stop-status scripts/postinst \
+                       conf/privilege WIZARD_UIFILES/install_uifile PACKAGE_ICON.PNG; do
+            tar tf "$spk" | grep -qx "$entry" || { echo "::error::в пакете нет $entry"; exit 1; }
+          done
+          tar xOf "$spk" package.tgz | tar tzf - | grep -qx './bin/dsm-mini' \
+            || { echo "::error::в package.tgz нет бинарника"; exit 1; }
+          echo "состав пакета в порядке"
+
   docs:
     name: Документация
     runs-on: ubuntu-latest

@@ -1,0 +1,135 @@
+[
+   {
+      "step_title": "Доступ к NAS",
+      "items": [
+         {
+            "desc": "Заведите для службы отдельного пользователя DSM, а не используйте администратора: Панель управления → Пользователь и группа → Создать. Дайте права только на Download Station и File Station и не включайте двухэтапную проверку."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_url",
+                  "desc": "Адрес DSM",
+                  "defaultValue": "https://localhost:5001",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно",
+                     "regex": {
+                        "expr": "/^https?:\\/\\/[^\\/]+$/",
+                        "errorText": "Должен начинаться с https:// и быть без слеша в конце"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_user",
+                  "desc": "Пользователь DSM",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "Пароль DSM",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно"
+                  }
+               }
+            ]
+         }
+      ]
+   },
+   {
+      "step_title": "Telegram",
+      "items": [
+         {
+            "desc": "Создайте бота у @BotFather, а свой числовой идентификатор узнайте у @userinfobot."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_bot_token",
+                  "desc": "Токен бота",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_allowed_ids",
+                  "desc": "Разрешённые Telegram ID (через запятую)",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно",
+                     "regex": {
+                        "expr": "/^[0-9]+(,[0-9]+)*$/",
+                        "errorText": "Только цифры и запятые"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_public_url",
+                  "desc": "Публичный HTTPS-адрес приложения",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно",
+                     "regex": {
+                        "expr": "/^https:\\/\\/[^\\/]+$/",
+                        "errorText": "Должен начинаться с https:// и быть без слеша в конце"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "desc": "Telegram открывает Mini App только по HTTPS с настоящим сертификатом. Настройте в DSM обратный прокси с этого адреса на localhost и порт ниже."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_port",
+                  "desc": "Локальный порт",
+                  "defaultValue": "8080",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Поле обязательно",
+                     "regex": {
+                        "expr": "/^[0-9]{2,5}$/",
+                        "errorText": "Только номер порта"
+                     }
+                  }
+               }
+            ]
+         }
+      ]
+   }
+]

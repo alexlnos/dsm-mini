@@ -1,0 +1,135 @@
+[
+   {
+      "step_title": "Accesso al NAS",
+      "items": [
+         {
+            "desc": "Crea un utente DSM dedicato al servizio invece di usare un amministratore: Pannello di controllo → Utente e gruppo → Crea. Concedi solo Download Station e File Station e non attivare la verifica in due passaggi."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_url",
+                  "desc": "Indirizzo DSM",
+                  "defaultValue": "https://localhost:5001",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio",
+                     "regex": {
+                        "expr": "/^https?:\\/\\/[^\\/]+$/",
+                        "errorText": "Deve iniziare con https:// e senza barra finale"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_user",
+                  "desc": "Utente DSM",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "Password DSM",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio"
+                  }
+               }
+            ]
+         }
+      ]
+   },
+   {
+      "step_title": "Telegram",
+      "items": [
+         {
+            "desc": "Crea un bot con @BotFather e prendi il tuo identificativo numerico da @userinfobot."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_bot_token",
+                  "desc": "Token del bot",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_allowed_ids",
+                  "desc": "ID Telegram consentiti (separati da virgola)",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio",
+                     "regex": {
+                        "expr": "/^[0-9]+(,[0-9]+)*$/",
+                        "errorText": "Solo cifre e virgole"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_public_url",
+                  "desc": "Indirizzo HTTPS pubblico dell'app",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio",
+                     "regex": {
+                        "expr": "/^https:\\/\\/[^\\/]+$/",
+                        "errorText": "Deve iniziare con https:// e senza barra finale"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "desc": "Telegram apre la Mini App solo via HTTPS con certificato valido. Configura in DSM un proxy inverso da questo indirizzo a localhost e alla porta qui sotto."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_port",
+                  "desc": "Porta locale",
+                  "defaultValue": "8080",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Campo obbligatorio",
+                     "regex": {
+                        "expr": "/^[0-9]{2,5}$/",
+                        "errorText": "Solo il numero di porta"
+                     }
+                  }
+               }
+            ]
+         }
+      ]
+   }
+]
