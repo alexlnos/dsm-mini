@@ -913,7 +913,8 @@ h1 {
 .bays-row { display: flex; gap: 7px; margin-top: 9px; }
 
 .bay {
-  height: 46px;
+  /* Three lines fit: the bay number, the capacity and the temperature. */
+  height: 58px;
   border-radius: 9px;
   background: #2F6F4F;
   color: #fff;
@@ -923,10 +924,13 @@ h1 {
   justify-content: center;
 }
 
-.bay.m2 { width: 52px; flex-shrink: 0; }
-.bay.empty { background: transparent; border: 1.5px dashed var(--separator); color: var(--muted); }
+.bay.m2 { width: 68px; flex-shrink: 0; }
+/* Not ".empty": that class is the big "nothing here" block, and its 44px of
+   padding does not fit in a tile — the bay grew to twice its height. */
+.bay.free { background: transparent; border: 1.5px dashed var(--separator); color: var(--muted); }
 .bay-num { font-size: 13px; font-weight: 700; }
-.bay-temp { font-size: 9px; margin-top: 2px; opacity: 0.85; }
+.bay-size { font-size: 9px; margin-top: 2px; opacity: 0.9; }
+.bay-temp { font-size: 9px; opacity: 0.75; }
 
 .disk { display: flex; align-items: center; gap: 11px; padding: 10px 14px; }
 .disk-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }

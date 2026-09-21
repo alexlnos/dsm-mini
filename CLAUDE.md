@@ -161,7 +161,14 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - Padding inside cards comes from the card's own `padding`, not from `margin` on
   its children: such a rule breaks at the very first wrapper.
 - Class names are checked against the ones already taken: a card with the class
-  `app` inherited the root container's styles and stretched across the screen.
+  `app` inherited the root container's styles and stretched across the screen,
+  and an empty disk bay marked `empty` picked up the 44px padding of the big
+  "nothing here" block and grew to twice the height of its neighbours. A
+  modifier that belongs to one component is named after it — `bay free`, not
+  `free`.
+- Drive capacity is formatted with `diskSize` (decimal), everything else with
+  `size` (binary): disks are sold in decimal, so a 1 TB drive has to read as
+  "1 TB" and not as the 0.9 the binary arithmetic gives.
 - The theme comes from Telegram's `themeParams`; confirmations and feedback are
   native (`showConfirm`, `HapticFeedback`), not the browser's. The theme and the
   height are re-read on the `themeChanged` and `viewportChanged` events: reading

@@ -18,6 +18,26 @@ export function size(bytes: number): string {
   return `${formatNumber(value, value >= 100 ? 0 : 1)} ${t(UNITS[unit])}`
 }
 
+/**
+ * The capacity of a drive.
+ *
+ * Divided by 1000 rather than 1024, unlike everything else here: disks are
+ * sold and labelled in decimal, so a 1 TB drive has to read as "1 TB" and not
+ * as the 0.9 the binary arithmetic gives. Files and downloads keep the binary
+ * units the torrent world expects.
+ */
+export function diskSize(bytes: number): string {
+  if (!bytes || bytes < 0) return t('common.dash')
+  let value = bytes / 1000
+  let unit = 0
+  while (value >= 1000 && unit < UNITS.length - 1) {
+    value /= 1000
+    unit++
+  }
+  const rounded = value >= 100 ? 0 : value >= 10 || Number.isInteger(Math.round(value * 10) / 10) ? 0 : 1
+  return `${formatNumber(value, rounded)} ${t(UNITS[unit])}`
+}
+
 /** Speed. Zero shows as a dash: "0 B/s" in a list reads as noise. */
 export function speed(bytesPerSecond: number): string {
   if (!bytesPerSecond) return t('common.dash')

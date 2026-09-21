@@ -3,7 +3,7 @@ import { ScreenTitle } from '../components/ScreenTitle'
 import { Bar, SkeletonDisks } from '../components/Skeleton'
 import { api, errorText } from '../api'
 import { readCache, writeCache } from '../cache'
-import { size } from '../format'
+import { diskSize, size } from '../format'
 import { t } from '../i18n'
 import { backButton } from '../telegram'
 import type { Disk, StorageOverview } from '../types'
@@ -91,8 +91,9 @@ export function Storage({ onBack }: Props) {
           <div className="bays-label">{t('storage.baysSata')}</div>
           <div className="bays-grid">
             {bays.map((disk, i) => (
-              <div key={i} className={disk ? 'bay' : data ? 'bay empty' : 'bay sk'}>
+              <div key={i} className={disk ? 'bay' : data ? 'bay free' : 'bay sk'}>
                 {(disk || data) && <span className="bay-num">{i + 1}</span>}
+                {disk && <span className="bay-size tnum">{diskSize(disk.size)}</span>}
                 {disk && <span className="bay-temp tnum">{disk.temp}°</span>}
               </div>
             ))}
@@ -105,6 +106,7 @@ export function Storage({ onBack }: Props) {
                 {nvme.map((disk, i) => (
                   <div key={disk.id} className="bay m2">
                     <span className="bay-num">{i + 1}</span>
+                    <span className="bay-size tnum">{diskSize(disk.size)}</span>
                     <span className="bay-temp tnum">{disk.temp}°</span>
                   </div>
                 ))}
@@ -190,7 +192,7 @@ export function Storage({ onBack }: Props) {
               <span className={d.healthy ? 'dot on' : 'dot bad'} aria-hidden="true" />
               <div className="disk-text">
                 <span className="disk-name">{d.id} · {d.model}</span>
-                <span className="disk-meta tnum">{size(d.size)} · {diskRole(d)}</span>
+                <span className="disk-meta tnum">{diskSize(d.size)} · {diskRole(d)}</span>
               </div>
               <span className={tempClass(d.temp)}>{d.temp} °C</span>
             </div>
