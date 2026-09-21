@@ -1,12 +1,12 @@
 #!/bin/sh
-# Управление службой для Центра пакетов DSM.
+# Service control for the DSM Package Center.
 #
-# DSM 7 запускает этот скрипт от пользователя пакета, а не от root — так
-# требует conf/privilege. Поэтому всё, что служба пишет, лежит в var пакета:
-# туда у неё есть права, и этот каталог переживает обновление.
+# DSM 7 runs this script as the package user rather than root — conf/privilege
+# requires it. So everything the service writes lives in the package var: it
+# has permission there, and that directory survives an upgrade.
 #
-# Сообщения наружу — по-английски: их читает тот, кто ставит пакет, а он
-# может быть откуда угодно.
+# Messages going out are in English: they are read by whoever installs the
+# package, and they may be from anywhere.
 
 PKG="dsm-mini"
 TARGET="${SYNOPKG_PKGDEST:-/var/packages/$PKG/target}"
@@ -30,8 +30,8 @@ start_service() {
     [ -x "$BIN" ] || { echo "Executable not found: $BIN" >&2; return 1; }
     [ -r "$ENV_FILE" ] || { echo "Configuration not found: $ENV_FILE" >&2; return 1; }
 
-    # Настройки лежат отдельным файлом, а не внутри пакета: их правят после
-    # установки, не переустанавливая его.
+    # The settings live in a separate file rather than inside the package:
+    # they are edited after installation without reinstalling it.
     set -a
     . "$ENV_FILE"
     set +a
@@ -41,8 +41,8 @@ start_service() {
     "$BIN" >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
 
-    # Даём службе мгновение на падение: без этого Центр пакетов покажет
-    # «запущено» у процесса, который уже умер на неверном токене.
+    # Give the service a moment to die: without this the Package Center would
+    # show "running" for a process that already exited on a wrong token.
     sleep 2
     if ! running; then
         echo "Service exited on startup, see $LOG_FILE" >&2
@@ -60,7 +60,7 @@ stop_service() {
     pid=$(cat "$PID_FILE")
     kill "$pid" 2>/dev/null
 
-    # Службе нужно время закрыть базу и отпустить long polling Telegram.
+    # The service needs time to close the database and release the long polling.
     i=0
     while [ $i -lt 15 ]; do
         running || break
@@ -81,7 +81,7 @@ case "$1" in
         stop_service
         ;;
     status)
-        # Коды выхода определены DSM: 0 — работает, 3 — не работает.
+        # The exit codes are defined by DSM: 0 — running, 3 — not running.
         if running; then exit 0; else exit 3; fi
         ;;
     log)

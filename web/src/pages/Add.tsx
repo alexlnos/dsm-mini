@@ -4,7 +4,7 @@ import { alertMessage, backButton, haptic } from '../telegram'
 import { t } from '../i18n'
 import type { Overview } from '../types'
 
-/** Несохранённое содержимое экрана: живёт выше, чтобы пережить обзор NAS. */
+/** Unsaved screen contents: held above so they survive the NAS browser. */
 export interface AddDraft {
   link: string
   destination: string
@@ -16,7 +16,7 @@ interface Props {
   onDraftChange: (draft: AddDraft) => void
   onBack: () => void
   onConfigureFolders: () => void
-  /** Открыть обзор NAS, начиная с указанной папки, чтобы выбрать другую. */
+  /** Open the NAS browser from the given folder to pick another one. */
   onBrowse: (from: string) => void
   sending: boolean
   onSend: () => void
@@ -30,8 +30,8 @@ export function Add({
   const folders = data?.folders ?? []
   const { link, destination } = draft
 
-  // Папка, выбранная в обзоре, может не входить в список — показываем её
-  // отдельной строкой, иначе выбор выглядел бы пропавшим.
+  // The folder picked in the browser may be missing from the list — we show
+  // it as a separate row, otherwise the choice would look lost.
   const shown = destination && !folders.includes(destination)
     ? [destination, ...folders]
     : folders

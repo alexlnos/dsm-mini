@@ -26,21 +26,21 @@ type Screen =
   | { name: 'add' }
   | { name: 'task'; id: string }
   | { name: 'folders' }
-  // Обзор NAS в режиме выбора папки: открывается из настройки папок.
+  // The NAS browser in folder-picking mode: opened from the folder settings.
   | { name: 'pickFolder' }
-  // Обзор NAS для выбора папки текущей загрузки, начиная с указанной.
+  // The NAS browser for picking the folder of the current download, from a start.
   | { name: 'pickDestination'; from: string }
-  // Обзор NAS для переноса уже созданной задачи.
+  // The NAS browser for moving an already created task.
   | { name: 'pickTaskFolder'; from: string; taskId: string }
-  // Выбор папки, куда скопировать или перенести отмеченные файлы.
+  // Picking the folder to copy or move the selected files into.
   | { name: 'transferTarget'; paths: string[]; move: boolean }
 
-/** Экраны, которые относятся к вкладке загрузок. */
+/** Screens that belong to the downloads tab. */
 function inDownloads(name: Screen['name']): boolean {
   return name === 'downloads' || name === 'add' || name === 'folders' || name === 'task'
 }
 
-/** Как часто обновлять список, когда что-то качается. */
+/** How often to refresh the list while something is downloading. */
 const ACTIVE_POLL = 2500
 const IDLE_POLL = 15000
 
@@ -48,24 +48,24 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
   const [data, setData] = useState<Overview | null>(() => readCache('overview'))
   const [error, setError] = useState<string | null>(null)
-  // Содержимое экрана добавления: переход в обзор NAS размонтирует его, и без
-  // этого введённая ссылка пропадала бы.
+  // Contents of the add screen: going to the NAS browser unmounts it, and
+  // without this the typed link would be lost.
   const [addDraft, setAddDraft] = useState<AddDraft>({ link: '', destination: '' })
   const [sending, setSending] = useState(false)
-  // Открытая папка переживает переход на другую вкладку: возвращать человека
-  // в корень каждый раз — заставлять его заново идти тем же путём.
+  // The open folder survives switching tabs: sending the person back to the
+  // root every time means making them walk the same path again.
   const [filesPath, setFilesPath] = useState('/')
-  // Счётчик пересобирает обзор: повторное нажатие на активную вкладку
-  // открывает раздел заново, с корня.
+  // A counter rebuilds the browser: pressing the active tab again opens the
+  // section anew, from the root.
   const [filesRun, setFilesRun] = useState(0)
-  // Выбранная вкладка загрузок тоже переживает переход. null — человек ещё
-  // не выбирал сам, и можно подставить разумную.
+  // The chosen downloads tab survives navigation too. null means the person
+  // has not chosen yet, so a sensible one can be filled in.
   const [downloadsFilter, setDownloadsFilter] = useState<DownloadsFilter | null>(null)
-  // Путь, введённый руками в настройке папок: экран размонтируется при
-  // уходе на обзор NAS или другую вкладку, и набранное пропадало бы.
+  // The path typed by hand in the folder settings: the screen unmounts when
+  // going to the NAS browser or another tab, and the text would be lost.
   const [folderDraft, setFolderDraft] = useState('')
-  // На чём человек оставил вкладку загрузок: список, добавление, настройка
-  // папок или открытая задача. Возврат на вкладку приводит туда же.
+  // Where the person left the downloads tab: the list, adding, folder
+  // settings or an open task. Returning to the tab brings them back there.
   const [downloadsScreen, setDownloadsScreen] = useState<Screen>({ name: 'downloads' })
 
 
@@ -88,8 +88,8 @@ export function App() {
 
   useEffect(() => { void refresh() }, [refresh])
 
-  // Частый опрос только когда есть живые задачи: иначе Mini App зря будит
-  // NAS каждые пару секунд.
+  // Frequent polling only while there are live tasks: otherwise the Mini App
+  // wakes the NAS every couple of seconds for nothing.
   useEffect(() => {
     const anyActive = data?.tasks.some((t) => t.active) ?? false
     const delay = anyActive ? ACTIVE_POLL : IDLE_POLL
@@ -97,8 +97,8 @@ export function App() {
     return () => window.clearInterval(timer)
   }, [data, refresh])
 
-  // Папка, выбранная в обзоре NAS, закрепляется сразу: экрана с кнопкой
-  // «Сохранить» больше нет, и терять нечего.
+  // A folder picked in the NAS browser is pinned at once: there is no screen
+  // with a Save button any more, so there is nothing to lose.
   const pinFolder = useCallback(async (path: string) => {
     setScreen({ name: 'folders' })
     if (!path) return
@@ -113,11 +113,11 @@ export function App() {
       })
       void refresh()
     } catch {
-      // Экран настройки покажет актуальное состояние и сообщит об ошибке сам.
+      // The settings screen will show the current state and report the error itself.
     }
   }, [refresh])
 
-  // Папка по умолчанию подставляется, пока пользователь не выбрал свою.
+  // The default folder is filled in until the user picks their own.
   useEffect(() => {
     if (addDraft.destination || !data) return
     const fallback = data.settings?.last_used || data.folders?.[0] || data.default_destination
@@ -145,7 +145,7 @@ export function App() {
     }
   }, [addDraft, refresh])
 
-  // Перенос задачи в папку, выбранную в обзоре NAS.
+  // Moving a task into the folder picked in the NAS browser.
   const moveTask = useCallback(async (taskId: string, path: string) => {
     setScreen({ name: 'task', id: taskId })
     if (!path) return
@@ -164,14 +164,14 @@ export function App() {
     ? data?.tasks.find((t) => t.id === screen.id)
     : undefined
 
-  // Задача могла исчезнуть, пока экран открыт.
+  // The task may have vanished while the screen was open.
   useEffect(() => {
     if (screen.name === 'task' && data && !current) setScreen({ name: 'downloads' })
   }, [screen, data, current])
 
-  // Добавление, настройка папок и открытая задача — части раздела загрузок,
-  // а не отдельные места: панель вкладок на них остаётся, иначе выйти можно
-  // было только назад.
+  // Adding, folder settings and an open task are parts of the downloads
+  // section rather than separate places: the tab bar stays on them, otherwise
+  // the only way out was back.
   const onDownloads = inDownloads(screen.name)
   const showTabbar = onDownloads || screen.name === 'home' || screen.name === 'files'
 
@@ -186,7 +186,7 @@ export function App() {
           <Home
             downloads={data}
             onOpen={(section: Section) => {
-              // Разбираем по одному: у каждого экрана свой тип в объединении.
+              // One by one: every screen has its own type in the union.
               switch (section) {
                 case 'downloads': setScreen({ name: 'downloads' }); break
                 case 'files': setScreen({ name: 'files' }); break
@@ -306,8 +306,8 @@ export function App() {
             type="button"
             className={onDownloads ? 'tab active' : 'tab'}
             onClick={() => {
-              // Повторное нажатие — к началу раздела, из другой вкладки —
-              // туда, где человека прервали.
+              // Pressing it again goes to the start of the section; from
+              // another tab it returns where the person was interrupted.
               setScreen(onDownloads ? { name: 'downloads' } : downloadsScreen)
             }}
           >
@@ -321,8 +321,8 @@ export function App() {
             type="button"
             className={screen.name === 'files' ? 'tab active' : 'tab'}
             onClick={() => {
-              // Нажатие на вкладку, где уже находишься, возвращает к началу
-              // раздела — привычное поведение мобильных приложений.
+              // Pressing the tab you are already on returns to the start of
+              // the section — familiar behaviour in mobile apps.
               if (screen.name === 'files') {
                 setFilesPath('/')
                 setFilesRun((run) => run + 1)

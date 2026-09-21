@@ -10,7 +10,7 @@ interface Props {
   onOpen: (task: Task) => void
 }
 
-/** Цвет и символ по состоянию задачи. */
+/** Colour and glyph by task state. */
 export function appearance(status: string) {
   switch (status) {
     case 'finished':
@@ -29,8 +29,8 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
   const look = appearance(task.status)
   const paused = task.status === 'paused' || task.status === 'error'
   const remaining = eta(task.eta_seconds)
-  // Докачанную задачу не ставят на паузу и не возобновляют — кнопка только
-  // сбивала бы с толку. Упавшую перезапустить можно.
+  // A finished task is neither paused nor resumed — the button would only
+  // confuse. A failed one can be restarted.
   const canToggle = task.status !== 'finished'
 
   return (

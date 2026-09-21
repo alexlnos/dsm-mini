@@ -1,8 +1,8 @@
-# Пакеты Synology для страницы релизов.
+# Synology packages for the releases page.
 #
-# Срабатывает на тег вида v1.2.3: собирает .spk под обе архитектуры и
-# прикладывает их к релизу. Docker-образ на тот же тег собирает docker.yml.
-name: Релиз
+# Triggered by a v1.2.3 style tag: builds the .spk for both architectures and
+# attaches them to the release. The Docker image for the same tag is built by docker.yml.
+name: Release
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Версия для пробной сборки (без тега ничего не публикуется)
+        description: Version for a trial build (nothing is published without a tag)
         required: false
         default: 0.0.0
 
@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   spk:
-    name: Собрать пакеты DSM
+    name: Build the DSM packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Версия
+      - name: Version
         id: version
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
@@ -40,7 +40,7 @@ jobs:
             echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Сборка
+      - name: Build
         run: |
           ./tools/build-spk.sh amd64 "${{ steps.version.outputs.value }}"
           ./tools/build-spk.sh arm64 "${{ steps.version.outputs.value }}"
@@ -51,7 +51,7 @@ jobs:
           name: spk
           path: dist/*.spk
 
-      - name: Приложить к релизу
+      - name: Attach to the release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,11 +61,11 @@ jobs:
             --generate-notes \
             || gh release upload "${GITHUB_REF_NAME}" dist/*.spk --clobber
 
-  # Каталог для «Источников пакетов» Центра пакетов: один статический файл на
-  # архитектуру. Сами .spk лежат в релизе — страница только говорит Центру
-  # пакетов, где их взять.
+  # The catalogue for the Package Center "Package Sources": one static file
+  # per architecture. The .spk files live in the release — the page only tells
+  # the Package Center where to get them.
   pages:
-    name: Каталог пакетов
+    name: Package catalogue
     needs: spk
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Собрать каталог
+      - name: Build the catalogue
         run: |
           version="${GITHUB_REF_NAME#v}"
           case "$version" in *-*) : ;; *) version="$version-1" ;; esac

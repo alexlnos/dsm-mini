@@ -36,7 +36,7 @@ export function Notifications({ onBack }: Props) {
 
   useEffect(() => { void load(filter) }, [load, filter])
 
-  // Записи приходят по времени, группируем их по дням для читаемости.
+  // Records arrive by time; we group them by day for readability.
   const groups = useMemo(() => {
     const byDay = new Map<string, LogEntry[]>()
     for (const entry of entries) {

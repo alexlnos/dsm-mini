@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Собирает пакет .spk для Центра пакетов Synology.
+# Builds an .spk package for the Synology Package Center.
 #
-# Официальный тулкит Synology (pkgscripts-ng) требует chroot с их сборочным
-# окружением. Нам он не нужен: бинарник статический и ни от чего не зависит,
-# поэтому пакет собирается обычным tar — ровно так же, как это делает spksrc.
+# Synology's official toolkit (pkgscripts-ng) needs a chroot with their build
+# environment. We do not need it: the binary is static and depends on nothing,
+# so the package is built with plain tar — exactly the way spksrc does it.
 #
 #   tools/build-spk.sh amd64 1.2.3
 #
-# Результат: dist/dsm-mini-1.2.3-amd64.spk
+# Result: dist/dsm-mini-1.2.3-amd64.spk
 set -euo pipefail
 
 ARCH="${1:-amd64}"
@@ -17,8 +17,8 @@ OUT_DIR="${OUT_DIR:-$ROOT/dist}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# Значения arch — имена платформ Synology, а не названия процессоров. Один
-# пакет покрывает все модели с одной архитектурой: бинарник у них общий.
+# The arch values are Synology platform names, not processor names. One
+# package covers every model of one architecture: the binary is the same.
 case "$ARCH" in
     amd64)
         GOARCH=amd64
@@ -29,19 +29,19 @@ case "$ARCH" in
         SYNO_ARCH="aarch64 rtd1296 rtd1619b armada37xx"
         ;;
     *)
-        echo "неизвестная архитектура: $ARCH (нужна amd64 или arm64)" >&2
+        echo "unknown architecture: $ARCH (amd64 or arm64 expected)" >&2
         exit 1
         ;;
 esac
 
-# Версия DSM понимает только цифры и разделители . - _
+# DSM understands only digits and the . - _ separators in a version
 SPK_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//')"
 case "$SPK_VERSION" in
-    *-*) : ;;                      # номер сборки уже есть
+    *-*) : ;;                      # a build number is already there
     *) SPK_VERSION="$SPK_VERSION-1" ;;
 esac
 
-echo "→ сборка бинарника ($GOARCH)"
+echo "→ building the binary ($GOARCH)"
 mkdir -p "$WORK/staging/bin"
 CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -C "$ROOT" -trimpath \
     -ldflags "-s -w -X main.version=$SPK_VERSION" \
@@ -77,8 +77,8 @@ chmod 755 "$WORK"/scripts/*
 echo "→ .spk"
 mkdir -p "$OUT_DIR"
 SPK="$OUT_DIR/dsm-mini-$SPK_VERSION-$ARCH.spk"
-# Порядок файлов тот же, что у spksrc: DSM читает INFO, не разворачивая всё.
+# The file order matches spksrc: DSM reads INFO without unpacking everything.
 ( cd "$WORK" && tar cpf "$SPK" --owner=root --group=root \
     package.tgz INFO scripts PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG WIZARD_UIFILES conf LICENSE )
 
-echo "готово: $SPK ($(du -h "$SPK" | cut -f1))"
+echo "done: $SPK ($(du -h "$SPK" | cut -f1))"

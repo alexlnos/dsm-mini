@@ -1,9 +1,9 @@
 import { formatNumber, localeTag, t } from './i18n'
 
-/** Ключи единиц по возрастанию: каждый следующий больше предыдущего в 1024 раза. */
+/** Unit keys in ascending order: each is 1024 times the previous one. */
 const UNITS = ['unit.kb', 'unit.mb', 'unit.gb', 'unit.tb'] as const
 
-/** Размер в байтах человеческим языком. */
+/** A size in bytes in human language. */
 export function size(bytes: number): string {
   if (!bytes || bytes < 0) return `0 ${t('unit.bytes')}`
   if (bytes < 1024) return `${bytes} ${t('unit.bytes')}`
@@ -13,17 +13,17 @@ export function size(bytes: number): string {
     value /= 1024
     unit++
   }
-  // Дробный разделитель у каждого языка свой: в русском запятая, в английском точка.
+  // The decimal separator differs per language: a comma in Russian, a dot in English.
   return `${formatNumber(value, value >= 100 ? 0 : 1)} ${t(UNITS[unit])}`
 }
 
-/** Скорость. Ноль показываем прочерком: «0 Б/с» в списке читается как шум. */
+/** Speed. Zero shows as a dash: "0 B/s" in a list reads as noise. */
 export function speed(bytesPerSecond: number): string {
   if (!bytesPerSecond) return t('common.dash')
   return t('unit.perSecond', { size: size(bytesPerSecond) })
 }
 
-/** Оставшееся время. */
+/** The remaining time. */
 export function eta(seconds?: number): string {
   if (!seconds || seconds <= 0) return ''
   if (seconds >= 86400) return t('unit.days', { value: Math.round(seconds / 86400) })
@@ -39,9 +39,9 @@ export function eta(seconds?: number): string {
 }
 
 /**
- * Пока Download Station не получил метаданные от трекера, названием задачи
- * служит вся magnet-ссылка. Достаём из неё человеческое имя, иначе список
- * первые секунды выглядит кашей.
+ * Until Download Station gets the metadata from the tracker, the whole magnet
+ * link serves as the task title. We pull a human name out of it, otherwise the
+ * list looks like porridge for the first few seconds.
  */
 export function taskTitle(raw: string): string {
   if (!raw.startsWith('magnet:')) return raw
@@ -69,7 +69,7 @@ export function statusLabel(status: string): string {
   }
 }
 
-/** Аптайм человеческим языком. */
+/** Uptime in human language. */
 export function uptime(seconds: number): string {
   if (!seconds) return t('common.dash')
   const days = Math.floor(seconds / 86400)
@@ -81,14 +81,14 @@ export function uptime(seconds: number): string {
     : t('unit.minutes', { value: minutes })
 }
 
-/** Дата и время записи журнала. */
+/** Date and time of a log record. */
 export function logTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' })
 }
 
-/** День для группировки записей журнала. */
+/** The day used to group log records. */
 export function logDay(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return t('day.earlier')

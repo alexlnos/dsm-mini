@@ -44,7 +44,7 @@ export interface Overview {
   volumes: Volume[] | null
   default_destination: string
   api_generation: string
-  /** Папки для экрана добавления: закреплённые, затем недавние. */
+  /** Folders for the add screen: pinned first, then recent. */
   folders: string[] | null
   settings: Settings
 }
@@ -71,7 +71,7 @@ export interface Tracker {
 export interface TaskDetails {
   files: TaskFile[] | null
   trackers: Tracker[] | null
-  /** NAS отдаёт файлы только у работающей задачи. */
+  /** The NAS hands back files only for a running task. */
   not_active?: boolean
 }
 
@@ -133,9 +133,9 @@ export interface Disk {
   smart: string
   slot: number
   is_ssd: boolean
-  /** Назначение диска: 'pool' | 'cache' | 'free'. Подпись собирает интерфейс. */
+  /** Disk purpose: 'pool' | 'cache' | 'free'. The caption is built by the UI. */
   role?: string
-  /** Имя пула, если диск в пуле. */
+  /** The pool name when the disk belongs to one. */
   pool?: string
   healthy: boolean
 }

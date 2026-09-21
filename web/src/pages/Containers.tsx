@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function Containers({ onBack }: Props) {
-  // Начинаем с сохранённого списка: экран заполнен с первого кадра.
+  // We start from the stored list: the screen is filled from the first frame.
   const [list, setList] = useState<Container[]>(() => readCache<Container[]>('containers') ?? [])
   const [loaded, setLoaded] = useState(() => readCache<Container[]>('containers') !== null)
   const [error, setError] = useState<string | null>(null)

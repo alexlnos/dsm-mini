@@ -1,4 +1,4 @@
-// Снимает экраны приложения на каждом языке на демо-данных.
+// Captures the app screens in every language on demo data.
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -30,7 +30,7 @@ function initData(lang) {
       locale: lang,
     });
 
-    // Подменяем ответы NAS: на скриншотах не должно быть ничего настоящего.
+    // Replace the NAS answers: nothing real may end up in a screenshot.
     await ctx.route('**/api/**', (route) => {
       const url = new URL(route.request().url());
       const body = fixtures[url.pathname];
@@ -50,22 +50,22 @@ function initData(lang) {
 
     await shot('home');
 
-    await page.locator('.tab').nth(1).click();           // Загрузки
+    await page.locator('.tab').nth(1).click();           // Downloads
     await shot('downloads');
 
-    await page.locator('.task-open').first().click();    // подробности задачи
+    await page.locator('.task-open').first().click();    // task details
     await shot('task');
 
-    await page.locator('.tab').nth(2).click();           // Файлы
+    await page.locator('.tab').nth(2).click();           // Files
     await shot('files');
 
-    await page.locator('.tab').nth(0).click();           // Главная
+    await page.locator('.tab').nth(0).click();           // Home
     await page.waitForTimeout(400);
-    await page.locator('.app-card').nth(4).click();      // Хранилище
+    await page.locator('.app-card').nth(4).click();      // Storage
     await shot('storage');
 
     await ctx.close();
-    console.log(lang, 'готово');
+    console.log(lang, 'done');
   }
 
   await browser.close();

@@ -1,20 +1,20 @@
 /**
- * Заглушки на время первой загрузки.
+ * Placeholders for the first load.
  *
- * Пустой экран читается как «здесь ничего нет» — на месте машин или
- * контейнеров это прямая ложь, пока ответ NAS ещё в пути. Серые полоски
- * в форме будущего содержимого честнее: видно, что место занято, и чем.
+ * An empty screen reads as "there is nothing here" — in place of machines or
+ * containers that is a plain lie while the NAS answer is still in flight. Grey
+ * bars shaped like the future contents are honest: the space is taken, and by what.
  *
- * Заглушки собраны из тех же классов, что и настоящие карточки, поэтому
- * содержимое встаёт на их место без скачка вёрстки.
+ * The placeholders are built from the same classes as the real cards, so the
+ * contents take their place without the layout jumping.
  *
- * Показываются только когда показывать нечего: если данные уже есть (из
- * кэша или прошлого опроса), обновление идёт молча, без мигания.
+ * They show only when there is nothing to show: if the data is already there
+ * (from the cache or an earlier poll), the refresh happens quietly.
  */
 
 import { t } from '../i18n'
 
-/** Ширины строк по кругу: одинаковые полоски выглядят как таблица, а не текст. */
+/** Row widths in a cycle: identical bars look like a table, not like text. */
 const WIDTHS = ['64%', '46%', '73%', '54%', '68%']
 
 interface BarProps {
@@ -22,21 +22,21 @@ interface BarProps {
   height?: number
 }
 
-/** Полоска-заглушка на месте строки текста. */
+/** A placeholder bar in place of a line of text. */
 export function Bar({ width, height = 13 }: BarProps) {
   return <span className="sk" style={{ width, height }} />
 }
 
 interface RowsProps {
-  /** Сколько карточек нарисовать. */
+  /** How many cards to draw. */
   count?: number
-  /** Кружок слева — индикатор состояния, как у машин и контейнеров. */
+  /** A dot on the left — a state indicator, as on machines and containers. */
   dot?: boolean
-  /** Круглая кнопка справа. */
+  /** A round button on the right. */
   action?: boolean
 }
 
-/** Список карточек: имя, подпись и, если нужно, кнопка. */
+/** A list of cards: a name, a caption and, if needed, a button. */
 export function SkeletonRows({ count = 3, dot = false, action = false }: RowsProps) {
   return (
     <div className="list" role="status" aria-label={t('common.loading')}>
@@ -56,7 +56,7 @@ export function SkeletonRows({ count = 3, dot = false, action = false }: RowsPro
   )
 }
 
-/** Две плитки сводки — «Свободно RAM», «Занято vCPU» и подобные. */
+/** Two summary tiles — "Free RAM", "vCPU in use" and the like. */
 export function SkeletonTiles({ count = 2 }: { count?: number }) {
   return (
     <div className="tiles" aria-hidden="true">
@@ -70,7 +70,7 @@ export function SkeletonTiles({ count = 2 }: { count?: number }) {
   )
 }
 
-/** Строки журнала: точка, сообщение в две строки и время. */
+/** Log rows: a dot, a two-line message and a time. */
 export function SkeletonEvents({ count = 5 }: { count?: number }) {
   return (
     <div className="list" role="status" aria-label={t('common.loading')}>
@@ -87,7 +87,7 @@ export function SkeletonEvents({ count = 5 }: { count?: number }) {
   )
 }
 
-/** Шкалы CPU и RAM на главном экране. */
+/** The CPU and RAM meters on the home screen. */
 export function SkeletonMeters() {
   return (
     <div aria-hidden="true">
@@ -102,7 +102,7 @@ export function SkeletonMeters() {
   )
 }
 
-/** Строки файлового списка: значок, имя и размер. */
+/** File list rows: an icon, a name and a size. */
 export function SkeletonEntries({ count = 6 }: { count?: number }) {
   return (
     <div className="list" role="status" aria-label={t('common.loading')}>
@@ -121,7 +121,7 @@ export function SkeletonEntries({ count = 6 }: { count?: number }) {
   )
 }
 
-/** Карточки загрузок: кольцо прогресса, имя и строка состояния. */
+/** Download cards: a progress ring, a name and a status line. */
 export function SkeletonTasks({ count = 3 }: { count?: number }) {
   return (
     <div className="list" role="status" aria-label={t('common.loading')}>
@@ -140,7 +140,7 @@ export function SkeletonTasks({ count = 3 }: { count?: number }) {
   )
 }
 
-/** Карточки дисков в списке «Диски». */
+/** Disk cards in the "Disks" list. */
 export function SkeletonDisks({ count = 4 }: { count?: number }) {
   return (
     <div className="card" role="status" aria-label={t('common.loading')}>

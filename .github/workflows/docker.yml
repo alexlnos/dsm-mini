@@ -1,10 +1,10 @@
-# Сборка образа и публикация в Docker Hub.
+# Image build and publishing to Docker Hub.
 #
-# Срабатывает на push в main (тег latest) и на теги вида v1.2.3 (теги версии).
-# Запустить вручную можно кнопкой Run workflow на вкладке Actions.
+# Triggered on a push to main (the latest tag) and on v1.2.3 style tags.
+# It can also be started by hand with Run workflow on the Actions tab.
 #
-# Нужны два секрета репозитория — как их завести, написано в README,
-# раздел «Собирать свой образ».
+# It needs two repository secrets — how to create them is in the README,
+# section "Building your own image".
 name: Docker
 
 on:
@@ -17,24 +17,24 @@ env:
   IMAGE_NAME: dsm-mini
 
 jobs:
-  # Образ не публикуется, пока не прошли проверки.
+  # The image is not published until the checks have passed.
   tests:
     uses: ./.github/workflows/ci.yml
 
   push:
-    name: Собрать и опубликовать
+    name: Build and publish
     needs: tests
     runs-on: ubuntu-latest
     steps:
-      # Без этой проверки отсутствие секретов выглядит как невнятная ошибка
-      # входа где-то в середине сборки.
-      - name: Секреты Docker Hub заданы
+      # Without this check a missing secret looks like an obscure login error
+      # somewhere in the middle of the build.
+      - name: Docker Hub secrets are set
         env:
           USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -z "$USERNAME" ] || [ -z "$TOKEN" ]; then
-            echo "::error::Нет секретов DOCKERHUB_USERNAME и DOCKERHUB_TOKEN. Settings → Secrets and variables → Actions → New repository secret. Подробности в README, раздел «Собирать свой образ»."
+            echo "::error::DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets are missing. Settings → Secrets and variables → Actions → New repository secret. Details in the README, section 'Building your own image'."
             exit 1
           fi
 
@@ -58,11 +58,11 @@ jobs:
             type=sha,format=short
           labels: |
             org.opencontainers.image.title=dsm-mini
-            org.opencontainers.image.description=Telegram-бот с Mini App для управления Synology NAS
+            org.opencontainers.image.description=Telegram bot with a Mini App for managing a Synology NAS
 
-      # arm64 собирается кросс-компиляцией, а не эмуляцией: бинарник
-      # статический, а в целевом образе ничего не выполняется. Поэтому QEMU
-      # не нужен, и сборка занимает минуты, а не полчаса.
+      # arm64 is cross-compiled rather than emulated: the binary is static and
+      # nothing runs inside the target image. So QEMU is not needed and the
+      # build takes minutes instead of half an hour.
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -75,9 +75,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Что опубликовано
+      - name: What was published
         run: |
-          echo "### Образ опубликован" >> $GITHUB_STEP_SUMMARY
+          echo "### Image published" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

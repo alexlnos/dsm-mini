@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Собирает каталог для «Источников пакетов» Центра пакетов DSM.
+"""Builds the catalogue for the DSM Package Center "Package Sources".
 
-Центр пакетов ходит по указанному адресу с параметрами `arch`, `build` и
-`language` и ждёт в ответ JSON со списком подходящих пакетов. Сервер обязан
-отфильтровать список сам — поэтому у больших каталогов (SynoCommunity,
-007revad) на этом месте стоит живой обработчик.
+The Package Center calls the given address with the `arch`, `build` and
+`language` parameters and expects JSON with a list of matching packages. The
+server is supposed to filter that list itself — which is why big catalogues
+(SynoCommunity, 007revad) run a live handler there.
 
-Нам фильтровать почти нечего: пакет один, архитектуры две. Поэтому вместо
-обработчика раскладываем по статическому файлу на каждую архитектуру —
-GitHub Pages отдаёт их обычным GET, и никакого сервера не нужно. Человек
-добавляет адрес, который соответствует его модели.
+We have almost nothing to filter: one package, two architectures. So instead
+of a handler we lay out one static file per architecture — GitHub Pages serves
+them over an ordinary GET and no server is needed. People add the address
+matching their model.
 
     tools/make-feed.py 1.2.3 --out public
 """
@@ -20,7 +20,7 @@ import pathlib
 REPO = "alexlnos/dsm-mini"
 PAGES = f"https://{REPO.split('/')[0]}.github.io/{REPO.split('/')[1]}"
 
-# Те же семейства, что и в build-spk.sh: DSM сообщает о себе именно так.
+# The same families as in build-spk.sh: that is how DSM reports itself.
 ARCHS = {
     "amd64": ["x86_64", "apollolake", "avoton", "braswell", "broadwell", "broadwellnk",
               "broadwellnkv2", "broadwellntbap", "bromolow", "cedarview", "denverton",
@@ -40,7 +40,7 @@ def entry(version: str, arch: str) -> dict:
         "version": version,
         "dname": "dsm-mini",
         "desc": DESC,
-        # Файл лежит в релизе на GitHub: каталог его только называет.
+        # The file lives in a GitHub release: the catalogue only names it.
         "link": f"https://github.com/{REPO}/releases/download/v{version.split('-')[0]}/{spk}",
         "thumbnail": [f"{PAGES}/icon_72.png"],
         "thumbnail_retina": [f"{PAGES}/icon_256.png"],
@@ -52,7 +52,7 @@ def entry(version: str, arch: str) -> dict:
         "support_url": f"https://github.com/{REPO}/issues",
         "price": 0,
         "beta": False,
-        # Установка без мастера невозможна: без токена бота служба не поднимется.
+        # Installing without the wizard is impossible: without a bot token the service will not start.
         "qinst": False,
         "qupgrade": True,
         "qstart": False,
@@ -101,8 +101,8 @@ INDEX = """<!doctype html>
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("version", help="версия пакета, например 1.2.3-1")
-    ap.add_argument("--out", default="public", help="куда положить каталог")
+    ap.add_argument("version", help="package version, for example 1.2.3-1")
+    ap.add_argument("--out", default="public", help="where to put the catalogue")
     args = ap.parse_args()
 
     out = pathlib.Path(args.out)
@@ -111,15 +111,15 @@ def main() -> None:
     for arch, syno_archs in ARCHS.items():
         body = {"packages": [entry(args.version, arch)]}
         (out / f"{arch}.json").write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
-        # Каждое имя платформы — свой файл: человеку не надо знать, что его
-        # epyc7002 это amd64. Файлы одинаковые, поэтому просто копия.
+        # Every platform name gets its own file: people should not have to
+        # know their epyc7002 is amd64. The files are identical, so it is a copy.
         for syno in syno_archs:
             (out / f"{syno}.json").write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
 
     (out / "index.html").write_text(
         INDEX.format(repo=REPO, pages=PAGES, version=args.version), encoding="utf-8")
 
-    print(f"каталог готов: {len(list(out.glob('*.json')))} файлов в {out}")
+    print(f"catalogue ready: {len(list(out.glob('*.json')))} files in {out}")
 
 
 if __name__ == "__main__":

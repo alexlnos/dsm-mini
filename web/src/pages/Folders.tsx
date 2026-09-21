@@ -5,23 +5,23 @@ import { t } from '../i18n'
 import type { Settings, SettingsView } from '../types'
 
 interface Props {
-  /** Путь, набранный руками: хранится выше, чтобы пережить уход с экрана. */
+  /** The path typed by hand: held above so it survives leaving the screen. */
   manual: string
   onManualChange: (value: string) => void
   onBack: () => void
-  /** Настройки изменились — обновить данные на остальных экранах. */
+  /** The settings changed — refresh the data on the other screens. */
   onChanged: () => void
-  /** Открыть обзор NAS, чтобы выбрать папку там. */
+  /** Open the NAS browser to pick a folder there. */
   onPickOnNas: () => void
 }
 
 /**
- * Настройка папок назначения.
+ * Destination folder settings.
  *
- * Изменения сохраняются сразу: кнопки «Сохранить» нет, поэтому нечего
- * потерять при переходе в обзор NAS или закрытии приложения. Интерфейс
- * обновляется до ответа сервера, а при ошибке возвращается к прежнему
- * состоянию — иначе каждое нажатие ощущалось бы как задержка.
+ * Changes are saved right away: there is no Save button, so there is nothing
+ * to lose when going to the NAS browser or closing the app. The interface
+ * updates before the server answers and rolls back on an error — otherwise
+ * every tap would feel like a delay.
  */
 export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas }: Props) {
   const [view, setView] = useState<SettingsView | null>(null)
@@ -52,7 +52,7 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
         show_recent: next.show_recent ?? showRecent,
         last_used: view.last_used,
       }
-      // Показываем результат сразу, не дожидаясь сервера.
+      // Show the result at once, without waiting for the server.
       setView({ ...view, ...payload })
       try {
         setView(await api.saveSettings(payload))

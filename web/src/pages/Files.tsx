@@ -15,7 +15,7 @@ const ICONS: Record<string, { glyph: string; className: string }> = {
   doc: { glyph: '≡', className: 'icon doc' },
 }
 
-/** Родительская папка; у корня родитель — он сам. */
+/** The parent folder; the root is its own parent. */
 function parentOf(path: string): string {
   const parent = path.replace(/\/+$/, '').split('/').slice(0, -1).join('/')
   return parent || '/'
@@ -31,24 +31,24 @@ function kindOf(entry: Entry): keyof typeof ICONS {
 }
 
 interface FilesProps {
-  /** Режим выбора папки: вместо обычного обзора показываем кнопку подтверждения. */
+  /** Folder-picking mode: instead of the usual browser we show a confirm button. */
   pickMode?: boolean
   onPick?: (path: string) => void
   onCancelPick?: () => void
-  /** С какой папки начать обзор. Пусто — с корня. */
+  /** Which folder to start browsing from. Empty means the root. */
   initialPath?: string
   /**
-   * Что перенести или скопировать сюда. Задаётся, когда обзор открыт ради
-   * выбора папки назначения для уже отмеченных файлов.
+   * What to move or copy here. Set when the browser is opened to choose a
+   * destination for already selected files.
    */
   pending?: { paths: string[]; move: boolean } | null
-  /** Отмеченные файлы отправлены в другую папку: открыть выбор назначения. */
+  /** Selected files were sent elsewhere: open the destination picker. */
   onTransfer?: (paths: string[], move: boolean) => void
   /**
-   * Куда пользователь перешёл.
+   * Where the user navigated to.
    *
-   * Вкладка «Файлы» размонтируется при переходе на другую вкладку, и без
-   * этого возврат всегда приводил бы в корень, а не туда, где человек был.
+   * The "Files" tab unmounts when switching tabs, and without this coming
+   * back would always land in the root instead of where the person was.
    */
   onPathChange?: (path: string) => void
 }
@@ -65,15 +65,15 @@ export function Files({
   const [busy, setBusy] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  // Начальная папка берётся один раз, при открытии экрана: дальше человек
-  // ходит сам, и возврат к ней сбивал бы его с пути. Обработчик держим в
-  // ссылке, чтобы его смена не перезапускала обзор с начала.
+  // The starting folder is taken once, when the screen opens: after that the
+  // person walks on their own, and returning there would throw them off. The
+  // handler lives in a ref so that changing it does not restart the browser.
   const start = useRef(initialPath)
   const report = useRef(onPathChange)
   report.current = onPathChange
 
-  // stay = обновление той же папки после действия: список не сбрасываем,
-  // иначе он мигнул бы заглушками на каждое переименование.
+  // stay = refreshing the same folder after an action: the list is not reset,
+  // otherwise it would flash placeholders on every rename.
   const load = useCallback(async (target: string, stay = false) => {
     setLoading(true)
     setError(null)
@@ -102,8 +102,8 @@ export function Files({
   }, [pickMode, onCancelPick])
 
   const segments = path.split('/').filter(Boolean)
-  // На верхнем уровне перечислены общие папки NAS: переименовать или удалить
-  // их через File Station нельзя, поэтому и кнопок быть не должно.
+  // The top level lists the NAS shared folders: File Station cannot rename or
+  // delete them, so the buttons must not be there either.
   const canEdit = !pickMode && path !== '/'
   const chosen = entries.filter((e) => selected.has(e.path))
 
@@ -157,7 +157,7 @@ export function Files({
     await act('upload', () => api.upload(path, file, false))
   }
 
-  // Копирование и перенос идут на NAS фоновой задачей — дожидаемся её.
+  // Copying and moving run as a background task on the NAS — we wait for it.
   async function finishTransfer(taskId: string) {
     for (let i = 0; i < 120; i++) {
       const status = await api.transferStatus(taskId)
@@ -208,9 +208,9 @@ export function Files({
         </div>
         <div className="home-head">
           {/*
-            Стрелка ведёт в родительскую папку, а не из раздела: системная
-            кнопка Telegram этого не умеет, поэтому показываем свою везде,
-            где есть куда подняться.
+            The arrow leads to the parent folder rather than out of the
+            section: Telegram's system button cannot do that, so we show our
+            own wherever there is somewhere to go up to.
           */}
           {path !== '/' && (
             <button

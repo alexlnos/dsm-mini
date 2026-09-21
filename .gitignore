@@ -1,21 +1,21 @@
-# секреты — никогда в репозиторий
+# secrets — never in the repository
 .env
 *.env
 !.env.example
 
-# сборка
+# build output
 /bin/
 /dist/
-# собранные пакеты Synology
+# built Synology packages
 *.spk
-# Только собранный бинарник в корне. Без ведущего слеша этот шаблон
-# совпадал ещё и с каталогом cmd/dsm-mini — точка входа не попадала в
-# репозиторий, и склонированный проект не собирался.
+# Only the built binary in the root. Without the leading slash this pattern
+# also matched the cmd/dsm-mini directory — the entry point never reached the
+# repository and a cloned project did not build.
 /dsm-mini
 web/dist/
 web/node_modules/
 
-# редакторы и ОС
+# editors and OS
 .DS_Store
 .idea/
 .vscode/

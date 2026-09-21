@@ -12,12 +12,12 @@ interface Props {
   onBack: () => void
 }
 
-/** Номер пула из идентификатора DSM: reuse_1 → 1. */
+/** The pool number out of a DSM identifier: reuse_1 → 1. */
 function poolNumber(id: string): string {
   return id.replace('reuse_', '')
 }
 
-/** Назначение диска: сервер присылает код, подпись собираем на своём языке. */
+/** Disk purpose: the server sends a code, we build the caption in our language. */
 function diskRole(disk: Disk): string {
   switch (disk.role) {
     case 'pool': return t('storage.rolePool', { pool: poolNumber(disk.pool ?? '') })
@@ -27,7 +27,7 @@ function diskRole(disk: Disk): string {
   }
 }
 
-/** Температура выше 50 °C заслуживает внимания, выше 55 — тревоги. */
+/** Above 50 °C deserves attention, above 55 — alarm. */
 function tempClass(temp: number): string {
   if (temp >= 55) return 'temp hot'
   if (temp >= 50) return 'temp warm'
@@ -35,8 +35,8 @@ function tempClass(temp: number): string {
 }
 
 export function Storage({ onBack }: Props) {
-  // Тот же ключ, что и на главном экране: если она открывалась, состояние
-  // хранилища уже сохранено и рисуется сразу.
+  // The same key as on the home screen: if it was opened, the storage state
+  // is already stored and draws immediately.
   const [data, setData] = useState<StorageOverview | null>(() => readCache('storage'))
   const [error, setError] = useState<string | null>(null)
 
@@ -61,7 +61,7 @@ export function Storage({ onBack }: Props) {
   const volumes = data?.volumes ?? []
   const pools = data?.pools ?? []
 
-  // Отсеков обычно больше, чем занятых: пустые рисуем пунктиром, как в DSM.
+  // There are usually more bays than occupied ones: empty ones are dashed, as in DSM.
   const bayCount = Math.max(sata.length, 8)
   const bays: Array<Disk | null> = Array.from({ length: bayCount }, (_, i) =>
     sata.find((d) => d.slot === i + 1) ?? sata[i] ?? null,

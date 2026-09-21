@@ -6,7 +6,7 @@ PKG_DIST_SITE = https://github.com/alexlnos/dsm-mini/archive/refs/tags
 PKG_DIST_FILE = $(PKG_NAME)-$(PKG_VERS).$(PKG_EXT)
 PKG_DIR = $(PKG_NAME)-$(PKG_VERS)
 
-# Go не собирает под PowerPC и ARMv5.
+# Go does not build for PowerPC and ARMv5.
 UNSUPPORTED_ARCHS = $(PPC_ARCHS) $(ARMv5_ARCHS)
 
 include ../../mk/spksrc.common.mk
@@ -23,8 +23,8 @@ INSTALL_TARGET = dsm_mini_install
 
 include ../../mk/spksrc.cross-go.mk
 
-# Интерфейс Mini App лежит в репозитории собранным и попадает в бинарник
-# через go:embed — сборщик Node здесь не нужен.
+# The built Mini App interface lives in the repository and goes into the
+# binary through go:embed — no Node builder is needed here.
 .PHONY: dsm_mini_compile
 dsm_mini_compile:
 	@$(MSG) - Compile dsm-mini

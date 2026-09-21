@@ -3,14 +3,14 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // Собранное приложение кладётся туда, откуда его забирает go:embed,
-  // чтобы получился один бинарник без внешних файлов.
+  // The built app lands where go:embed picks it up, so that a single binary
+  // comes out with no external files.
   build: {
     outDir: '../internal/web/dist',
     emptyOutDir: true,
   },
   server: {
-    // При разработке фронтенд ходит в локальный бэкенд.
+    // During development the frontend talks to the local backend.
     proxy: {
       '/api': 'http://localhost:8080',
     },

@@ -20,8 +20,8 @@ function ram(mb: number): string {
 }
 
 export function VMs({ onBack }: Props) {
-  // Начинаем с сохранённого ответа: экран заполнен с первого кадра, а
-  // свежий список подменяет его, когда придёт.
+  // We start from the stored answer: the screen is filled from the first
+  // frame, and the fresh list replaces it when it arrives.
   const [guests, setGuests] = useState<Guest[]>(() => readCache<Guest[]>('vms') ?? [])
   const [host, setHost] = useState<VMHost | null>(() => readCache<VMHost>('vm-host'))
   const [loaded, setLoaded] = useState(() => readCache<Guest[]>('vms') !== null)
@@ -47,7 +47,7 @@ export function VMs({ onBack }: Props) {
 
   useEffect(() => { void load() }, [load])
 
-  // Пока машина запускается или гасится, состояние меняется — следим.
+  // While a machine boots or shuts down its state changes — keep watching.
   useEffect(() => {
     const timer = window.setInterval(() => { void load() }, 6000)
     return () => window.clearInterval(timer)

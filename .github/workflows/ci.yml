@@ -1,8 +1,8 @@
-# Проверки на каждый push и pull request.
+# Checks on every push and pull request.
 #
-# Этот же файл вызывается из docker.yml: образ не публикуется, пока проверки
-# не прошли. Так в Docker Hub не попадает сборка с падающими тестами.
-name: Проверки
+# The same file is called from docker.yml: the image is not published until
+# the checks pass. That keeps a build with failing tests out of Docker Hub.
+name: Checks
 
 on:
   push:
@@ -22,17 +22,17 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Форматирование
+      - name: Formatting
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
-            echo "::error::Не отформатировано gofmt: $unformatted"
+            echo "::error::not formatted with gofmt: $unformatted"
             exit 1
           fi
 
       - run: go vet ./...
 
-      # Интеграционные тесты требуют живого NAS и по умолчанию пропускаются.
+      # Integration tests need a live NAS and are skipped by default.
       - run: go test ./...
 
   web:
@@ -50,26 +50,26 @@ jobs:
       - run: npm ci --no-audit --no-fund
         working-directory: web
 
-      - name: Типы
+      - name: Types
         run: npx tsc --noEmit
         working-directory: web
 
       - run: npm run build
         working-directory: web
 
-      # Собранный фронтенд лежит в репозитории: его забирает go:embed. Если
-      # сборка разошлась с тем, что закоммичено, бинарник будет со старым
-      # интерфейсом — и понять это по одному лишь зелёному CI невозможно.
-      - name: Собранный интерфейс совпадает с закоммиченным
+      # The built frontend lives in the repository: go:embed picks it up. If
+      # the build drifts from what is committed, the binary ships an old
+      # interface — and a green CI alone will never reveal it.
+      - name: The built interface matches the committed one
         run: |
           if ! git diff --quiet -- internal/web/dist; then
-            echo "::error::internal/web/dist отличается от результата сборки. Выполните 'cd web && npm run build' и закоммитьте результат."
+            echo "::error::internal/web/dist differs from the build result. Run 'cd web && npm run build' and commit it."
             git diff --stat -- internal/web/dist
             exit 1
           fi
 
   spk:
-    name: Пакет DSM
+    name: DSM package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,40 +79,40 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # Пакет собирается обычным tar, без тулкита Synology: бинарник
-      # статический. Проверяем, что он вообще собирается и внутри лежит то,
-      # что нужно, — иначе поломку заметит только тот, кто скачал релиз.
-      - name: Собрать .spk
+      # The package is built with plain tar, without the Synology toolkit: the
+      # binary is static. We check that it builds at all and holds what it
+      # should — otherwise only whoever downloaded the release notices.
+      - name: Build the .spk
         run: ./tools/build-spk.sh amd64 0.0.0-ci
 
-      - name: Проверить состав
+      - name: Check the contents
         run: |
           spk=dist/dsm-mini-0.0.0-ci-amd64.spk
           for entry in package.tgz INFO scripts/start-stop-status scripts/postinst \
                        conf/privilege WIZARD_UIFILES/install_uifile PACKAGE_ICON.PNG; do
-            tar tf "$spk" | grep -qx "$entry" || { echo "::error::в пакете нет $entry"; exit 1; }
+            tar tf "$spk" | grep -qx "$entry" || { echo "::error::the package lacks $entry"; exit 1; }
           done
           tar xOf "$spk" package.tgz | tar tzf - | grep -qx './bin/dsm-mini' \
-            || { echo "::error::в package.tgz нет бинарника"; exit 1; }
-          echo "состав пакета в порядке"
+            || { echo "::error::package.tgz has no binary"; exit 1; }
+          echo "the package contents are fine"
 
   docs:
-    name: Документация
+    name: Documentation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Тот же compose лежит в deploy/ и копией в README: человек ставит
-      # сервис, копируя его прямо из инструкции. Разойдутся — и половина
-      # читателей получит устаревший файл, не узнав об этом.
-      - name: Compose в README совпадает с файлом
+      # The same compose lives in deploy/ and as a copy in the README: people
+      # install the service by copying it straight out of the instructions.
+      # Let them drift and half the readers get a stale file without knowing.
+      - name: The compose in the README matches the file
         run: |
           python3 - <<'CHECK'
           compose = open('deploy/docker-compose.yml', encoding='utf-8').read().rstrip()
           readme = open('README.md', encoding='utf-8').read()
           if compose not in readme:
-              print('::error::Блок compose в README разошёлся с deploy/docker-compose.yml. '
-                    'Вставьте в README актуальное содержимое файла.')
+              print('::error::The compose block in the README drifted from deploy/docker-compose.yml. '
+                    'Paste the current file contents into the README.')
               raise SystemExit(1)
-          print('совпадает')
+          print('matches')
           CHECK

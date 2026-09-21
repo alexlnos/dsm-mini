@@ -13,7 +13,7 @@ interface Props {
   onOpen: (section: Section) => void
 }
 
-/** Шкала загрузки: выше 85% подсвечивается, чтобы это бросалось в глаза. */
+/** A load meter: above 85% it is highlighted so it catches the eye. */
 function Meter({ label, percent }: { label: string; percent: number }) {
   const color = percent >= 90 ? 'var(--bad)' : percent >= 75 ? '#B45309' : 'var(--ok)'
   return (
@@ -28,8 +28,8 @@ function Meter({ label, percent }: { label: string; percent: number }) {
 }
 
 export function Home({ downloads, onOpen }: Props) {
-  // Начинаем с сохранённых значений: экран заполнен с первого кадра, а
-  // свежие данные подменяют их, когда придут.
+  // We start from stored values: the screen is filled from the first frame,
+  // and fresh data replaces them when it arrives.
   const [system, setSystem] = useState<SystemOverview | null>(() => readCache('system'))
   const [storage, setStorage] = useState<StorageOverview | null>(() => readCache('storage'))
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +51,7 @@ export function Home({ downloads, onOpen }: Props) {
 
   useEffect(() => { void load() }, [load])
 
-  // Показатели меняются постоянно, но чаще раза в пять секунд смотреть незачем.
+  // The figures change constantly, but looking more often than every five seconds is pointless.
   useEffect(() => {
     const timer = window.setInterval(() => { void load() }, 5000)
     return () => window.clearInterval(timer)
@@ -170,7 +170,7 @@ export function Home({ downloads, onOpen }: Props) {
       <div className="list">
         {apps.map((app) => {
           const state = app.pkg ? packages[app.pkg] : undefined
-          // Раздел без своего пакета (хранилище, журнал) доступен всегда.
+          // A section with no package of its own (storage, log) is always available.
           const available = !state || (state.installed && state.running)
           return (
             <button

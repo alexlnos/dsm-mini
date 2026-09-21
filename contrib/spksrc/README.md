@@ -1,47 +1,48 @@
-# Рецепт для SynoCommunity
+# The SynoCommunity recipe
 
-SynoCommunity — народный каталог пакетов Synology: его источник уже добавлен
-у множества людей, и попасть туда значит попасть «в магазин» без партнёрской
-программы Synology.
+SynoCommunity is the community catalogue of Synology packages: its source is
+already added by a great many people, and getting in there means getting "into
+the store" without Synology's partner programme.
 
-Собирают они всё сами, из исходников, своим тулчейном — поэтому наш
-`tools/build-spk.sh` им не подходит и рядом живёт вот этот рецепт.
+They build everything themselves, from source, with their own toolchain — so
+our `tools/build-spk.sh` does not suit them and this recipe lives alongside it.
 
-## Что здесь
+## What is here
 
 ```
-cross/dsm-mini/     сборка бинарника: качает наш тег с GitHub и собирает Go
-spk/dsm-mini/       сам пакет: описание, мастер установки, запуск службы
+cross/dsm-mini/     builds the binary: fetches our tag from GitHub and builds Go
+spk/dsm-mini/       the package itself: description, install wizard, service start
 ```
 
-Собранный интерфейс Mini App лежит в репозитории и попадает в бинарник через
-`go:embed`, поэтому Node для сборки не нужен — только Go. Это заметно
-упрощает жизнь их сборочной ферме.
+The built Mini App interface lives in the repository and goes into the binary
+through `go:embed`, so no Node is needed for the build — only Go. That makes
+life on their build farm noticeably easier.
 
-## Как проверить сборку
+## Checking the build
 
 ```bash
 git clone https://github.com/SynoCommunity/spksrc
 cd spksrc
-cp -r /путь/к/dsm-mini/contrib/spksrc/cross/dsm-mini cross/
-cp -r /путь/к/dsm-mini/contrib/spksrc/spk/dsm-mini spk/
+cp -r /path/to/dsm-mini/contrib/spksrc/cross/dsm-mini cross/
+cp -r /path/to/dsm-mini/contrib/spksrc/spk/dsm-mini spk/
 make -C spk/dsm-mini arch-x64-7.1
 ```
 
-Первая сборка тянет тулчейн и занимает время. Результат — в `packages/`.
+The first build pulls a toolchain and takes a while. The result lands in
+`packages/`.
 
-## Как отправить
+## Submitting
 
-1. Форкнуть [SynoCommunity/spksrc](https://github.com/SynoCommunity/spksrc).
-2. Положить обе папки, как выше.
-3. Прогнать сборку хотя бы под одну архитектуру.
-4. Открыть pull request; их требования — в
-   [документации](https://docs.synocommunity.com/developer-guide/).
+1. Fork [SynoCommunity/spksrc](https://github.com/SynoCommunity/spksrc).
+2. Put both directories in place, as above.
+3. Run the build for at least one architecture.
+4. Open a pull request; their requirements are in the
+   [documentation](https://docs.synocommunity.com/developer-guide/).
 
-## При выпуске новой версии
+## On a new release
 
-Обновить в обоих `Makefile` номер версии (`PKG_VERS`, `SPK_VERS`), поднять
-`SPK_REV` и пересчитать контрольные суммы исходников:
+Update the version in both `Makefile` files (`PKG_VERS`, `SPK_VERS`), bump
+`SPK_REV` and recompute the source checksums:
 
 ```bash
 curl -sL https://github.com/alexlnos/dsm-mini/archive/refs/tags/vX.Y.Z.tar.gz -o s.tar.gz

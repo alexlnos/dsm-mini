@@ -1,17 +1,17 @@
 /**
- * Кэш ответов между запусками приложения.
+ * A cache of answers between app launches.
  *
- * Telegram держит Mini App в памяти недолго, и при каждом открытии экран
- * начинался с пустоты, пока шёл запрос к NAS. Сохранённые значения дают
- * мгновенную картинку, а свежие подменяют её, когда придут.
+ * Telegram does not keep a Mini App in memory for long, and on every open the
+ * screen started empty while the request to the NAS was in flight. Stored
+ * values give an instant picture, and fresh ones replace it when they arrive.
  *
- * Хранилище может быть недоступно (приватный режим, запрет на данные сайта),
- * поэтому любое обращение к нему безопасно для приложения: не вышло — просто
- * работаем без кэша.
+ * The storage may be unavailable (private mode, site data blocked), so every
+ * access to it is safe for the app: if it did not work, we simply carry on
+ * without the cache.
  */
 const PREFIX = 'dsm-mini:'
 
-/** Данные старше этого срока не показываем: лучше пустой экран, чем вчерашний. */
+/** Data older than this is not shown: an empty screen beats yesterday's one. */
 const MAX_AGE_MS = 10 * 60 * 1000
 
 interface Envelope<T> {
@@ -36,6 +36,6 @@ export function writeCache<T>(key: string, value: T): void {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify({ at: Date.now(), value }))
   } catch {
-    // Переполнение или запрет на запись — не повод ломать экран.
+    // A quota overflow or a write ban is no reason to break the screen.
   }
 }

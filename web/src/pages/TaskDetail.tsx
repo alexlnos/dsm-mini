@@ -9,15 +9,15 @@ import type { FilePriority, Task, TaskDetails } from '../types'
 
 interface Props {
   task: Task
-  /** Папки для переноса: закреплённые пользователем. */
+  /** Folders to move into: the ones pinned by the user. */
   folders: string[]
   onBack: () => void
   onChanged: () => void
-  /** Выбрать папку в обзоре NAS. */
+  /** Pick a folder in the NAS browser. */
   onBrowse: (from: string) => void
 }
 
-/** Подписи считаются при отрисовке: язык известен только в рантайме. */
+/** The captions are computed at render time: the language is known at runtime. */
 function priorities(): Array<[FilePriority, string]> {
   return [
     ['low', t('task.priorityLow')],
@@ -41,18 +41,18 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
     try {
       setDetails(await api.taskDetails(task.id))
     } catch {
-      // Подробности не критичны: основной экран остаётся полезным.
+      // Details are not critical: the main screen stays useful.
       setDetails({ files: null, trackers: null })
     }
   }, [task.id])
 
-  // Перезапрашиваем состав не только при открытии, но и когда меняется
-  // состояние задачи: после снятия с паузы NAS заново открывает BT-сессию,
-  // и файлы, которых только что не было, появляются.
+  // We re-request the contents not only on open but also when the task state
+  // changes: after resuming, the NAS opens the BT session again and files
+  // that were missing a moment ago appear.
   useEffect(() => { void load() }, [load, task.status])
 
-  // Пока задача работает, состав подтягивается сам: список приходит не
-  // мгновенно после возобновления, а доли загруженного меняются на ходу.
+  // While the task runs the contents keep catching up: the list does not
+  // arrive instantly after a resume, and the shares change as it goes.
   useEffect(() => {
     if (!task.active) return
     const timer = window.setInterval(() => { void load() }, 5000)

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Собирает файлы мастера установки для Центра пакетов DSM.
+"""Builds the install wizard files for the DSM Package Center.
 
-Мастер спрашивает настройки при установке, поэтому после неё ничего править
-не нужно. DSM показывает файл по языку своего интерфейса: install_uifile —
-общий (английский), install_uifile_rus — русский, и так далее. Суффиксы
-языков — из списка DSM, не совпадают с кодами Telegram.
+The wizard asks for the settings during installation, so nothing has to be
+edited afterwards. DSM shows the file matching its interface language:
+install_uifile is the common one (English), install_uifile_rus is Russian and
+so on. The language suffixes come from DSM's list and do not match Telegram codes.
 
-Тексты лежат здесь одной таблицей: добавить язык — дописать словарь.
+The texts live here in one table: adding a language means extending the dict.
 """
 import json
 import pathlib
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "spk" / "WIZARD_UIFILES"
 
-# Поля мастера. Ключ становится переменной окружения в postinst.
+# Wizard fields. The key becomes an environment variable in postinst.
 FIELDS = [
     ("wizard_dsm_url", "dsm_url", "textfield", "https://localhost:5001"),
     ("wizard_dsm_user", "dsm_user", "textfield", ""),
@@ -25,7 +25,7 @@ FIELDS = [
 ]
 
 TEXTS = {
-    None: {  # английский — общий файл
+    None: {  # English — the common file
         "step_nas": "NAS access",
         "step_telegram": "Telegram",
         "nas_intro": "Create a separate DSM user for this service instead of using an administrator: Control Panel → User & Group → Create. Give it access to Download Station and File Station only, and do not enable two-factor authentication.",
@@ -191,7 +191,7 @@ TEXTS = {
 
 
 def field(key, text_key, kind, default, t):
-    """Одно поле мастера в том виде, в каком его понимает DSM."""
+    """One wizard field in the shape DSM understands."""
     validator = {"allowBlank": False, "errorText": t["required"]}
     if text_key == "public_url":
         validator["regex"] = {"expr": "/^https:\\/\\/[^\\/]+$/", "errorText": t["url_error"]}
@@ -235,4 +235,4 @@ for lang, texts in TEXTS.items():
     name = "install_uifile" if lang is None else f"install_uifile_{lang}"
     (OUT / name).write_text(json.dumps(wizard(texts), ensure_ascii=False, indent=3) + "\n",
                             encoding="utf-8")
-    print("готов", name)
+    print("ready", name)

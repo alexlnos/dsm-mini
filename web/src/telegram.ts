@@ -1,14 +1,14 @@
 /**
- * Тонкая обёртка над Telegram WebApp.
+ * A thin wrapper over the Telegram WebApp.
  *
- * Работаем через глобальный объект, а не только через SDK: приложение должно
- * открываться и в обычном браузере при разработке, где ничего этого нет.
+ * We go through the global object rather than the SDK alone: the app must
+ * also open in a plain browser during development, where none of this exists.
  */
 import { setLocale } from './i18n'
 
 interface TelegramWebApp {
   initData?: string
-  /** Разобранные параметры запуска; подпись у них та же, что у initData. */
+  /** Parsed launch parameters; they carry the same signature as initData. */
   initDataUnsafe?: { user?: { language_code?: string } }
   colorScheme?: 'light' | 'dark'
   themeParams?: Record<string, string>
@@ -46,17 +46,17 @@ export function initTelegram(): string {
   applyViewport(app)
   applyChrome(app)
 
-  // Тема и высота меняются уже после запуска: пользователь переключает
-  // оформление, поворачивает телефон, вытягивает приложение на весь экран.
+  // Theme and height change after startup too: the user switches the colour
+  // scheme, turns the phone, pulls the app to full screen.
   app?.onEvent?.('themeChanged', () => {
     applyTheme(webApp())
     applyChrome(webApp())
   })
   app?.onEvent?.('viewportChanged', () => applyViewport(webApp()))
 
-  // Вертикальный свайп сворачивает приложение вместо прокрутки списка —
-  // у нас свои прокручиваемые списки, и жест только мешает. Закрыть
-  // приложение по-прежнему можно крестиком и кнопкой «назад».
+  // A vertical swipe minimises the app instead of scrolling a list — we have
+  // our own scrollable lists and the gesture only gets in the way. The app
+  // can still be closed with the cross and the back button.
   if (supports(app, '7.7')) app?.disableVerticalSwipes?.()
 
   const initData = app?.initData || initDataFromLocation()
@@ -65,11 +65,11 @@ export function initTelegram(): string {
 }
 
 /**
- * Язык, выбранный человеком в Telegram.
+ * The language the person picked in Telegram.
  *
- * Клиент отдаёт его разобранным, но если скрипт не загрузился, тот же код
- * лежит в подписанных параметрах запуска. Совсем без Telegram (разработка в
- * браузере) спрашиваем браузер.
+ * The client hands it over parsed, but if the script did not load, the same
+ * code sits in the signed launch parameters. With no Telegram at all
+ * (development in a browser) we ask the browser.
  */
 function languageCode(app: TelegramWebApp | undefined, initData: string): string | undefined {
   const known = app?.initDataUnsafe?.user?.language_code
@@ -81,27 +81,27 @@ function languageCode(app: TelegramWebApp | undefined, initData: string): string
       if (user.language_code) return user.language_code
     }
   } catch {
-    // Параметры могут быть любыми — язык не повод ломать запуск.
+    // The parameters can be anything — a language is no reason to break startup.
   }
   return navigator.language
 }
 
 /**
- * Возможности Telegram появлялись в разных версиях Bot API, и у старого
- * клиента их просто нет. Документация не обещает, что вызов неизвестного
- * метода безопасен, поэтому спрашиваем заранее.
+ * Telegram features appeared in different Bot API versions, and an old client
+ * simply does not have them. The documentation does not promise that calling
+ * an unknown method is safe, so we ask beforehand.
  */
 function supports(app: TelegramWebApp | undefined, version: string): boolean {
   return app?.isVersionAtLeast?.(version) ?? false
 }
 
 /**
- * Высоту берём у Telegram, а не у браузера.
+ * We take the height from Telegram rather than from the browser.
  *
- * Внутри клиента `100dvh` — это высота всего экрана, тогда как приложению
- * отведена лишь часть: пока оно не раскрыто, нижняя панель вкладок уезжает
- * за край видимой области. `viewportStableHeight` — та же высота, но без
- * скачков во время жестов и анимаций.
+ * Inside the client `100dvh` is the height of the whole screen, while the app
+ * gets only a part of it: until it is expanded, the bottom tab bar slides off
+ * the visible area. `viewportStableHeight` is the same height but without the
+ * jumps during gestures and animations.
  */
 function applyViewport(app?: TelegramWebApp) {
   const height = app?.viewportStableHeight
@@ -109,11 +109,11 @@ function applyViewport(app?: TelegramWebApp) {
 }
 
 /**
- * Шапка и нижняя полоса самого клиента красятся под приложение: иначе на
- * стыке видна чужая полоса другого цвета.
+ * The client's own header and bottom bar are painted to match the app:
+ * otherwise a strip of a different colour shows at the seam.
  *
- * Передаём не свой цвет, а имя цвета темы — тогда клиент сам подставит
- * нужный оттенок для светлого и тёмного оформления.
+ * We pass a theme colour name rather than our own colour — then the client
+ * picks the right shade for the light and dark schemes itself.
  */
 function applyChrome(app?: TelegramWebApp) {
   if (supports(app, '6.1')) app?.setHeaderColor?.('secondary_bg_color')
@@ -121,12 +121,12 @@ function applyChrome(app?: TelegramWebApp) {
 }
 
 /**
- * Запасной способ получить подпись.
+ * The fallback way to get the signature.
  *
- * Telegram кладёт параметры запуска во фрагмент адреса (#tgWebAppData=…), и
- * они доступны, даже если внешний скрипт telegram-web-app.js не загрузился —
- * например, когда у клиента нет доступа к telegram.org. Без этого приложение
- * показывало бы «откройте через Telegram», будучи открытым именно из него.
+ * Telegram puts the launch parameters into the address fragment
+ * (#tgWebAppData=…), and they are available even if the external
+ * telegram-web-app.js did not load — for example when the client has no
+ * access to telegram.org. Without it the app would say "open it from Telegram"
  */
 function initDataFromLocation(): string {
   const sources = [window.location.hash.slice(1), window.location.search.slice(1)]
@@ -135,7 +135,7 @@ function initDataFromLocation(): string {
     const value = new URLSearchParams(source).get('tgWebAppData')
     if (value) return value
   }
-  // Telegram сохраняет параметры запуска между переходами внутри приложения.
+  // Telegram keeps the launch parameters across navigation inside the app.
   try {
     const stored = sessionStorage.getItem('__telegram__initParams')
     if (stored) {
@@ -143,14 +143,14 @@ function initDataFromLocation(): string {
       if (parsed.tgWebAppData) return parsed.tgWebAppData
     }
   } catch {
-    // Хранилище может быть недоступно — это не повод падать.
+    // The storage may be unavailable — that is no reason to crash.
   }
   return ''
 }
 
 /**
- * Переносим тему Telegram в CSS-переменные: Mini App должен выглядеть как
- * часть клиента, а не как посторонняя страница.
+ * We carry the Telegram theme into CSS variables: a Mini App must look like
+ * part of the client rather than a foreign page.
  */
 function applyTheme(app?: TelegramWebApp) {
   const root = document.documentElement
@@ -170,7 +170,7 @@ function applyTheme(app?: TelegramWebApp) {
   }
 }
 
-/** Подтверждение: нативное окно Telegram, а не браузерное. */
+/** Confirmation: Telegram's native dialog, not the browser one. */
 export function confirmAction(message: string): Promise<boolean> {
   const app = webApp()
   if (app?.showConfirm) {
@@ -196,16 +196,16 @@ export function haptic(kind: 'light' | 'success' | 'error') {
 }
 
 /**
- * Есть ли системная кнопка «назад».
+ * Whether there is a system back button.
  *
- * Внутри Telegram она всегда есть, а при открытии в браузере (разработка,
- * клиент без поддержки) — нет, и без запасной кнопки из раздела не выйти.
+ * Inside Telegram it is always there, while in a browser (development, a
+ * client without support) it is not, and without a fallback there is no way out.
  */
 export function hasNativeBack(): boolean {
   return Boolean(webApp()?.BackButton)
 }
 
-/** Системная кнопка «назад» в шапке Telegram. */
+/** The system back button in the Telegram header. */
 export function backButton(onBack: (() => void) | null) {
   const button = webApp()?.BackButton
   if (!button) return () => {}

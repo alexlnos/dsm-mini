@@ -1,15 +1,15 @@
 interface Props {
-  /** Доля от 0 до 1. */
+  /** A share from 0 to 1. */
   value: number
   color: string
   size?: number
-  /** Символ в центре кольца. */
+  /** The glyph in the centre of the ring. */
   glyph?: string
 }
 
 /**
- * Кольцевой индикатор: занимает меньше места, чем полоска с подписью, и
- * читается с одного взгляда даже в плотном списке.
+ * A ring indicator: it takes less room than a bar with a caption and reads
+ * at a glance even in a dense list.
  */
 export function ProgressRing({ value, color, size = 44, glyph }: Props) {
   const stroke = size >= 100 ? 10 : 4

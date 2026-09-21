@@ -12,7 +12,7 @@ export type DownloadsFilter = 'active' | 'done' | 'all'
 interface Props {
   data: Overview | null
   error: string | null
-  /** Выбранная вкладка; null — человек ещё не выбирал. */
+  /** The chosen tab; null means the person has not chosen yet. */
   filter: DownloadsFilter | null
   onFilterChange: (filter: DownloadsFilter) => void
   onRefresh: () => void
@@ -36,9 +36,9 @@ export function Downloads({
   const shown = groups[shownFilter]
   const activeCount = tasks.filter((t) => t.active).length
 
-  // Если активных задач нет, а завершённые есть, подставляем «Все»: пустой
-  // экран при непустом списке сбивает с толку. Только пока человек не выбрал
-  // вкладку сам — его выбор важнее нашей догадки.
+  // When there are no active tasks but finished ones exist, we fill in "All":
+  // an empty screen over a non-empty list is confusing. Only until the person
+  // picks a tab themselves — their choice beats our guess.
   useEffect(() => {
     if (filter !== null || !data) return
     onFilterChange(groups.active.length === 0 && groups.all.length > 0 ? 'all' : 'active')

@@ -1,4 +1,4 @@
-// Демо-данные для скриншотов: ничего личного, только правдоподобное.
+// Demo data for the screenshots: nothing personal, only plausible.
 const now = Date.now();
 const iso = (msAgo) => new Date(now - msAgo).toISOString();
 

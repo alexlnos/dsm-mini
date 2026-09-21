@@ -4,16 +4,16 @@ import { t } from '../i18n'
 interface Props {
   title: string
   onBack: () => void
-  /** Что показать справа от заголовка. */
+  /** What to show to the right of the title. */
   children?: React.ReactNode
 }
 
 /**
- * Заголовок раздела.
+ * A section title.
  *
- * Кнопка «назад» появляется только там, где нет системной: внутри Telegram
- * навигацией занимается сам клиент, и дублировать её значит городить вторую
- * стрелку рядом с первой.
+ * The back button appears only where there is no system one: inside Telegram
+ * the client handles navigation, and duplicating it means putting a second
+ * arrow next to the first.
  */
 export function ScreenTitle({ title, onBack, children }: Props) {
   return (

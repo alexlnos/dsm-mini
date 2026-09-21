@@ -1,7 +1,7 @@
-# Что НЕ должно попасть в образ.
+# What must NOT end up in the image.
 #
-# Главное здесь — .env: в нём токен бота и пароль DSM, а `COPY . .` забрал бы
-# его в слой образа, откуда он достаётся простым `docker history`.
+# The key one is .env: it holds the bot token and the DSM password, and
+# `COPY . .` would pull it into an image layer, where `docker history` finds it.
 .env
 .env.*
 !.env.example
@@ -11,12 +11,12 @@
 .idea
 .vscode
 
-# Ставятся и собираются внутри образа заново.
+# Installed and built inside the image anew.
 web/node_modules
 web/dist
 internal/web/dist
 
-# Всё, что не нужно работающему сервису.
+# Everything a running service does not need.
 docs
 deploy
 *.md
@@ -24,7 +24,7 @@ deploy
 .github
 .gitlab-ci.yml
 
-# Локальные базы и временные файлы.
+# Local databases and temporary files.
 *.db
 *.db-shm
 *.db-wal

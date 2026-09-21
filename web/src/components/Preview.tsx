@@ -21,11 +21,11 @@ function extensionOf(name: string): string {
 }
 
 /**
- * Предпросмотр файла.
+ * A file preview.
  *
- * Показываем то, что осмысленно посмотреть с телефона: изображения и текст.
- * Для остального честно пишем, что просмотра нет, — открывать видео на
- * гигабайты через мессенджер незачем.
+ * We show what makes sense to look at from a phone: images and text. For
+ * everything else we say plainly that there is no preview — opening gigabytes
+ * of video through a messenger is pointless.
  */
 export function Preview({ entry, onClose }: Props) {
   const [url, setUrl] = useState<string | null>(null)
@@ -66,7 +66,7 @@ export function Preview({ entry, onClose }: Props) {
 
     return () => {
       cancelled = true
-      // Ссылку на blob освобождаем, иначе файл остаётся в памяти вкладки.
+      // Release the blob URL, otherwise the file stays in the tab's memory.
       if (revoke) URL.revokeObjectURL(revoke)
     }
   }, [entry.path, isImage, isText])

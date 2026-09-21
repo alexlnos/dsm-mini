@@ -1,7 +1,7 @@
-# Служба dsm-mini.
+# The dsm-mini service.
 #
-# Настройки живут отдельным файлом в var пакета: мастер установки пишет его
-# один раз, дальше его можно править руками, не переустанавливая пакет.
+# The settings live in a separate file in the package var: the install wizard
+# writes it once, after which it can be edited by hand without reinstalling.
 
 DSM_MINI="${SYNOPKG_PKGDEST}/bin/dsm-mini"
 CONFIG="${SYNOPKG_PKGVAR}/config.env"
@@ -10,8 +10,8 @@ SERVICE_COMMAND="${DSM_MINI}"
 SVC_BACKGROUND=y
 SVC_WRITE_PID=y
 
-# Значение уходит в файл, который читается через `.`, поэтому кавычки
-# обязательны: пароль с пробелом или знаком доллара иначе развалит запуск.
+# The value goes into a file read through `.`, so the quotes are mandatory:
+# a password with a space or a dollar sign would break the startup.
 put ()
 {
     escaped=$(printf '%s' "$2" | sed "s/'/'\\\\''/g")
@@ -49,7 +49,7 @@ service_prestart ()
     . "${CONFIG}"
     set +a
 
-    # База и состояние наблюдателя переживают обновление пакета.
+    # The database and watcher state survive a package upgrade.
     STATE_DIR="${SYNOPKG_PKGVAR}"
     export STATE_DIR
 }

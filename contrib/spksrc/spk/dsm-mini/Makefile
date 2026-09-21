@@ -5,7 +5,7 @@ SPK_ICON = src/dsm-mini.png
 
 DEPENDS = cross/dsm-mini
 
-# Go не собирает под PowerPC и ARMv5.
+# Go does not build for PowerPC and ARMv5.
 UNSUPPORTED_ARCHS = $(PPC_ARCHS) $(ARMv5_ARCHS)
 
 MAINTAINER = alexlnos
@@ -20,8 +20,8 @@ HOMEPAGE = https://github.com/alexlnos/dsm-mini
 LICENSE = MIT
 STARTABLE = yes
 
-# Служба слушает только локально: наружу её выводит обратный прокси DSM,
-# потому что Telegram открывает Mini App лишь по HTTPS.
+# The service listens locally only: the DSM reverse proxy exposes it, because
+# Telegram opens a Mini App over HTTPS alone.
 SERVICE_PORT = 8080
 SERVICE_PORT_TITLE = dsm-mini
 

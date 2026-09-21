@@ -5,9 +5,9 @@ import type {
 } from './types'
 
 /**
- * initData — подписанная Telegram строка, доказывающая, кто открыл приложение.
- * Сервер проверяет её подпись на каждом запросе, поэтому без неё нет смысла
- * даже пытаться.
+ * initData is the string signed by Telegram proving who opened the app.
+ * The server checks its signature on every request, so without it there is
+ * no point even trying.
  */
 let authToken = ''
 
@@ -17,9 +17,9 @@ export function setAuthToken(raw: string) {
 
 export class ApiError extends Error {
   readonly status: number
-  /** Технические подробности для журнала: человеку их не показываем. */
+  /** Technical details for the log: we do not show them to the person. */
   readonly detail?: string
-  /** Код ошибки DSM, если он был: цифры понятны на любом языке. */
+  /** The DSM error code, when there was one: digits read the same anywhere. */
   readonly code?: number
 
   constructor(status: number, message: string, detail?: string, code?: number) {
@@ -31,11 +31,11 @@ export class ApiError extends Error {
 }
 
 /**
- * Что показать человеку.
+ * What to show the person.
  *
- * Сервер присылает сообщение уже на его языке, а подробности — по-русски, для
- * журнала. Поэтому наружу идёт сообщение, а к нему код DSM: по нему видно,
- * на что именно жалуется NAS, и его можно назвать в поддержке.
+ * The server sends the message already in their language, and the details in
+ * English for the log. So the message goes out with the DSM code attached: it
+ * shows what exactly the NAS is unhappy about and can be quoted to support.
  */
 export function errorText(e: unknown, fallback: string): string {
   if (!(e instanceof ApiError)) return fallback
@@ -56,7 +56,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       parsed = JSON.parse(text)
     } catch {
-      // Ответ не JSON — ниже отдадим как есть.
+      // The answer is not JSON — below we hand it over as it is.
     }
   }
 
@@ -73,10 +73,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * Забирает файл как blob.
+ * Fetches a file as a blob.
  *
- * Через fetch, а не <img src>: подпись Telegram уходит заголовком и не
- * попадает ни в адресную строку, ни в журналы прокси.
+ * Through fetch rather than <img src>: the Telegram signature travels in a
+ * header and lands neither in the address bar nor in proxy logs.
  */
 async function fetchBlob(path: string): Promise<Blob> {
   const headers = new Headers()
@@ -88,7 +88,7 @@ async function fetchBlob(path: string): Promise<Blob> {
       const body = await response.json() as { error?: string }
       if (body?.error) message = body.error
     } catch {
-      // Ответ не JSON — оставляем общий текст.
+      // The answer is not JSON — keep the generic text.
     }
     throw new ApiError(response.status, message)
   }

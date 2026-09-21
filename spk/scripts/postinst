@@ -1,20 +1,20 @@
 #!/bin/sh
-# Сохраняет то, что человек ввёл в мастере установки.
+# Saves what the person entered in the install wizard.
 #
-# Значения из мастера приходят переменными окружения с теми же именами, что
-# у ключей в WIZARD_UIFILES.
+# The wizard values arrive as environment variables named after the keys in
+# WIZARD_UIFILES.
 
 VAR="${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}"
 ENV_FILE="$VAR/config.env"
 
-# При обновлении настройки не трогаем: мастер там не показывался, а файл
-# человек мог править руками.
+# On an upgrade the settings are left alone: the wizard was not shown there,
+# and the file may have been edited by hand.
 if [ "$SYNOPKG_PKG_STATUS" = "UPGRADE" ] && [ -f "$ENV_FILE" ]; then
     exit 0
 fi
 
-# Значение уходит в файл, который потом читается через `.`, поэтому кавычки
-# обязательны: пароль с пробелом или знаком доллара иначе развалит запуск.
+# The value goes into a file that is later read through `.`, so the quotes are
+# mandatory: a password with a space or a dollar sign would break the startup.
 put() {
     escaped=$(printf '%s' "$2" | sed "s/'/'\\\\''/g")
     printf "%s='%s'\n" "$1" "$escaped" >> "$ENV_FILE"

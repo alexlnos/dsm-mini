@@ -1,9 +1,9 @@
-# Сборка фронтенда: результат попадает в internal/web/dist, откуда его
-# забирает go:embed на следующем шаге.
+# Frontend build: the result lands in internal/web/dist, where go:embed picks
+# it up on the next step.
 #
-# --platform=$BUILDPLATFORM здесь и ниже важен для многоархитектурного образа:
-# без него сборка под arm64 шла бы через эмуляцию и занимала бы десятки минут.
-# Собираем всегда на своей архитектуре, а под чужую только кросс-компилируем.
+# --platform=$BUILDPLATFORM here and below matters for a multi-arch image:
+# without it an arm64 build would go through emulation and take tens of
+# minutes. We always build on our own architecture and only cross-compile.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 WORKDIR /src
 COPY web/package.json web/package-lock.json* ./
@@ -11,7 +11,7 @@ RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
-# Сборка бинарника со встроенным Mini App.
+# Building the binary with the Mini App embedded.
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum* ./
@@ -22,8 +22,8 @@ COPY --from=web /internal/web/dist ./internal/web/dist
 ARG VERSION=dev
 ARG TARGETOS
 ARG TARGETARCH
-# CGO не нужен: получается статический бинарник, которому не нужна libc
-# в финальном образе. Он же позволяет кросс-компилировать без тулчейна.
+# CGO is not needed: the result is a static binary that needs no libc in the
+# final image. It also allows cross-compiling without a toolchain.
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath \
     -ldflags="-s -w -X main.version=${VERSION}" \
     -o /out/dsm-mini ./cmd/dsm-mini
@@ -31,13 +31,13 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath \
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /
 COPY --from=build /out/dsm-mini /dsm-mini
-# Состояние наблюдателя переживает перезапуск, чтобы сервис не слал заново
-# уведомления о задачах, завершившихся до него.
+# The watcher state survives a restart so the service does not resend
+# notifications about tasks that finished before it.
 VOLUME ["/data"]
 ENV STATE_DIR=/data
 EXPOSE 8080
 USER nonroot:nonroot
-# Проверка здоровья — тем же бинарником: в distroless нет ни shell, ни curl.
+# The health check uses the same binary: distroless has neither shell nor curl.
 HEALTHCHECK --interval=60s --timeout=5s --start-period=20s --retries=3 \
     CMD ["/dsm-mini", "-healthcheck"]
 ENTRYPOINT ["/dsm-mini"]

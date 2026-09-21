@@ -1,7 +1,7 @@
 /*
- * Палитра держится на CSS-переменных: значения из themeParams Telegram
- * подставляются в рантайме (см. telegram.ts), а здесь заданы запасные —
- * приложение должно выглядеть прилично и без клиента.
+ * The palette rests on CSS variables: values from Telegram themeParams are
+ * filled in at runtime (see telegram.ts), while the fallbacks live here —
+ * the app must look decent without the client too.
  */
 :root {
   --bg: var(--tg-bg, #f2f2f7);
@@ -57,18 +57,18 @@ body {
 .muted { color: var(--muted); }
 
 /*
- * Приложение занимает ровно высоту окна и не прокручивается само: скроллится
- * только .content, поэтому нижнее меню остаётся на месте. min-height не
- * годится — с ним блок растёт по содержимому и меню уезжает вниз.
+ * The app takes exactly the window height and does not scroll itself: only
+ * .content scrolls, so the bottom menu stays put. min-height will not do —
+ * with it the block grows with the content and the menu slides away.
  *
- * 100dvh учитывает выдвижные панели мобильных браузеров; для клиентов без
- * его поддержки строкой выше остаётся 100vh. Внутри Telegram и этого мало:
- * там высота приложения меньше высоты экрана, и её сообщает сам клиент.
+ * 100dvh accounts for the retractable bars of mobile browsers; for clients
+ * without support the 100vh above remains. Inside Telegram even that is not
+ * enough: there the app height is less than the screen, and the client reports it.
  */
 .app {
   height: 100vh;
   height: 100dvh;
-  /* Высота от Telegram, если он её сообщил, — см. applyViewport. */
+  /* The height from Telegram when it reported one — see applyViewport. */
   height: var(--app-height, 100dvh);
   overflow: hidden;
   display: flex;
@@ -77,8 +77,8 @@ body {
 }
 
 /*
- * min-height: 0 обязателен: без него элемент flex не сжимается меньше своего
- * содержимого и прокрутка уходит на всю страницу.
+ * min-height: 0 is mandatory: without it a flex item refuses to shrink below
+ * its content and the scrolling moves to the whole page.
  */
 .content {
   flex: 1 1 auto;
@@ -328,10 +328,10 @@ h1 {
 .card-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin: 0 0 12px; }
 
 /*
- * Карточка с формой получает обычный внутренний отступ. Раньше отступы
- * задавались через margin каждому прямому потомку — и стоило обернуть поле
- * в контейнер для кнопки очистки, как правило перестало действовать и поле
- * разъехалось.
+ * A card with a form gets ordinary inner padding. Padding used to be set
+ * through margin on every direct child — and the moment a field was wrapped
+ * into a container for the clear button, the rule stopped applying and the
+ * field fell apart.
  */
 .card.form { padding: 16px; }
 
@@ -358,7 +358,7 @@ h1 {
   resize: none;
 }
 
-/* Свой фокус вместо системного: он в разных клиентах рисуется по-разному. */
+/* Our own focus ring instead of the system one: clients draw it differently. */
 .input:focus {
   outline: none;
   border-color: var(--accent);
@@ -368,10 +368,10 @@ h1 {
 
 .input-wrap { position: relative; }
 
-/* Место под крестик, чтобы длинная ссылка не заходила под него. */
+/* Room for the cross so that a long link does not run under it. */
 .input-wrap .input { padding-right: 42px; }
 
-/* Крестик поверх поля: очистить длинную ссылку иначе значит долго держать backspace. */
+/* The cross over the field: clearing a long link otherwise means holding backspace. */
 .input-clear {
   position: absolute;
   top: 8px;
@@ -388,7 +388,7 @@ h1 {
   cursor: pointer;
 }
 
-/* Базовая кнопка акцентная: без этого «Выбрать папку» выглядела отключённой. */
+/* The base button is accented: without it "Pick a folder" looked disabled. */
 .button {
   flex-grow: 1;
   height: 44px;
@@ -528,7 +528,7 @@ h1 {
 .entry-check { flex-shrink: 0; display: flex; align-items: center; }
 .entry-check input { width: 20px; height: 20px; accent-color: var(--accent); }
 
-/* Панель действий поверх списка: отмеченные файлы остаются видны. */
+/* An action bar over the list: the selected files stay visible. */
 .action-bar {
   position: fixed;
   left: 12px;
@@ -755,7 +755,7 @@ h1 {
 .standalone h1 { font-size: 22px; }
 .standalone p { color: var(--muted); line-height: 1.5; margin-top: 12px; }
 
-/* ── Главный экран и разделы NAS ─────────────────────────────────────────── */
+/* ── Home screen and NAS sections ────────────────────────────────────────── */
 
 .home-head { display: flex; align-items: center; gap: 12px; }
 
@@ -828,9 +828,9 @@ h1 {
 .volume-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; }
 
 /*
- * Имя .app занято корневым контейнером приложения, поэтому карточка
- * называется иначе — иначе она наследует height: 100dvh и колоночную
- * раскладку, и весь список превращается в один растянутый элемент.
+ * The name .app is taken by the app root container, so the card is called
+ * something else — otherwise it inherits height: 100dvh and the column
+ * layout, and the whole list turns into one stretched element.
  */
 .app-card {
   display: flex;
@@ -871,7 +871,7 @@ h1 {
 :root[data-theme='dark'] .icon.docker { background: #12303a; color: #5fc4e0; }
 :root[data-theme='dark'] .icon.disk { background: #33230f; color: #f0a558; }
 
-/* ── Машины и контейнеры ─────────────────────────────────────────────────── */
+/* ── Machines and containers ─────────────────────────────────────────────── */
 
 .vm { padding: 12px 12px 12px 14px; }
 .vm-head { display: flex; align-items: center; gap: 11px; }
@@ -891,7 +891,7 @@ h1 {
 .icon-button.ok { background: rgba(21, 128, 61, 0.12); color: var(--ok); }
 .icon-button.danger { background: var(--bad-soft); color: var(--bad); }
 
-/* ── Хранилище ───────────────────────────────────────────────────────────── */
+/* ── Storage ─────────────────────────────────────────────────────────────── */
 
 .bays { margin-top: 14px; background: var(--tile); border-radius: 13px; padding: 13px; }
 
@@ -939,7 +939,7 @@ h1 {
 .pool { padding: 11px 14px; }
 .pool-disks { font-size: 12px; margin-top: 4px; }
 
-/* ── Журнал событий ──────────────────────────────────────────────────────── */
+/* ── Event log ───────────────────────────────────────────────────────────── */
 
 .event { display: flex; align-items: flex-start; gap: 11px; padding: 11px 14px; }
 .event .dot { margin-top: 5px; width: 8px; height: 8px; }
@@ -947,11 +947,11 @@ h1 {
 .event-message { font-size: 14px; line-height: 1.35; word-break: break-word; }
 .event-meta { font-size: 12px; color: var(--muted); }
 
-/* ── Заглушки загрузки ───────────────────────────────────────────────────── */
+/* ── Loading placeholders ────────────────────────────────────────────────── */
 
 /*
- * Идут последними: .sk перекрывает фон классов, поверх которых рисуется
- * заглушка (например .meter-track), а не наоборот.
+ * They come last: .sk overrides the background of the classes it is drawn
+ * over (.meter-track, for instance), not the other way round.
  */
 .sk {
   display: block;
@@ -972,7 +972,7 @@ h1 {
 
 @keyframes sk-shine { to { transform: translateX(100%); } }
 
-/* Колонке с полосками нужна своя ширина: проценты внутри неё считаются от неё. */
+/* The bar column needs a width of its own: percentages inside count from it. */
 .sk-grow { flex-grow: 1; min-width: 0; }
 
 .sk-dot { width: 10px; height: 10px; border-radius: 5px; flex-shrink: 0; }
@@ -980,11 +980,11 @@ h1 {
 .sk-icon { width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0; }
 .sk-ring { width: 44px; height: 44px; border-radius: 22px; flex-shrink: 0; }
 
-/* Полоски выстроены в столбик — им нужен зазор, как у настоящих строк. */
+/* The bars sit in a column — they need a gap, like real rows. */
 .vm-text .sk + .sk, .event-text .sk + .sk,
 .tile .sk + .sk, .entry-text .sk + .sk, .disk-text .sk + .sk { margin-top: 6px; }
 
-/* Пустой отсек, пока состояние дисков неизвестно. */
+/* An empty bay while the disk state is unknown. */
 .bay.sk { border-style: solid; }
 
 @media (prefers-reduced-motion: reduce) {
