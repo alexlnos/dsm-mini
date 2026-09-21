@@ -1,6 +1,10 @@
 package downloadstation
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 // TestStatusFromCodeTable checks the map against getStatusString from
 // Download Station's own interface — the table it was transcribed from.
@@ -61,5 +65,56 @@ func TestStatusFromStringMatchesCodes(t *testing.T) {
 		if byCode != byText {
 			t.Errorf("code %d gave %q, string %q gave %q", p.code, byCode, p.text, byText)
 		}
+	}
+}
+
+// TestReasonFromCode covers the failures named to the person, and the rule
+// that an unnamed one stays silent rather than borrowing a neighbour's words.
+func TestReasonFromCode(t *testing.T) {
+	named := map[int]Reason{
+		102: ReasonLink,
+		103: ReasonDestination,
+		104: ReasonDestination,
+		105: ReasonDiskFull,
+		106: ReasonDiskFull,
+		107: ReasonTimeout,
+		113: ReasonDuplicate,
+		118: ReasonExtract,
+		123: ReasonTorrent,
+		129: ReasonExtract,
+	}
+	for code, want := range named {
+		if got := ReasonFromCode(code); got != want {
+			t.Errorf("code %d: got %q, want %q", code, got, want)
+		}
+	}
+
+	// 101 is the plain failure: Download Station has no word for it either,
+	// and the legacy API calls its detail "unknown". 127 (missing Python) and
+	// 130 (an NZB article) belong to scenarios this app does not offer.
+	for _, code := range []int{101, 127, 130, 4242} {
+		if got := ReasonFromCode(code); got != ReasonNone {
+			t.Errorf("code %d: got %q, expected no reason", code, got)
+		}
+	}
+}
+
+// TestFailReasonReachesTheApp guards the field name the Mini App reads, and
+// that a task without a reason does not carry an empty one.
+func TestFailReasonReachesTheApp(t *testing.T) {
+	withReason, err := json.Marshal(Task{Status: StatusError, FailReason: ReasonDiskFull})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(withReason), `"fail_reason":"diskFull"`) {
+		t.Errorf("the reason did not reach the JSON: %s", withReason)
+	}
+
+	plain, err := json.Marshal(Task{Status: StatusError})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), "fail_reason") {
+		t.Errorf("a task without a reason carries an empty one: %s", plain)
 	}
 }

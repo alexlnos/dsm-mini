@@ -44,6 +44,14 @@ export const tr: Record<Key, Phrase> = {
   'status.extracting': 'Çıkarılıyor',
   'status.error': 'Hata',
   'status.unknown': 'Bilinmiyor',
+
+  "fail.diskFull": "birimde yer kalmadı",
+  "fail.destination": "klasör yok ya da kapalı",
+  "fail.link": "bağlantı çalışmıyor",
+  "fail.timeout": "bekleme süresi doldu",
+  "fail.duplicate": "aynı görev zaten var",
+  "fail.torrent": "torrent dosyası bozuk",
+  "fail.extract": "açma işlemi başarısız oldu",
   'status.fetchingInfo': 'Bilgi alınıyor…',
 
   'day.today': 'Bugün',

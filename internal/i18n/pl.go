@@ -37,6 +37,14 @@ var pl = map[string]string{
 	"notify.done":   "Pobieranie zakończone",
 	"notify.took":   "Zajęło {duration}",
 
+	"fail.diskFull":    "skończyło się miejsce na woluminie",
+	"fail.destination": "folderu nie ma albo jest zamknięty",
+	"fail.link":        "link nie działa",
+	"fail.timeout":     "czas oczekiwania minął",
+	"fail.duplicate":   "takie zadanie już jest",
+	"fail.torrent":     "plik torrent jest uszkodzony",
+	"fail.extract":     "rozpakowanie się nie udało",
+
 	"unit.bytes":   "B",
 	"unit.kb":      "KB",
 	"unit.mb":      "MB",

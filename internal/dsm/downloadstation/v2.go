@@ -51,6 +51,7 @@ func (t taskV2) toTask() Task {
 		Title:       t.Title,
 		Type:        t.Type,
 		Status:      StatusFromCode(t.Status),
+		FailReason:  ReasonFromCode(t.Status),
 		Size:        t.Size,
 		Downloaded:  tr.SizeDownloaded,
 		Uploaded:    tr.SizeUploaded,

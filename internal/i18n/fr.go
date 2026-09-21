@@ -37,6 +37,14 @@ var fr = map[string]string{
 	"notify.done":   "Téléchargement terminé",
 	"notify.took":   "Durée : {duration}",
 
+	"fail.diskFull":    "plus de place sur le volume",
+	"fail.destination": "le dossier est absent ou fermé",
+	"fail.link":        "le lien ne fonctionne pas",
+	"fail.timeout":     "l'attente a expiré",
+	"fail.duplicate":   "la même tâche existe déjà",
+	"fail.torrent":     "le fichier torrent est abîmé",
+	"fail.extract":     "l'extraction a échoué",
+
 	"unit.bytes":   "o",
 	"unit.kb":      "Ko",
 	"unit.mb":      "Mo",

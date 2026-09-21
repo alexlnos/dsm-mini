@@ -44,6 +44,14 @@ export const it: Record<Key, Phrase> = {
   'status.extracting': 'Estrazione',
   'status.error': 'Errore',
   'status.unknown': 'Sconosciuto',
+
+  "fail.diskFull": "spazio esaurito sul volume",
+  "fail.destination": "la cartella manca o è chiusa",
+  "fail.link": "il link non funziona",
+  "fail.timeout": "l'attesa è scaduta",
+  "fail.duplicate": "la stessa attività c'è già",
+  "fail.torrent": "il file torrent è rovinato",
+  "fail.extract": "l'estrazione non è riuscita",
   'status.fetchingInfo': 'Recupero dati…',
 
   'day.today': 'Oggi',

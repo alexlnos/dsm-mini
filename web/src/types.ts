@@ -2,11 +2,26 @@ export type TaskStatus =
   | 'waiting' | 'downloading' | 'paused' | 'finishing' | 'finished'
   | 'hash_checking' | 'seeding' | 'extracting' | 'error' | 'unknown'
 
+/**
+ * Why a task failed. The server sends a key, not a sentence: the person reads
+ * it in their own language, the log keeps the Download Station code.
+ *
+ * Listed here rather than typed as a plain string so that a reason without a
+ * translation is caught by the compiler instead of by a user.
+ */
+export const FAIL_REASONS = [
+  'diskFull', 'destination', 'link', 'timeout', 'duplicate', 'torrent', 'extract',
+] as const
+
+export type FailReason = (typeof FAIL_REASONS)[number]
+
 export interface Task {
   id: string
   title: string
   type: string
   status: TaskStatus
+  /** Why it failed — absent when Download Station did not say. */
+  fail_reason?: FailReason
   size: number
   downloaded: number
   uploaded: number

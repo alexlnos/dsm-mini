@@ -1,4 +1,5 @@
 import { formatNumber, localeTag, t } from './i18n'
+import { FAIL_REASONS, type FailReason } from './types'
 
 /** Unit keys in ascending order: each is 1024 times the previous one. */
 const UNITS = ['unit.kb', 'unit.mb', 'unit.gb', 'unit.tb'] as const
@@ -54,7 +55,23 @@ export function taskTitle(raw: string): string {
   }
 }
 
-export function statusLabel(status: string): string {
+/**
+ * The state of a task, with the reason when it failed.
+ *
+ * "Error" alone leaves the person guessing between a full disk and a dead
+ * tracker, and Download Station knows which it was.
+ */
+export function statusLabel(status: string, failReason?: FailReason): string {
+  const label = stateLabel(status)
+  // A reason the server knows but this build has no words for would otherwise
+  // print its own key on the card.
+  if (status === 'error' && failReason && FAIL_REASONS.includes(failReason)) {
+    return `${label} · ${t(`fail.${failReason}`)}`
+  }
+  return label
+}
+
+function stateLabel(status: string): string {
   switch (status) {
     case 'waiting': return t('status.waiting')
     case 'downloading': return t('status.downloading')

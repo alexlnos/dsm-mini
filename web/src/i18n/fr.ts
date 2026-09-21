@@ -44,6 +44,14 @@ export const fr: Record<Key, Phrase> = {
   'status.extracting': 'Extraction',
   'status.error': 'Erreur',
   'status.unknown': 'Inconnu',
+
+  "fail.diskFull": "plus de place sur le volume",
+  "fail.destination": "le dossier est absent ou fermé",
+  "fail.link": "le lien ne fonctionne pas",
+  "fail.timeout": "l'attente a expiré",
+  "fail.duplicate": "la même tâche existe déjà",
+  "fail.torrent": "le fichier torrent est abîmé",
+  "fail.extract": "l'extraction a échoué",
   'status.fetchingInfo': 'Récupération des infos…',
 
   'day.today': 'Aujourd’hui',

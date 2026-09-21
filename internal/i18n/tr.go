@@ -37,6 +37,14 @@ var tr = map[string]string{
 	"notify.done":   "İndirme bitti",
 	"notify.took":   "Süre: {duration}",
 
+	"fail.diskFull":    "birimde yer kalmadı",
+	"fail.destination": "klasör yok ya da kapalı",
+	"fail.link":        "bağlantı çalışmıyor",
+	"fail.timeout":     "bekleme süresi doldu",
+	"fail.duplicate":   "aynı görev zaten var",
+	"fail.torrent":     "torrent dosyası bozuk",
+	"fail.extract":     "açma işlemi başarısız oldu",
+
 	"unit.bytes":   "B",
 	"unit.kb":      "KB",
 	"unit.mb":      "MB",

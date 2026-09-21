@@ -77,7 +77,7 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
 
       <div className="task-foot">
         <span style={{ color: look.color, fontWeight: 600 }}>
-          {statusLabel(task.status)}
+          {statusLabel(task.status, task.fail_reason)}
           {task.active && task.progress > 0 ? ` · ${Math.round(task.progress * 100)}%` : ''}
         </span>
         <span className="muted tnum">

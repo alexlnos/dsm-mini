@@ -44,6 +44,14 @@ export const uk: Record<Key, Phrase> = {
   'status.extracting': 'Розпакування',
   'status.error': 'Помилка',
   'status.unknown': 'Невідомо',
+
+  "fail.diskFull": "на томі скінчилося місце",
+  "fail.destination": "теки немає або доступ закрито",
+  "fail.link": "посилання не працює",
+  "fail.timeout": "вичерпано час очікування",
+  "fail.duplicate": "таке завдання вже є",
+  "fail.torrent": "торент-файл зіпсовано",
+  "fail.extract": "не вдалося розпакувати",
   'status.fetchingInfo': 'Отримую відомості…',
 
   'day.today': 'Сьогодні',

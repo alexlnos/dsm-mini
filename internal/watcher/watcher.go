@@ -190,6 +190,11 @@ func formatTask(lang i18n.Lang, t downloadstation.Task) string {
 	var sb strings.Builder
 	if t.Status == downloadstation.StatusError {
 		sb.WriteString(i18n.T(lang, "notify.failed"))
+		// Download Station knows why, and "failed" alone leaves the person
+		// guessing between a full disk and a dead tracker.
+		if t.FailReason != downloadstation.ReasonNone {
+			fmt.Fprintf(&sb, ": %s", i18n.T(lang, "fail."+string(t.FailReason)))
+		}
 	} else {
 		sb.WriteString(i18n.T(lang, "notify.done"))
 	}

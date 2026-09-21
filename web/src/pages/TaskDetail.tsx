@@ -90,7 +90,7 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
         <ProgressRing value={task.progress} color={look.color} size={132} />
         <div className="detail-percent tnum">{Math.round(task.progress * 100)}%</div>
         <div className="detail-status" style={{ color: look.color }}>
-          {statusLabel(task.status)}
+          {statusLabel(task.status, task.fail_reason)}
           {task.eta_seconds ? t('task.etaLeft', { eta: eta(task.eta_seconds) }) : ''}
         </div>
 

@@ -37,6 +37,14 @@ var de = map[string]string{
 	"notify.done":   "Download fertig",
 	"notify.took":   "Dauer: {duration}",
 
+	"fail.diskFull":    "kein Platz mehr auf dem Volume",
+	"fail.destination": "der Ordner fehlt oder ist gesperrt",
+	"fail.link":        "der Link funktioniert nicht",
+	"fail.timeout":     "die Wartezeit ist abgelaufen",
+	"fail.duplicate":   "dieselbe Aufgabe gibt es schon",
+	"fail.torrent":     "die Torrent-Datei ist beschädigt",
+	"fail.extract":     "das Entpacken ist gescheitert",
+
 	"unit.bytes":   "B",
 	"unit.kb":      "KB",
 	"unit.mb":      "MB",

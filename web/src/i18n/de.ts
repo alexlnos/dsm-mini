@@ -44,6 +44,14 @@ export const de: Record<Key, Phrase> = {
   'status.extracting': 'Entpackt',
   'status.error': 'Fehler',
   'status.unknown': 'Unbekannt',
+
+  "fail.diskFull": "kein Platz mehr auf dem Volume",
+  "fail.destination": "der Ordner fehlt oder ist gesperrt",
+  "fail.link": "der Link funktioniert nicht",
+  "fail.timeout": "die Wartezeit ist abgelaufen",
+  "fail.duplicate": "dieselbe Aufgabe gibt es schon",
+  "fail.torrent": "die Torrent-Datei ist beschädigt",
+  "fail.extract": "das Entpacken ist gescheitert",
   'status.fetchingInfo': 'Daten werden geholt…',
 
   'day.today': 'Heute',

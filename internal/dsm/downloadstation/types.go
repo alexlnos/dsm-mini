@@ -92,6 +92,58 @@ func StatusFromCode(code int) Status {
 // otherwise repeat the same warning until the task goes away.
 var unknownCodes sync.Map
 
+// Reason says why a task failed, as a translation key rather than as text:
+// the person gets it in their own language, the log keeps the code.
+type Reason string
+
+const (
+	ReasonNone        Reason = ""
+	ReasonDiskFull    Reason = "diskFull"
+	ReasonDestination Reason = "destination"
+	ReasonLink        Reason = "link"
+	ReasonTimeout     Reason = "timeout"
+	ReasonDuplicate   Reason = "duplicate"
+	ReasonTorrent     Reason = "torrent"
+	ReasonExtract     Reason = "extract"
+)
+
+// reasonByCode covers the failures worth naming to someone who downloads
+// torrents and direct links.
+//
+// Codes 102 to 134 each name a reason of their own — from a missing Python to
+// a broken parchive — but most of them belong to NZB and file-hosting, which
+// this app does not offer. Those keep the plain "failed": a wrong specific
+// reason is worse than none.
+//
+// Read out of getStatusString in Download Station's own interface, like the
+// status table above.
+var reasonByCode = map[int]Reason{
+	102: ReasonLink,        // broken_link
+	103: ReasonDestination, // dest_not_exist
+	104: ReasonDestination, // dest_deny
+	105: ReasonDiskFull,    // disk_full
+	106: ReasonDiskFull,    // quota_reached — to the person, the same "no room"
+	107: ReasonTimeout,     // timeout
+	113: ReasonDuplicate,   // duplicate_torrent
+	118: ReasonExtract,     // extract_fail, and the four codes after it
+	119: ReasonExtract,
+	120: ReasonExtract,
+	121: ReasonExtract,
+	122: ReasonExtract,
+	123: ReasonTorrent, // invalid_torrent
+	129: ReasonExtract,
+}
+
+// ReasonFromCode names the failure behind a DownloadStation2 status code.
+//
+// Only the modern API is covered. The legacy one reports the reason as a
+// string in status_extra.error_detail, and its vocabulary is not written down
+// anywhere we could check — the one value seen on a live NAS was "unknown".
+// Rather than guess at the rest, the legacy path shows a plain failure.
+func ReasonFromCode(code int) Reason {
+	return reasonByCode[code]
+}
+
 // StatusFromString translates a legacy API string into a Status.
 func StatusFromString(s string) Status {
 	switch strings.ToLower(strings.TrimSpace(s)) {
@@ -141,7 +193,7 @@ type Task struct {
 	Title       string    `json:"title"`
 	Type        string    `json:"type"` // bt, http, ftp, nzb, emule
 	Status      Status    `json:"status"`
-	StatusExtra string    `json:"status_extra,omitempty"` // failure reason, if any
+	FailReason  Reason    `json:"fail_reason,omitempty"`
 	Size        int64     `json:"size"`
 	Downloaded  int64     `json:"downloaded"`
 	Uploaded    int64     `json:"uploaded"`

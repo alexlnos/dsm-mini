@@ -44,6 +44,14 @@ export const pl: Record<Key, Phrase> = {
   'status.extracting': 'Rozpakowywanie',
   'status.error': 'Błąd',
   'status.unknown': 'Nieznany',
+
+  "fail.diskFull": "skończyło się miejsce na woluminie",
+  "fail.destination": "folderu nie ma albo jest zamknięty",
+  "fail.link": "link nie działa",
+  "fail.timeout": "czas oczekiwania minął",
+  "fail.duplicate": "takie zadanie już jest",
+  "fail.torrent": "plik torrent jest uszkodzony",
+  "fail.extract": "rozpakowanie się nie udało",
   'status.fetchingInfo': 'Pobieram dane…',
 
   'day.today': 'Dziś',
