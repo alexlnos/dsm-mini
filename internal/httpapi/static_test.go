@@ -75,3 +75,34 @@ func TestSecurityHeaders(t *testing.T) {
 		t.Errorf("Referrer-Policy = %q", got)
 	}
 }
+
+// TestCacheHeaders: index.html перепроверяется каждый раз, ресурсы с хешем в
+// имени кешируются навсегда.
+//
+// Без этого Telegram продолжает открывать старую сборку после обновления:
+// он держит index.html в кеше, а тот ссылается на прежние файлы.
+func TestCacheHeaders(t *testing.T) {
+	static := fstest.MapFS{
+		"index.html":             {Data: []byte("<!doctype html>")},
+		"assets/index-abc123.js": {Data: []byte("console.log(1)")},
+	}
+	s := New(Options{
+		BotToken: testToken,
+		Static:   static,
+		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	for _, tc := range []struct{ path, want string }{
+		{"/", "no-cache"},
+		{"/files", "no-cache"},
+		{"/assets/index-abc123.js", "public, max-age=31536000, immutable"},
+	} {
+		r := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, r)
+
+		if got := w.Header().Get("Cache-Control"); got != tc.want {
+			t.Errorf("%s: Cache-Control = %q, ожидалось %q", tc.path, got, tc.want)
+		}
+	}
+}

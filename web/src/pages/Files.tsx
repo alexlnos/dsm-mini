@@ -56,6 +56,9 @@ export function Files({ pickMode, onPick, onCancelPick }: FilesProps = {}) {
   }, [pickMode, onCancelPick])
 
   const segments = path.split('/').filter(Boolean)
+  // На верхнем уровне перечислены общие папки NAS: переименовать или удалить
+  // их через File Station нельзя, поэтому и кнопок быть не должно.
+  const canEdit = !pickMode && path !== '/'
 
   async function remove(entry: Entry) {
     const what = entry.is_dir ? 'папку' : 'файл'
@@ -193,7 +196,7 @@ export function Files({ pickMode, onPick, onCancelPick }: FilesProps = {}) {
                   </span>
                 </span>
               </button>
-              {!pickMode && (
+              {canEdit && (
               <button type="button" className="icon-button small" onClick={() => void rename(entry)}
                       aria-label="Переименовать">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -202,7 +205,7 @@ export function Files({ pickMode, onPick, onCancelPick }: FilesProps = {}) {
                 </svg>
               </button>
               )}
-              {!pickMode && (
+              {canEdit && (
               <button type="button" className="icon-button small danger" onClick={() => void remove(entry)}
                       aria-label="Удалить">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"

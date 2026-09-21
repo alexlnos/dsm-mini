@@ -28,6 +28,9 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
   const look = appearance(task.status)
   const paused = task.status === 'paused' || task.status === 'error'
   const remaining = eta(task.eta_seconds)
+  // Докачанную задачу не ставят на паузу и не возобновляют — кнопка только
+  // сбивала бы с толку. Упавшую перезапустить можно.
+  const canToggle = task.status !== 'finished'
 
   return (
     <div className="card task">
@@ -48,6 +51,7 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
           </span>
         </button>
 
+        {canToggle && (
         <button
           type="button"
           className="icon-button"
@@ -66,6 +70,7 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
             </svg>
           )}
         </button>
+        )}
       </div>
 
       <div className="task-foot">

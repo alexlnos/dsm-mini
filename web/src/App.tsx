@@ -24,8 +24,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'downloads' })
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // Папка, выбранная в обзоре NAS и переданная в настройку папок.
-  const [pickedFolder, setPickedFolder] = useState<string | undefined>()
+
 
   const refresh = useCallback(async () => {
     try {
@@ -53,6 +52,26 @@ export function App() {
     return () => window.clearInterval(timer)
   }, [data, refresh])
 
+  // Папка, выбранная в обзоре NAS, закрепляется сразу: экрана с кнопкой
+  // «Сохранить» больше нет, и терять нечего.
+  const pinFolder = useCallback(async (path: string) => {
+    setScreen({ name: 'folders' })
+    if (!path) return
+    try {
+      const settings = await api.settings()
+      const pinned = settings.pinned_folders ?? []
+      if (pinned.includes(path)) return
+      await api.saveSettings({
+        pinned_folders: [...pinned, path],
+        show_recent: settings.show_recent,
+        last_used: settings.last_used,
+      })
+      void refresh()
+    } catch {
+      // Экран настройки покажет актуальное состояние и сообщит об ошибке сам.
+    }
+  }, [refresh])
+
   const openTask = (task: Task) => setScreen({ name: 'task', id: task.id })
   const current = screen.name === 'task'
     ? data?.tasks.find((t) => t.id === screen.id)
@@ -79,18 +98,14 @@ export function App() {
         {screen.name === 'pickFolder' && (
           <Files
             pickMode
-            onPick={(path) => {
-              setPickedFolder(path)
-              setScreen({ name: 'folders' })
-            }}
+            onPick={(path) => { void pinFolder(path) }}
             onCancelPick={() => setScreen({ name: 'folders' })}
           />
         )}
         {screen.name === 'folders' && (
           <Folders
-            incoming={pickedFolder}
-            onBack={() => { setPickedFolder(undefined); setScreen({ name: 'add' }) }}
-            onSaved={() => { setPickedFolder(undefined); void refresh() }}
+            onBack={() => setScreen({ name: 'add' })}
+            onChanged={() => void refresh()}
             onPickOnNas={() => setScreen({ name: 'pickFolder' })}
           />
         )}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskCard } from '../components/TaskCard'
 import { api, ApiError } from '../api'
 import { size, speed } from '../format'
-import { alertMessage, confirmAction, haptic } from '../telegram'
+import { alertMessage, haptic } from '../telegram'
 import type { Overview, Task } from '../types'
 
 type Filter = 'active' | 'done' | 'all'
@@ -45,21 +45,6 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
     haptic('light')
     try {
       await api.action(paused ? 'resume' : 'pause', [task.id])
-      onRefresh()
-    } catch (e) {
-      haptic('error')
-      alertMessage(describe(e))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function remove(task: Task) {
-    if (!(await confirmAction(`Удалить задачу «${task.title.slice(0, 60)}»?`))) return
-    setBusy(task.id)
-    try {
-      await api.action('delete', [task.id])
-      haptic('success')
       onRefresh()
     } catch (e) {
       haptic('error')
@@ -130,17 +115,13 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
 
       <div className="list">
         {shown.map((task) => (
-          <div key={task.id} className="swipe">
-            <TaskCard task={task} busy={busy === task.id} onToggle={toggle} onOpen={onOpen} />
-            <button
-              type="button"
-              className="remove"
-              onClick={() => remove(task)}
-              aria-label="Удалить задачу"
-            >
-              Удалить
-            </button>
-          </div>
+          <TaskCard
+            key={task.id}
+            task={task}
+            busy={busy === task.id}
+            onToggle={toggle}
+            onOpen={onOpen}
+          />
         ))}
 
         {!error && shown.length === 0 && (

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
@@ -111,8 +112,25 @@ func (s *Server) staticHandler() http.Handler {
 			r = r.Clone(r.Context())
 			r.URL.Path = "/"
 		}
+		setCacheHeaders(w, r.URL.Path)
 		files.ServeHTTP(w, r)
 	})
+}
+
+// setCacheHeaders разделяет статику на две части.
+//
+// Сборщик даёт файлам в assets имена с хешем содержимого, поэтому их можно
+// кешировать навсегда: изменится содержимое — изменится и имя. А вот
+// index.html ссылается на эти имена, и его нужно перепроверять каждый раз,
+// иначе клиент продолжит открывать старую сборку. Telegram кеширует Mini App
+// особенно цепко: без этого заголовка обновление доходит до пользователя
+// только после перезапуска приложения.
+func setCacheHeaders(w http.ResponseWriter, path string) {
+	if strings.HasPrefix(path, "/assets/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-cache")
 }
 
 func fileExists(fsys fs.FS, name string) bool {

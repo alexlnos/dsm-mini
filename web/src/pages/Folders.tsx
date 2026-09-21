@@ -5,40 +5,64 @@ import type { Settings, SettingsView } from '../types'
 
 interface Props {
   onBack: () => void
-  onSaved: () => void
+  /** Настройки изменились — обновить данные на остальных экранах. */
+  onChanged: () => void
   /** Открыть обзор NAS, чтобы выбрать папку там. */
   onPickOnNas: () => void
-  /** Папка, выбранная в обзоре NAS и ожидающая добавления. */
-  incoming?: string
 }
 
-export function Folders({ onBack, onSaved, onPickOnNas, incoming }: Props) {
+/**
+ * Настройка папок назначения.
+ *
+ * Изменения сохраняются сразу: кнопки «Сохранить» нет, поэтому нечего
+ * потерять при переходе в обзор NAS или закрытии приложения. Интерфейс
+ * обновляется до ответа сервера, а при ошибке возвращается к прежнему
+ * состоянию — иначе каждое нажатие ощущалось бы как задержка.
+ */
+export function Folders({ onBack, onChanged, onPickOnNas }: Props) {
   const [view, setView] = useState<SettingsView | null>(null)
-  const [pinned, setPinned] = useState<string[]>([])
-  const [showRecent, setShowRecent] = useState(true)
   const [manual, setManual] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => backButton(onBack), [onBack])
 
   const load = useCallback(async () => {
     try {
-      const data = await api.settings()
-      setView(data)
-      setPinned(data.pinned_folders ?? [])
-      setShowRecent(data.show_recent)
+      setView(await api.settings())
+      setError(null)
     } catch (e) {
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не загрузить настройки')
+      setError(describe(e, 'Не загрузить настройки'))
     }
   }, [])
 
   useEffect(() => { void load() }, [load])
 
-  // Папка, выбранная в обзоре NAS, добавляется сразу по возвращении.
-  useEffect(() => {
-    if (!incoming) return
-    setPinned((current) => (current.includes(incoming) ? current : [...current, incoming]))
-  }, [incoming])
+  const pinned = view?.pinned_folders ?? []
+  const showRecent = view?.show_recent ?? true
+
+  const apply = useCallback(
+    async (next: Partial<Settings>) => {
+      if (!view) return
+      const previous = view
+      const payload: Settings = {
+        pinned_folders: next.pinned_folders ?? pinned,
+        show_recent: next.show_recent ?? showRecent,
+        last_used: view.last_used,
+      }
+      // Показываем результат сразу, не дожидаясь сервера.
+      setView({ ...view, ...payload })
+      try {
+        setView(await api.saveSettings(payload))
+        setError(null)
+        onChanged()
+      } catch (e) {
+        setView(previous)
+        haptic('error')
+        alertMessage(describe(e, 'Не сохранить'))
+      }
+    },
+    [view, pinned, showRecent, onChanged],
+  )
 
   function add(folder: string) {
     const clean = folder.trim().replace(/^\/+|\/+$/g, '')
@@ -47,9 +71,9 @@ export function Folders({ onBack, onSaved, onPickOnNas, incoming }: Props) {
       alertMessage('Такая папка уже закреплена')
       return
     }
-    setPinned([...pinned, clean])
     setManual('')
     haptic('light')
+    void apply({ pinned_folders: [...pinned, clean] })
   }
 
   function move(index: number, delta: number) {
@@ -57,28 +81,13 @@ export function Folders({ onBack, onSaved, onPickOnNas, incoming }: Props) {
     if (target < 0 || target >= pinned.length) return
     const next = [...pinned]
     ;[next[index], next[target]] = [next[target], next[index]]
-    setPinned(next)
     haptic('light')
+    void apply({ pinned_folders: next })
   }
 
-  async function save() {
-    setSaving(true)
-    const payload: Settings = {
-      pinned_folders: pinned,
-      show_recent: showRecent,
-      last_used: view?.last_used ?? '',
-    }
-    try {
-      await api.saveSettings(payload)
-      haptic('success')
-      onSaved()
-      onBack()
-    } catch (e) {
-      haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не сохранить')
-    } finally {
-      setSaving(false)
-    }
+  function unpin(folder: string) {
+    haptic('light')
+    void apply({ pinned_folders: pinned.filter((f) => f !== folder) })
   }
 
   const suggested = (view?.suggested ?? []).filter((f) => !pinned.includes(f))
@@ -88,9 +97,11 @@ export function Folders({ onBack, onSaved, onPickOnNas, incoming }: Props) {
       <div className="card summary">
         <h1>Папки</h1>
         <div className="muted">
-          Эти папки появятся на экране добавления в том же порядке.
+          Появятся на экране добавления в этом порядке. Изменения сохраняются сразу.
         </div>
       </div>
+
+      {error && <div className="card error-card">{error}</div>}
 
       <div className="section-head">
         <span className="section-title">Закреплённые</span>
@@ -102,7 +113,7 @@ export function Folders({ onBack, onSaved, onPickOnNas, incoming }: Props) {
             <button
               type="button"
               className="icon-button small danger"
-              onClick={() => setPinned(pinned.filter((f) => f !== folder))}
+              onClick={() => unpin(folder)}
               aria-label={`Убрать ${folder}`}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -192,14 +203,15 @@ export function Folders({ onBack, onSaved, onPickOnNas, incoming }: Props) {
             type="checkbox"
             role="switch"
             checked={showRecent}
-            onChange={(e) => setShowRecent(e.target.checked)}
+            onChange={(e) => void apply({ show_recent: e.target.checked })}
           />
         </label>
       </div>
-
-      <button type="button" className="main-button" disabled={saving} onClick={() => void save()}>
-        {saving ? 'Сохраняю…' : 'Сохранить'}
-      </button>
     </div>
   )
+}
+
+function describe(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) return e.detail ?? e.message
+  return fallback
 }
