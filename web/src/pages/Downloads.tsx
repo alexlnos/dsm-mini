@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskCard } from '../components/TaskCard'
 import { api, ApiError } from '../api'
 import { size, speed } from '../format'
@@ -20,13 +20,23 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
 
   const tasks = data?.tasks ?? []
-  const shown = useMemo(() => {
-    if (filter === 'all') return tasks
-    if (filter === 'active') return tasks.filter((t) => t.active || t.status === 'paused')
-    return tasks.filter((t) => !t.active && t.status !== 'paused')
-  }, [tasks, filter])
 
+  const groups = useMemo(() => {
+    const active = tasks.filter((t) => t.active || t.status === 'paused')
+    return { active, done: tasks.filter((t) => !active.includes(t)), all: tasks }
+  }, [tasks])
+
+  const shown = groups[filter]
   const activeCount = tasks.filter((t) => t.active).length
+
+  // Если активных задач нет, а завершённые есть, при первом открытии
+  // показываем «Все»: пустой экран при непустом списке сбивает с толку.
+  const picked = useRef(false)
+  useEffect(() => {
+    if (picked.current || !data) return
+    picked.current = true
+    if (groups.active.length === 0 && groups.all.length > 0) setFilter('all')
+  }, [data, groups])
   const volume = data?.volumes?.[0]
 
   async function toggle(task: Task) {
@@ -109,6 +119,9 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
             onClick={() => setFilter(id)}
           >
             {label}
+            {groups[id].length > 0 && (
+              <span className="segment-count tnum">{groups[id].length}</span>
+            )}
           </button>
         ))}
       </div>

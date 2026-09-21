@@ -164,6 +164,12 @@ h1 {
   cursor: pointer;
 }
 
+.segment-count {
+  margin-left: 5px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
 .segment.active {
   background: var(--surface);
   color: var(--text);
