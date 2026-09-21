@@ -67,3 +67,24 @@ jobs:
             git diff --stat -- internal/web/dist
             exit 1
           fi
+
+  docs:
+    name: Документация
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Тот же compose лежит в deploy/ и копией в README: человек ставит
+      # сервис, копируя его прямо из инструкции. Разойдутся — и половина
+      # читателей получит устаревший файл, не узнав об этом.
+      - name: Compose в README совпадает с файлом
+        run: |
+          python3 - <<'CHECK'
+          compose = open('deploy/docker-compose.yml', encoding='utf-8').read().rstrip()
+          readme = open('README.md', encoding='utf-8').read()
+          if compose not in readme:
+              print('::error::Блок compose в README разошёлся с deploy/docker-compose.yml. '
+                    'Вставьте в README актуальное содержимое файла.')
+              raise SystemExit(1)
+          print('совпадает')
+          CHECK
