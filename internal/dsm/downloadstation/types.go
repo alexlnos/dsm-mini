@@ -10,7 +10,9 @@
 package downloadstation
 
 import (
+	"log/slog"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -33,8 +35,9 @@ const (
 // statusByCode holds the numeric codes of DownloadStation2.
 //
 // The legacy API reports the same states as strings, so the numbers are only
-// needed on the modern path. Code 5 was confirmed on a live DSM 7.2.2 by
-// comparing both APIs on one task; the rest come from Synology's schema.
+// needed on the modern path. Codes confirmed on a live DSM 7.2.2 by asking
+// both APIs about the same task: 2, 5 and 101. The rest come from Synology's
+// schema and have not been seen in the wild.
 var statusByCode = map[int]Status{
 	1:  StatusWaiting,
 	2:  StatusDownloading,
@@ -46,12 +49,30 @@ var statusByCode = map[int]Status{
 	8:  StatusWaiting, // filehosting_waiting — to the user this is the same waiting
 	9:  StatusExtracting,
 	10: StatusError,
+	// A failed task reports 101, not 10: the legacy API called the very same
+	// task "error" with status_extra.error_detail, while this one answered
+	// 101 and no extra. Without this line a broken download showed up in the
+	// app as "unknown" — in a calm blue, with a pause button.
+	101: StatusError,
 }
 
+// unknownCodes remembers the codes already reported.
+//
+// The task list is polled every few seconds, so a code nobody mapped would
+// otherwise repeat the same warning until the task goes away.
+var unknownCodes sync.Map
+
 // StatusFromCode translates a numeric DownloadStation2 code into a Status.
+//
+// An unmapped code becomes "unknown" — and says so in the log. The map above
+// is incomplete by nature: Synology documents none of this, and the codes are
+// learned one failing task at a time.
 func StatusFromCode(code int) Status {
 	if s, ok := statusByCode[code]; ok {
 		return s
+	}
+	if _, seen := unknownCodes.LoadOrStore(code, true); !seen {
+		slog.Default().Warn("unknown Download Station status code, shown as unknown", "code", code)
 	}
 	return StatusUnknown
 }
