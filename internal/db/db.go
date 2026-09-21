@@ -56,6 +56,12 @@ var migrations = []string{
 	CREATE INDEX idx_recent_folders_user_time
 		ON recent_folders (user_id, used_at DESC);
 	`,
+	`
+	-- Язык, который Telegram сообщил при последнем обращении. Уведомления о
+	-- завершённых задачах уходят сами, без входящего сообщения, и спросить
+	-- язык в этот момент не у кого — поэтому он хранится.
+	ALTER TABLE user_settings ADD COLUMN language TEXT NOT NULL DEFAULT '';
+	`,
 }
 
 // Open открывает базу и доводит её схему до актуальной.

@@ -82,6 +82,13 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			FirstName: parsed.User.FirstName,
 			Language:  parsed.User.LanguageCode,
 		}
+		// Запоминаем язык: уведомления о завершённых задачах уходят сами, и
+		// спросить его в тот момент не у кого.
+		if s.settings != nil {
+			if err := s.settings.RememberLanguage(r.Context(), u.ID, u.Language); err != nil {
+				s.log.Warn("не запомнить язык", "user", u.ID, "err", err)
+			}
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, u)))
 	})
 }

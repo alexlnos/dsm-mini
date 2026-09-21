@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
 import { SkeletonEvents, SkeletonTiles } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { logDay, logTime } from '../format'
 import { t } from '../i18n'
 import { backButton } from '../telegram'
@@ -28,7 +28,7 @@ export function Notifications({ onBack }: Props) {
       setEntries(data.entries ?? [])
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('log.failed'))
+      setError(errorText(e, t('log.failed')))
     } finally {
       setLoading(false)
     }

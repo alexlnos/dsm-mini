@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Preview } from '../components/Preview'
 import { Bar, SkeletonEntries } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { size } from '../format'
 import { t } from '../i18n'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
@@ -85,7 +85,7 @@ export function Files({
       setSelected(new Set())
       report.current?.(target)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('files.readFailed'))
+      setError(errorText(e, t('files.readFailed')))
     } finally {
       setLoading(false)
     }
@@ -125,7 +125,7 @@ export function Files({
       await load(path, true)
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
+      alertMessage(errorText(e, t('common.failed')))
     } finally {
       setBusy(null)
     }

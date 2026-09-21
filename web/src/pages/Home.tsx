@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { SkeletonMeters } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { readCache, writeCache } from '../cache'
 import { size, speed, uptime } from '../format'
 import { t } from '../i18n'
@@ -45,7 +45,7 @@ export function Home({ downloads, onOpen }: Props) {
       }
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('home.offline'))
+      setError(errorText(e, t('home.offline')))
     }
   }, [])
 

@@ -34,7 +34,7 @@ func (s *Server) startTransfer(w http.ResponseWriter, r *http.Request, move bool
 	}
 	paths := cleanStrings(req.Paths)
 	if len(paths) == 0 {
-		s.bad(w, "не выбрано ни одного файла")
+		s.bad(w, r, "bad.noFiles")
 		return
 	}
 
@@ -48,11 +48,7 @@ func (s *Server) startTransfer(w http.ResponseWriter, r *http.Request, move bool
 		taskID, err = s.fs.Copy(r.Context(), paths, req.Destination, req.Overwrite)
 	}
 	if err != nil {
-		verb := "скопировать"
-		if move {
-			verb = "перенести"
-		}
-		s.fail(w, r, err, "не "+verb)
+		s.fail(w, r, err, failKey(move))
 		return
 	}
 
@@ -65,12 +61,12 @@ func (s *Server) startTransfer(w http.ResponseWriter, r *http.Request, move bool
 func (s *Server) handleTransferStatus(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
 	if id == "" {
-		s.bad(w, "не указана задача")
+		s.bad(w, r, "bad.noTask")
 		return
 	}
 	status, err := s.fs.Status(r.Context(), id)
 	if err != nil {
-		s.fail(w, r, err, "не получить ход операции")
+		s.fail(w, r, err, "api.transferStatus")
 		return
 	}
 	writeJSON(w, http.StatusOK, status)
@@ -84,7 +80,7 @@ func (s *Server) handleTransferStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.fs.Stop(r.Context(), req.TaskID); err != nil {
-		s.fail(w, r, err, "не остановить операцию")
+		s.fail(w, r, err, "api.transferStop")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -97,7 +93,7 @@ func (s *Server) handleTransferStop(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleThumb(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimSpace(r.URL.Query().Get("path"))
 	if path == "" {
-		s.bad(w, "не указан файл")
+		s.bad(w, r, "bad.noFile")
 		return
 	}
 	size := filestation.ThumbSize(r.URL.Query().Get("size"))
@@ -123,13 +119,13 @@ func (s *Server) handleThumb(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimSpace(r.URL.Query().Get("path"))
 	if path == "" {
-		s.bad(w, "не указан файл")
+		s.bad(w, r, "bad.noFile")
 		return
 	}
 
 	content, err := s.fs.Download(r.Context(), path)
 	if err != nil {
-		s.fail(w, r, err, "не открыть файл")
+		s.fail(w, r, err, "api.openFile")
 		return
 	}
 	defer content.Body.Close()

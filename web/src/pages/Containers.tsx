@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
 import { SkeletonRows } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { readCache, writeCache } from '../cache'
 import { size } from '../format'
 import { formatNumber, t } from '../i18n'
@@ -28,7 +28,7 @@ export function Containers({ onBack }: Props) {
       writeCache('containers', data.containers ?? [])
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('containers.listFailed'))
+      setError(errorText(e, t('containers.listFailed')))
     } finally {
       setLoaded(true)
     }
@@ -44,7 +44,7 @@ export function Containers({ onBack }: Props) {
       await load()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
+      alertMessage(errorText(e, t('common.failed')))
     } finally {
       setBusy(null)
     }

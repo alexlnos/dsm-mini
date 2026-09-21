@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
+	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
 // maxUploadSize ограничивает файл, который примет Mini App.
@@ -39,7 +40,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := s.tasksCache.GetStale(ctx, s.ds.List)
 	if err != nil {
-		s.fail(w, r, err, "не получить список задач")
+		s.fail(w, r, err, "api.tasks")
 		return
 	}
 	views := make([]taskView, 0, len(tasks))
@@ -82,7 +83,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := s.tasksCache.GetStale(r.Context(), s.ds.List)
 	if err != nil {
-		s.fail(w, r, err, "не получить список задач")
+		s.fail(w, r, err, "api.tasks")
 		return
 	}
 	views := make([]taskView, 0, len(tasks))
@@ -105,12 +106,12 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 
 	urls := cleanStrings(req.URLs)
 	if len(urls) == 0 {
-		s.bad(w, "не указано ни одной ссылки")
+		s.bad(w, r, "bad.noLinks")
 		return
 	}
 	for _, u := range urls {
 		if !looksLikeDownloadURL(u) {
-			s.bad(w, "ссылка не похожа на magnet или http-адрес: "+shorten(u))
+			s.bad(w, r, "bad.badLink", i18n.P{"value": shorten(u)})
 			return
 		}
 	}
@@ -119,7 +120,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		URLs:        urls,
 		Destination: req.Destination,
 	}); err != nil {
-		s.fail(w, r, err, "не поставить задачу")
+		s.fail(w, r, err, "api.create")
 		return
 	}
 	// Список только что изменился — кэш обязан это заметить.
@@ -148,7 +149,7 @@ func (s *Server) handleTaskAction(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := cleanStrings(req.IDs)
 	if len(ids) == 0 {
-		s.bad(w, "не выбрано ни одной задачи")
+		s.bad(w, r, "bad.noTasks")
 		return
 	}
 
@@ -162,11 +163,11 @@ func (s *Server) handleTaskAction(w http.ResponseWriter, r *http.Request) {
 	case "delete":
 		err = s.ds.Delete(ctx, ids, req.ForceComplete)
 	default:
-		s.bad(w, "неизвестное действие: "+shorten(req.Action))
+		s.bad(w, r, "bad.badAction", i18n.P{"value": shorten(req.Action)})
 		return
 	}
 	if err != nil {
-		s.fail(w, r, err, "действие не выполнено")
+		s.fail(w, r, err, "api.action")
 		return
 	}
 	s.tasksCache.Invalidate()
@@ -179,7 +180,7 @@ func (s *Server) handleTaskAction(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListFiles(w http.ResponseWriter, r *http.Request) {
 	entries, err := s.fs.List(r.Context(), r.URL.Query().Get("path"))
 	if err != nil {
-		s.fail(w, r, err, "не прочитать папку")
+		s.fail(w, r, err, "api.readFolder")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"entries": entries})
@@ -197,7 +198,7 @@ func (s *Server) handleCreateFolder(w http.ResponseWriter, r *http.Request) {
 	}
 	path, err := s.fs.CreateFolder(r.Context(), req.Parent, strings.TrimSpace(req.Name))
 	if err != nil {
-		s.fail(w, r, err, "не создать папку")
+		s.fail(w, r, err, "api.createFolder")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"path": path})
@@ -215,7 +216,7 @@ func (s *Server) handleRename(w http.ResponseWriter, r *http.Request) {
 	}
 	path, err := s.fs.Rename(r.Context(), req.Path, strings.TrimSpace(req.Name))
 	if err != nil {
-		s.fail(w, r, err, "не переименовать")
+		s.fail(w, r, err, "api.rename")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"path": path})
@@ -232,11 +233,11 @@ func (s *Server) handleDeleteFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	paths := cleanStrings(req.Paths)
 	if len(paths) == 0 {
-		s.bad(w, "не выбрано ни одного файла")
+		s.bad(w, r, "bad.noFiles")
 		return
 	}
 	if err := s.fs.Delete(r.Context(), paths); err != nil {
-		s.fail(w, r, err, "не удалить")
+		s.fail(w, r, err, "api.delete")
 		return
 	}
 	u, _ := userFrom(r.Context())
@@ -246,40 +247,40 @@ func (s *Server) handleDeleteFiles(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		s.bad(w, "не разобрать форму загрузки")
+		s.bad(w, r, "bad.badForm")
 		return
 	}
 	folder := r.FormValue("folder")
 	if strings.TrimSpace(folder) == "" {
-		s.bad(w, "не указана папка")
+		s.bad(w, r, "bad.noFolder")
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		s.bad(w, "файл не приложен")
+		s.bad(w, r, "bad.noAttachment")
 		return
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(io.LimitReader(file, maxUploadSize+1))
 	if err != nil {
-		s.fail(w, r, err, "не прочитать файл")
+		s.fail(w, r, err, "api.readFile")
 		return
 	}
 	if len(data) > maxUploadSize {
-		s.bad(w, "файл больше допустимых 256 МБ")
+		s.bad(w, r, "bad.tooBig")
 		return
 	}
 
 	name := sanitizeFileName(header.Filename)
 	if name == "" {
-		s.bad(w, "недопустимое имя файла")
+		s.bad(w, r, "bad.badName")
 		return
 	}
 
 	if err := s.fs.Upload(r.Context(), folder, name, data, r.FormValue("overwrite") == "true"); err != nil {
-		s.fail(w, r, err, "не загрузить файл")
+		s.fail(w, r, err, "api.upload")
 		return
 	}
 	u, _ := userFrom(r.Context())
@@ -332,31 +333,47 @@ func decode(w http.ResponseWriter, r *http.Request, dst any, s *Server) bool {
 	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		s.bad(w, "не разобрать запрос")
+		s.bad(w, r, "bad.badRequest")
 		return false
 	}
 	return true
 }
 
-func (s *Server) bad(w http.ResponseWriter, msg string) {
-	writeJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
+// bad отвечает на негодный запрос сообщением на языке того, кто его прислал.
+func (s *Server) bad(w http.ResponseWriter, r *http.Request, key string, params ...i18n.P) {
+	u, _ := userFrom(r.Context())
+	writeJSON(w, http.StatusBadRequest, map[string]string{
+		"error": i18n.T(i18n.Match(u.Language), key, params...),
+	})
 }
 
-// fail отвечает на ошибку от NAS.
+// failKey выбирает сообщение по действию: копирование и перенос ошибаются
+// одинаково, а звучать должны по-разному.
+func failKey(move bool) string {
+	if move {
+		return "api.moveFailed"
+	}
+	return "api.copyFailed"
+}
+
+// fail отвечает ошибкой и пишет её в журнал.
 //
-// Сообщения DSM понятны человеку и не содержат секретов, поэтому их видно в
-// интерфейсе: «папка не существует» полезнее, чем «внутренняя ошибка».
-func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error, context string) {
+// Человек получает сообщение на своём языке, журнал остаётся русским: его
+// читает владелец NAS, а не тот, кто нажал кнопку. Код ошибки DSM уходит
+// отдельным полем — число понятно на любом языке и помогает в разборе.
+func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error, key string) {
 	u, _ := userFrom(r.Context())
-	s.log.Error(context, "user", u.ID, "path", r.URL.Path, "err", err)
+	s.log.Error(i18n.T("ru", key), "user", u.ID, "path", r.URL.Path, "err", err)
 
 	status := http.StatusBadGateway
+	body := map[string]any{
+		"error":  i18n.T(i18n.Match(u.Language), key),
+		"detail": err.Error(),
+	}
 	var apiErr *dsm.APIError
 	if errors.As(err, &apiErr) {
 		status = http.StatusConflict
+		body["code"] = apiErr.Code
 	}
-	writeJSON(w, status, map[string]string{
-		"error":  context,
-		"detail": err.Error(),
-	})
+	writeJSON(w, status, body)
 }

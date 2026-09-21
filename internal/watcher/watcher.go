@@ -9,11 +9,20 @@ import (
 	"time"
 
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
+	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
 // Notifier отправляет готовый текст в чат.
 type Notifier interface {
 	Notify(ctx context.Context, chatID int64, text string) error
+}
+
+// LangSource сообщает, на каком языке писать в конкретный чат.
+//
+// Уведомление уходит само, без входящего сообщения, поэтому язык берётся из
+// того, что запомнено при прошлом обращении человека.
+type LangSource interface {
+	Language(ctx context.Context, userID int64) (string, error)
 }
 
 // StateStore хранит последние известные статусы задач между запусками.
@@ -27,6 +36,7 @@ type Watcher struct {
 	ds       downloadstation.Station
 	notifier Notifier
 	store    StateStore
+	langs    LangSource
 	chatIDs  []int64
 	interval time.Duration
 	log      *slog.Logger
@@ -44,7 +54,9 @@ type Options struct {
 	Interval time.Duration
 	// Store хранит состояние между запусками. Без него после перезапуска
 	// сервис повторно сообщит о задачах, завершившихся ещё до него.
-	Store  StateStore
+	Store StateStore
+	// Langs подсказывает язык получателя. Без него пишем по-английски.
+	Langs  LangSource
 	Logger *slog.Logger
 }
 
@@ -60,6 +72,7 @@ func New(o Options) *Watcher {
 		ds:       o.Downloads,
 		notifier: o.Notifier,
 		store:    o.Store,
+		langs:    o.Langs,
 		chatIDs:  o.ChatIDs,
 		interval: o.Interval,
 		log:      o.Logger,
@@ -146,8 +159,8 @@ func (w *Watcher) check(ctx context.Context) {
 }
 
 func (w *Watcher) announce(ctx context.Context, t downloadstation.Task) {
-	text := formatTask(t)
 	for _, chat := range w.chatIDs {
+		text := formatTask(w.langOf(ctx, chat), t)
 		if err := w.notifier.Notify(ctx, chat, text); err != nil {
 			w.log.Error("не отправить уведомление", "chat", chat, "err", err)
 		}
@@ -155,7 +168,20 @@ func (w *Watcher) announce(ctx context.Context, t downloadstation.Task) {
 	w.log.Info("уведомление отправлено", "task", t.ID, "status", t.Status)
 }
 
-func formatTask(t downloadstation.Task) string {
+// langOf — язык получателя; неизвестный язык даёт английский.
+func (w *Watcher) langOf(ctx context.Context, chatID int64) i18n.Lang {
+	if w.langs == nil {
+		return i18n.Fallback
+	}
+	code, err := w.langs.Language(ctx, chatID)
+	if err != nil {
+		w.log.Warn("не прочитать язык получателя", "chat", chatID, "err", err)
+		return i18n.Fallback
+	}
+	return i18n.Match(code)
+}
+
+func formatTask(lang i18n.Lang, t downloadstation.Task) string {
 	title := t.Title
 	if len(title) > 200 {
 		title = title[:200] + "…"
@@ -163,47 +189,51 @@ func formatTask(t downloadstation.Task) string {
 
 	var sb strings.Builder
 	if t.Status == downloadstation.StatusError {
-		sb.WriteString("Задача упала\n\n")
+		sb.WriteString(i18n.T(lang, "notify.failed"))
 	} else {
-		sb.WriteString("Загрузка завершена\n\n")
+		sb.WriteString(i18n.T(lang, "notify.done"))
 	}
+	sb.WriteString("\n\n")
 	sb.WriteString(title)
 
 	if t.Size > 0 {
-		fmt.Fprintf(&sb, "\n%s", humanSize(t.Size))
+		fmt.Fprintf(&sb, "\n%s", humanSize(lang, t.Size))
 	}
 	if t.Destination != "" {
 		fmt.Fprintf(&sb, " → %s", t.Destination)
 	}
 	if t.Status == downloadstation.StatusFinished && !t.CreatedAt.IsZero() && !t.CompletedAt.IsZero() {
 		if d := t.CompletedAt.Sub(t.CreatedAt); d > 0 {
-			fmt.Fprintf(&sb, "\nЗаняло %s", humanDuration(d))
+			fmt.Fprintf(&sb, "\n%s", i18n.T(lang, "notify.took",
+				i18n.P{"duration": humanDuration(lang, d)}))
 		}
 	}
 	return sb.String()
 }
 
-func humanSize(b int64) string {
+func humanSize(lang i18n.Lang, b int64) string {
 	const unit = 1024
 	if b < unit {
-		return fmt.Sprintf("%d Б", b)
+		return fmt.Sprintf("%d %s", b, i18n.T(lang, "unit.bytes"))
 	}
 	div, exp := int64(unit), 0
 	for n := b / unit; n >= unit && exp < 3; n /= unit {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.1f %s", float64(b)/float64(div), [...]string{"КБ", "МБ", "ГБ", "ТБ"}[exp])
+	names := [...]string{"unit.kb", "unit.mb", "unit.gb", "unit.tb"}
+	return fmt.Sprintf("%.1f %s", float64(b)/float64(div), i18n.T(lang, names[exp]))
 }
 
-func humanDuration(d time.Duration) string {
+func humanDuration(lang i18n.Lang, d time.Duration) string {
 	switch {
 	case d >= time.Hour:
-		return fmt.Sprintf("%d ч %d мин", int(d.Hours()), int(d.Minutes())%60)
+		return i18n.T(lang, "unit.hours", i18n.P{"value": fmt.Sprint(int(d.Hours()))}) + " " +
+			i18n.T(lang, "unit.minutes", i18n.P{"value": fmt.Sprint(int(d.Minutes()) % 60)})
 	case d >= time.Minute:
-		return fmt.Sprintf("%d мин", int(d.Minutes()))
+		return i18n.T(lang, "unit.minutes", i18n.P{"value": fmt.Sprint(int(d.Minutes()))})
 	default:
-		return fmt.Sprintf("%d с", int(d.Seconds()))
+		return i18n.T(lang, "unit.seconds", i18n.P{"value": fmt.Sprint(int(d.Seconds()))})
 	}
 }
 

@@ -31,12 +31,12 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	u, _ := userFrom(r.Context())
 
 	if s.settings == nil {
-		s.bad(w, "хранилище настроек недоступно")
+		s.bad(w, r, "bad.noStore")
 		return
 	}
 	saved, err := s.settings.Set(r.Context(), u.ID, req)
 	if err != nil {
-		s.fail(w, r, err, "не сохранить настройки")
+		s.fail(w, r, err, "api.settings")
 		return
 	}
 	s.log.Info("настройки сохранены", "user", u.ID, "pinned", len(saved.PinnedFolders))

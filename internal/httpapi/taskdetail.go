@@ -22,7 +22,7 @@ type fileView struct {
 func (s *Server) handleTaskFiles(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
 	if id == "" {
-		s.bad(w, "не указана задача")
+		s.bad(w, r, "bad.noTask")
 		return
 	}
 	ctx := r.Context()
@@ -37,7 +37,7 @@ func (s *Server) handleTaskFiles(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		s.fail(w, r, err, "не получить файлы задачи")
+		s.fail(w, r, err, "api.taskFiles")
 		return
 	}
 
@@ -72,11 +72,11 @@ func (s *Server) handleSetFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.TaskID) == "" {
-		s.bad(w, "не указана задача")
+		s.bad(w, r, "bad.noTask")
 		return
 	}
 	if len(req.Indexes) == 0 {
-		s.bad(w, "не выбран ни один файл")
+		s.bad(w, r, "bad.noFiles")
 		return
 	}
 
@@ -84,10 +84,10 @@ func (s *Server) handleSetFile(w http.ResponseWriter, r *http.Request) {
 		downloadstation.FilePriority(req.Priority), req.Wanted)
 	if err != nil {
 		if errors.Is(err, downloadstation.ErrNotActive) {
-			s.bad(w, "файлы можно менять, только пока задача качается")
+			s.bad(w, r, "bad.taskStopped")
 			return
 		}
-		s.fail(w, r, err, "не изменить файл")
+		s.fail(w, r, err, "api.setFile")
 		return
 	}
 	u, _ := userFrom(r.Context())
@@ -107,11 +107,11 @@ func (s *Server) handleSetDestination(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := cleanStrings(req.IDs)
 	if len(ids) == 0 {
-		s.bad(w, "не выбрано ни одной задачи")
+		s.bad(w, r, "bad.noTasks")
 		return
 	}
 	if err := s.ds.SetDestination(r.Context(), ids, req.Destination); err != nil {
-		s.fail(w, r, err, "не сменить папку")
+		s.fail(w, r, err, "api.setDestination")
 		return
 	}
 
@@ -137,12 +137,12 @@ func (s *Server) handleSetPriority(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := cleanStrings(req.IDs)
 	if len(ids) == 0 {
-		s.bad(w, "не выбрано ни одной задачи")
+		s.bad(w, r, "bad.noTasks")
 		return
 	}
 	err := s.ds.SetPriority(r.Context(), ids, downloadstation.FilePriority(req.Priority))
 	if err != nil {
-		s.fail(w, r, err, "не изменить приоритет")
+		s.fail(w, r, err, "api.setPriority")
 		return
 	}
 	u, _ := userFrom(r.Context())

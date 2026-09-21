@@ -200,3 +200,36 @@ func normalize(p string) string {
 	}
 	return p
 }
+
+// RememberLanguage запоминает язык, на котором с человеком говорит Telegram.
+//
+// Нужен уведомлениям: они уходят сами, без входящего сообщения, и спросить
+// язык в этот момент не у кого. Пустой код игнорируется — он бы стёр
+// известный язык и перевёл человека на английский.
+func (s *Store) RememberLanguage(ctx context.Context, userID int64, code string) error {
+	if code == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO user_settings (user_id, language) VALUES (?, ?)
+		ON CONFLICT (user_id) DO UPDATE SET language = excluded.language`,
+		userID, code)
+	if err != nil {
+		return fmt.Errorf("не запомнить язык: %w", err)
+	}
+	return nil
+}
+
+// Language возвращает запомненный язык; для незнакомого человека — пусто.
+func (s *Store) Language(ctx context.Context, userID int64) (string, error) {
+	var code string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT language FROM user_settings WHERE user_id = ?`, userID).Scan(&code)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", nil
+	case err != nil:
+		return "", fmt.Errorf("не прочитать язык: %w", err)
+	}
+	return code, nil
+}

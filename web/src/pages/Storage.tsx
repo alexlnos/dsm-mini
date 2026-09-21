@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
 import { Bar, SkeletonDisks } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { readCache, writeCache } from '../cache'
 import { size } from '../format'
 import { t } from '../i18n'
@@ -34,7 +34,7 @@ export function Storage({ onBack }: Props) {
       writeCache('storage', fresh)
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('storage.failed'))
+      setError(errorText(e, t('storage.failed')))
     }
   }, [])
 

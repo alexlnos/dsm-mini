@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { TaskCard } from '../components/TaskCard'
 import { SkeletonTasks } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, ApiError, errorText } from '../api'
 import { size, speed } from '../format'
 import { t } from '../i18n'
 import { alertMessage, haptic } from '../telegram'
@@ -170,6 +170,6 @@ export function Downloads({
 }
 
 function describe(e: unknown): string {
-  if (e instanceof ApiError) return e.detail ? `${e.message}: ${e.detail}` : e.message
+  if (e instanceof ApiError) return errorText(e, t('error.noService'))
   return t('error.noService')
 }

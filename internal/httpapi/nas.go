@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/alexlnos/dsm-mini/internal/dsm/system"
+	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
 // handleSystem отдаёт всё для главного экрана одним запросом: устройство,
@@ -60,7 +61,7 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	if infoErr != nil {
-		s.fail(w, r, infoErr, "не получить сведения о NAS")
+		s.fail(w, r, infoErr, "api.info")
 		return
 	}
 
@@ -99,7 +100,7 @@ func (s *Server) handleSystemLog(w http.ResponseWriter, r *http.Request) {
 
 	entries, err := s.system.Log(r.Context(), limit, onlyProblems)
 	if err != nil {
-		s.fail(w, r, err, "не получить журнал")
+		s.fail(w, r, err, "api.log")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"entries": entries})
@@ -108,7 +109,7 @@ func (s *Server) handleSystemLog(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleStorage(w http.ResponseWriter, r *http.Request) {
 	overview, err := s.storageCache.GetStale(r.Context(), s.storage.Load)
 	if err != nil {
-		s.fail(w, r, err, "не получить состояние хранилища")
+		s.fail(w, r, err, "api.storage")
 		return
 	}
 	writeJSON(w, http.StatusOK, overview)
@@ -118,7 +119,7 @@ func (s *Server) handleVMs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	guests, err := s.vmsCache.GetStale(ctx, s.vms.List)
 	if err != nil {
-		s.fail(w, r, err, "не получить список машин")
+		s.fail(w, r, err, "api.vms")
 		return
 	}
 	// Сводка считается по готовым данным: иначе список и сведения о хосте
@@ -150,11 +151,11 @@ func (s *Server) handleVMAction(w http.ResponseWriter, r *http.Request) {
 	case "shutdown":
 		err = s.vms.Shutdown(ctx, req.ID)
 	default:
-		s.bad(w, "неизвестное действие: "+shorten(req.Action))
+		s.bad(w, r, "bad.badAction", i18n.P{"value": shorten(req.Action)})
 		return
 	}
 	if err != nil {
-		s.fail(w, r, err, "не выполнить действие над машиной")
+		s.fail(w, r, err, "api.vmAction")
 		return
 	}
 
@@ -169,7 +170,7 @@ func (s *Server) handleVMAction(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleContainers(w http.ResponseWriter, r *http.Request) {
 	list, err := s.containers.List(r.Context())
 	if err != nil {
-		s.fail(w, r, err, "не получить список контейнеров")
+		s.fail(w, r, err, "api.containers")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"containers": list})
@@ -196,11 +197,11 @@ func (s *Server) handleContainerAction(w http.ResponseWriter, r *http.Request) {
 	case "restart":
 		err = s.containers.Restart(ctx, req.Name)
 	default:
-		s.bad(w, "неизвестное действие: "+shorten(req.Action))
+		s.bad(w, r, "bad.badAction", i18n.P{"value": shorten(req.Action)})
 		return
 	}
 	if err != nil {
-		s.fail(w, r, err, "не выполнить действие над контейнером")
+		s.fail(w, r, err, "api.containerAction")
 		return
 	}
 

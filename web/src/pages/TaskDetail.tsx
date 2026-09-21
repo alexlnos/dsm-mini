@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ProgressRing } from '../components/ProgressRing'
 import { appearance } from '../components/TaskCard'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { eta, size, speed, statusLabel, taskTitle } from '../format'
 import { t } from '../i18n'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
@@ -69,7 +69,7 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
       after?.()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
+      alertMessage(errorText(e, t('common.failed')))
     } finally {
       setBusy(false)
     }

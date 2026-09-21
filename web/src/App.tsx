@@ -9,7 +9,7 @@ import { Add, describeError, type AddDraft } from './pages/Add'
 import { Files } from './pages/Files'
 import { Folders } from './pages/Folders'
 import { TaskDetail } from './pages/TaskDetail'
-import { api, ApiError } from './api'
+import { api, ApiError, errorText } from './api'
 import { readCache, writeCache } from './cache'
 import { alertMessage, haptic } from './telegram'
 import { t } from './i18n'
@@ -81,7 +81,7 @@ export function App() {
       } else if (e instanceof ApiError && e.status === 401) {
         setError(t('access.unauthorized'))
       } else {
-        setError(e instanceof ApiError ? (e.detail ?? e.message) : t('access.unavailable'))
+        setError(errorText(e, t('access.unavailable')))
       }
     }
   }, [])
@@ -155,7 +155,7 @@ export function App() {
       void refresh()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('task.moveFailed'))
+      alertMessage(errorText(e, t('task.moveFailed')))
     }
   }, [refresh])
 

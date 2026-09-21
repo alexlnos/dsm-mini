@@ -17,13 +17,29 @@ export function setAuthToken(raw: string) {
 
 export class ApiError extends Error {
   readonly status: number
+  /** Технические подробности для журнала: человеку их не показываем. */
   readonly detail?: string
+  /** Код ошибки DSM, если он был: цифры понятны на любом языке. */
+  readonly code?: number
 
-  constructor(status: number, message: string, detail?: string) {
+  constructor(status: number, message: string, detail?: string, code?: number) {
     super(message)
     this.status = status
     this.detail = detail
+    this.code = code
   }
+}
+
+/**
+ * Что показать человеку.
+ *
+ * Сервер присылает сообщение уже на его языке, а подробности — по-русски, для
+ * журнала. Поэтому наружу идёт сообщение, а к нему код DSM: по нему видно,
+ * на что именно жалуется NAS, и его можно назвать в поддержке.
+ */
+export function errorText(e: unknown, fallback: string): string {
+  if (!(e instanceof ApiError)) return fallback
+  return e.code ? `${e.message} (${e.code})` : e.message
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -45,11 +61,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const body = parsed as { error?: string; detail?: string } | null
+    const body = parsed as { error?: string; detail?: string; code?: number } | null
     throw new ApiError(
       response.status,
       body?.error ?? t('error.http', { status: response.status }),
       body?.detail,
+      body?.code,
     )
   }
   return parsed as T

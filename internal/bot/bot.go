@@ -11,10 +11,12 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
+	"github.com/alexlnos/dsm-mini/internal/i18n"
 	"github.com/alexlnos/dsm-mini/internal/store"
 	tg "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -107,35 +109,44 @@ func (b *Bot) handleMessage(ctx context.Context, api *tg.Bot, update *models.Upd
 	}
 	msg := update.Message
 	from := msg.From.ID
+	lang := i18n.Match(msg.From.LanguageCode)
 
 	if !b.isAllowed(from) {
 		b.log.Warn("сообщение от постороннего", "user", from, "username", msg.From.Username)
-		b.reply(ctx, msg.Chat.ID, "Доступ к этому боту закрыт.")
+		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.denied"))
 		return
 	}
+	b.rememberLanguage(ctx, from, msg.From.LanguageCode)
 
 	switch {
 	case strings.HasPrefix(msg.Text, "/start"):
-		b.sendWelcome(ctx, msg.Chat.ID)
+		b.sendWelcome(ctx, msg.Chat.ID, lang)
 	case strings.HasPrefix(msg.Text, "/status"):
-		b.sendStatus(ctx, msg.Chat.ID)
+		b.sendStatus(ctx, msg.Chat.ID, lang)
 	case msg.Document != nil:
-		b.handleDocument(ctx, msg)
+		b.handleDocument(ctx, msg, lang)
 	case msg.Text != "":
-		b.handleText(ctx, msg)
+		b.handleText(ctx, msg, lang)
 	}
 }
 
-func (b *Bot) sendWelcome(ctx context.Context, chatID int64) {
-	text := "Управление загрузками на NAS.\n\n" +
-		"Пришлите magnet-ссылку, прямую ссылку или файл .torrent — предложу папку и поставлю в очередь.\n" +
-		"/status — что качается прямо сейчас."
+// rememberLanguage запоминает язык собеседника: уведомления о завершённых
+// задачах уходят сами, и спросить язык в тот момент не у кого.
+func (b *Bot) rememberLanguage(ctx context.Context, userID int64, code string) {
+	if b.settings == nil {
+		return
+	}
+	if err := b.settings.RememberLanguage(ctx, userID, code); err != nil {
+		b.log.Warn("не запомнить язык", "user", userID, "err", err)
+	}
+}
 
-	params := &tg.SendMessageParams{ChatID: chatID, Text: text}
+func (b *Bot) sendWelcome(ctx context.Context, chatID int64, lang i18n.Lang) {
+	params := &tg.SendMessageParams{ChatID: chatID, Text: i18n.T(lang, "bot.welcome")}
 	if b.publicURL != "" {
 		params.ReplyMarkup = &models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{{
-				{Text: "Открыть загрузки", WebApp: &models.WebAppInfo{URL: b.publicURL}},
+				{Text: i18n.T(lang, "bot.openApp"), WebApp: &models.WebAppInfo{URL: b.publicURL}},
 			}},
 		}
 	}
@@ -144,10 +155,10 @@ func (b *Bot) sendWelcome(ctx context.Context, chatID int64) {
 	}
 }
 
-func (b *Bot) sendStatus(ctx context.Context, chatID int64) {
+func (b *Bot) sendStatus(ctx context.Context, chatID int64, lang i18n.Lang) {
 	tasks, err := b.ds.List(ctx)
 	if err != nil {
-		b.reply(ctx, chatID, "Не получилось связаться с NAS: "+err.Error())
+		b.reply(ctx, chatID, i18n.T(lang, "bot.nasFailed", i18n.P{"error": err.Error()}))
 		return
 	}
 
@@ -158,57 +169,61 @@ func (b *Bot) sendStatus(ctx context.Context, chatID int64) {
 		}
 	}
 	if len(active) == 0 {
-		b.reply(ctx, chatID, fmt.Sprintf("Ничего не качается. Всего задач: %d.", len(tasks)))
+		b.reply(ctx, chatID, i18n.T(lang, "bot.nothingActive",
+			i18n.P{"total": strconv.Itoa(len(tasks))}))
 		return
 	}
 
 	var sb strings.Builder
 	var down int64
-	fmt.Fprintf(&sb, "Активных задач: %d\n", len(active))
+	sb.WriteString(i18n.T(lang, "bot.activeCount", i18n.P{"count": strconv.Itoa(len(active))}))
+	sb.WriteString("\n")
 	for i, t := range active {
 		if i == 10 {
-			fmt.Fprintf(&sb, "\n…и ещё %d", len(active)-10)
+			fmt.Fprintf(&sb, "\n%s", i18n.T(lang, "bot.andMore",
+				i18n.P{"count": strconv.Itoa(len(active) - 10)}))
 			break
 		}
 		down += t.SpeedDown
-		fmt.Fprintf(&sb, "\n%s\n  %.0f%% · %s", t.Title, t.Progress()*100, speed(t.SpeedDown))
+		fmt.Fprintf(&sb, "\n%s\n  %.0f%% · %s", t.Title, t.Progress()*100, speed(lang, t.SpeedDown))
 		if eta, ok := t.ETA(); ok {
-			fmt.Fprintf(&sb, " · осталось %s", duration(eta))
+			sb.WriteString(i18n.T(lang, "bot.etaLeft", i18n.P{"eta": duration(lang, eta)}))
 		}
 	}
-	fmt.Fprintf(&sb, "\n\nОбщая скорость: %s", speed(down))
+	fmt.Fprintf(&sb, "\n\n%s", i18n.T(lang, "bot.totalSpeed", i18n.P{"speed": speed(lang, down)}))
 	b.reply(ctx, chatID, sb.String())
 }
 
-func (b *Bot) handleText(ctx context.Context, msg *models.Message) {
+func (b *Bot) handleText(ctx context.Context, msg *models.Message, lang i18n.Lang) {
 	link := strings.TrimSpace(msg.Text)
 	if !isDownloadLink(link) {
-		b.reply(ctx, msg.Chat.ID,
-			"Это не похоже на ссылку для загрузки. Пришлите magnet:, http(s):// или файл .torrent.")
+		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.notALink"))
 		return
 	}
-	b.askDestination(ctx, msg.Chat.ID, msg.From.ID, pending{URL: link, Title: titleFromLink(link)})
+	b.askDestination(ctx, msg.Chat.ID, msg.From.ID, lang,
+		pending{URL: link, Title: titleFromLink(link)})
 }
 
-func (b *Bot) handleDocument(ctx context.Context, msg *models.Message) {
+func (b *Bot) handleDocument(ctx context.Context, msg *models.Message, lang i18n.Lang) {
 	doc := msg.Document
 	name := doc.FileName
 	if !strings.HasSuffix(strings.ToLower(name), ".torrent") {
-		b.reply(ctx, msg.Chat.ID, "Нужен файл .torrent — этот не подходит.")
+		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.needTorrent"))
 		return
 	}
 	if doc.FileSize > maxTorrentSize {
-		b.reply(ctx, msg.Chat.ID, "Файл слишком большой для торрента.")
+		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.tooBig"))
 		return
 	}
 
 	data, err := b.download(ctx, doc.FileID)
 	if err != nil {
 		b.log.Error("не скачать файл из Telegram", "err", err)
-		b.reply(ctx, msg.Chat.ID, "Не получилось забрать файл из Telegram.")
+		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.fetchFailed"))
 		return
 	}
-	b.askDestination(ctx, msg.Chat.ID, msg.From.ID, pending{File: data, FileName: name, Title: name})
+	b.askDestination(ctx, msg.Chat.ID, msg.From.ID, lang,
+		pending{File: data, FileName: name, Title: name})
 }
 
 // download забирает файл, присланный в чат, с серверов Telegram.
@@ -235,7 +250,7 @@ func (b *Bot) download(ctx context.Context, fileID string) ([]byte, error) {
 }
 
 // askDestination предлагает папки кнопками.
-func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, p pending) {
+func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, lang i18n.Lang, p pending) {
 	key := b.pending.put(p)
 
 	folders := b.folders(ctx, userID)
@@ -249,9 +264,9 @@ func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, p pendin
 		}})
 	}
 
-	text := "Куда положить?"
+	text := i18n.T(lang, "bot.whereTo")
 	if p.Title != "" {
-		text = p.Title + "\n\nКуда положить?"
+		text = p.Title + "\n\n" + text
 	}
 	_, err := b.api.SendMessage(ctx, &tg.SendMessageParams{
 		ChatID:      chatID,
@@ -311,31 +326,33 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 	if q == nil || q.From.ID == 0 {
 		return
 	}
+	lang := i18n.Match(q.From.LanguageCode)
 	if !b.isAllowed(q.From.ID) {
-		b.answer(ctx, q.ID, "Доступ закрыт")
+		b.answer(ctx, q.ID, i18n.T(lang, "bot.accessClosed"))
 		return
 	}
+	b.rememberLanguage(ctx, q.From.ID, q.From.LanguageCode)
 
 	parts := strings.SplitN(strings.TrimPrefix(q.Data, "dest:"), ":", 2)
 	if len(parts) != 2 {
-		b.answer(ctx, q.ID, "Непонятный выбор")
+		b.answer(ctx, q.ID, i18n.T(lang, "bot.badChoice"))
 		return
 	}
 
 	p, ok := b.pending.take(parts[0])
 	if !ok {
-		b.answer(ctx, q.ID, "Запрос устарел — пришлите ссылку заново")
+		b.answer(ctx, q.ID, i18n.T(lang, "bot.expired"))
 		return
 	}
 
 	var index int
 	if _, err := fmt.Sscanf(parts[1], "%d", &index); err != nil {
-		b.answer(ctx, q.ID, "Непонятный выбор")
+		b.answer(ctx, q.ID, i18n.T(lang, "bot.badChoice"))
 		return
 	}
 	folders := b.folders(ctx, q.From.ID)
 	if index < 0 || index >= len(folders) {
-		b.answer(ctx, q.ID, "Папка больше недоступна")
+		b.answer(ctx, q.ID, i18n.T(lang, "bot.folderGone"))
 		return
 	}
 	dest := folders[index]
@@ -350,8 +367,8 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 
 	if err := b.ds.Create(ctx, req); err != nil {
 		b.log.Error("не поставить задачу из чата", "user", q.From.ID, "err", err)
-		b.answer(ctx, q.ID, "Не получилось")
-		b.reply(ctx, chatOf(q), "NAS отказал: "+err.Error())
+		b.answer(ctx, q.ID, i18n.T(lang, "bot.failed"))
+		b.reply(ctx, chatOf(q), i18n.T(lang, "bot.nasRefused", i18n.P{"error": err.Error()}))
 		return
 	}
 
@@ -361,8 +378,8 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 		}
 	}
 	b.log.Info("задача из чата поставлена", "user", q.From.ID, "dest", dest)
-	b.answer(ctx, q.ID, "Поставлено")
-	b.reply(ctx, chatOf(q), "Поставил в очередь → "+dest)
+	b.answer(ctx, q.ID, i18n.T(lang, "bot.queued"))
+	b.reply(ctx, chatOf(q), i18n.T(lang, "bot.queuedTo", i18n.P{"folder": dest}))
 }
 
 func chatOf(q *models.CallbackQuery) int64 {
@@ -413,24 +430,25 @@ func titleFromLink(link string) string {
 	return link
 }
 
-func speed(bps int64) string {
+func speed(lang i18n.Lang, bps int64) string {
 	switch {
 	case bps >= 1<<20:
-		return fmt.Sprintf("%.1f МБ/с", float64(bps)/(1<<20))
+		return fmt.Sprintf("%.1f %s/s", float64(bps)/(1<<20), i18n.T(lang, "unit.mb"))
 	case bps >= 1<<10:
-		return fmt.Sprintf("%.0f КБ/с", float64(bps)/(1<<10))
+		return fmt.Sprintf("%.0f %s/s", float64(bps)/(1<<10), i18n.T(lang, "unit.kb"))
 	default:
-		return fmt.Sprintf("%d Б/с", bps)
+		return fmt.Sprintf("%d %s/s", bps, i18n.T(lang, "unit.bytes"))
 	}
 }
 
-func duration(d time.Duration) string {
+func duration(lang i18n.Lang, d time.Duration) string {
 	switch {
 	case d >= time.Hour:
-		return fmt.Sprintf("%d ч %d мин", int(d.Hours()), int(d.Minutes())%60)
+		return i18n.T(lang, "unit.hours", i18n.P{"value": strconv.Itoa(int(d.Hours()))}) + " " +
+			i18n.T(lang, "unit.minutes", i18n.P{"value": strconv.Itoa(int(d.Minutes()) % 60)})
 	case d >= time.Minute:
-		return fmt.Sprintf("%d мин", int(d.Minutes()))
+		return i18n.T(lang, "unit.minutes", i18n.P{"value": strconv.Itoa(int(d.Minutes()))})
 	default:
-		return fmt.Sprintf("%d с", int(d.Seconds()))
+		return i18n.T(lang, "unit.seconds", i18n.P{"value": strconv.Itoa(int(d.Seconds()))})
 	}
 }

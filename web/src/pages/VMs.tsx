@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
 import { SkeletonRows, SkeletonTiles } from '../components/Skeleton'
-import { api, ApiError } from '../api'
+import { api, errorText } from '../api'
 import { readCache, writeCache } from '../cache'
 import type { Guest, VMHost } from '../types'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
@@ -39,7 +39,7 @@ export function VMs({ onBack }: Props) {
       writeCache('vm-host', data.host)
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('vms.listFailed'))
+      setError(errorText(e, t('vms.listFailed')))
     } finally {
       setLoaded(true)
     }
@@ -68,7 +68,7 @@ export function VMs({ onBack }: Props) {
       await load()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
+      alertMessage(errorText(e, t('common.failed')))
     } finally {
       setBusy(null)
     }

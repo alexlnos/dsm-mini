@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ApiError } from '../api'
+import { ApiError, errorText } from '../api'
 import { alertMessage, backButton, haptic } from '../telegram'
 import { t } from '../i18n'
 import type { Overview } from '../types'
@@ -144,6 +144,6 @@ export function Add({
 }
 
 export function describeError(e: unknown): string {
-  if (e instanceof ApiError) return e.detail ?? e.message
+  if (e instanceof ApiError) return errorText(e, t('add.failed'))
   return t('add.failed')
 }

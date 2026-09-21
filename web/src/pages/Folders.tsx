@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, ApiError } from '../api'
+import { api, ApiError, errorText } from '../api'
 import { alertMessage, backButton, haptic } from '../telegram'
 import { t } from '../i18n'
 import type { Settings, SettingsView } from '../types'
@@ -211,6 +211,6 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
 }
 
 function describe(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.detail ?? e.message
+  if (e instanceof ApiError) return errorText(e, fallback)
   return fallback
 }
