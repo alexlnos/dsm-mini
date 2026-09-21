@@ -1,17 +1,16 @@
-// Package store хранит пользовательские настройки приложения.
+// Package store хранит пользовательские настройки в SQLite.
 //
-// Настройки лежат на сервере, а не в браузере: Mini App открывают с разных
-// устройств, и закреплённые папки должны быть везде одинаковыми.
+// Настройки лежат на стороне сервиса, а не в браузере: Mini App открывают с
+// разных устройств, и закреплённые папки должны быть везде одинаковыми, а
+// хранилище webview Telegram чистится без предупреждения.
 package store
 
 import (
-	"encoding/json"
+	"context"
+	"database/sql"
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
 )
 
 // maxPinned — сколько папок можно закрепить.
@@ -28,87 +27,106 @@ type Settings struct {
 	LastUsed string `json:"last_used"`
 }
 
-// Defaults возвращает настройки для пользователя, который ничего не менял.
+// Defaults возвращает настройки пользователя, который ничего не менял.
 func Defaults() Settings {
 	return Settings{ShowRecent: true}
 }
 
-// Store — настройки всех пользователей в одном файле.
+// Store — доступ к настройкам.
 type Store struct {
-	path string
-
-	mu   sync.RWMutex
-	data map[string]Settings
+	db *sql.DB
 }
 
-// New открывает хранилище. Отсутствующий файл — не ошибка: это первый запуск.
-func New(path string) (*Store, error) {
-	s := &Store{path: path, data: make(map[string]Settings)}
-	raw, err := os.ReadFile(path)
+// New оборачивает уже открытую базу.
+func New(database *sql.DB) *Store { return &Store{db: database} }
+
+// Get возвращает настройки пользователя; для незнакомого — значения по умолчанию.
+func (s *Store) Get(ctx context.Context, userID int64) (Settings, error) {
+	out := Defaults()
+
+	var showRecent int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT show_recent, last_used FROM user_settings WHERE user_id = ?`,
+		userID).Scan(&showRecent, &out.LastUsed)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return out, nil
+	case err != nil:
+		return out, fmt.Errorf("не прочитать настройки: %w", err)
+	}
+	out.ShowRecent = showRecent != 0
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT path FROM pinned_folders WHERE user_id = ? ORDER BY position`, userID)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return s, nil
-		}
-		return nil, fmt.Errorf("не прочитать настройки: %w", err)
+		return out, fmt.Errorf("не прочитать закреплённые папки: %w", err)
 	}
-	if err := json.Unmarshal(raw, &s.data); err != nil {
-		// Испорченный файл не должен мешать работе: начинаем с чистых
-		// настроек, прежние значения перезапишутся при первом сохранении.
-		s.data = make(map[string]Settings)
-	}
-	return s, nil
-}
+	defer rows.Close()
 
-// Get возвращает настройки пользователя.
-func (s *Store) Get(userID int64) Settings {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if v, ok := s.data[key(userID)]; ok {
-		return v
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return out, err
+		}
+		out.PinnedFolders = append(out.PinnedFolders, path)
 	}
-	return Defaults()
+	return out, rows.Err()
 }
 
 // Set сохраняет настройки, приводя их в порядок: пути нормализуются,
 // дубликаты и пустые значения выбрасываются, список подрезается.
-func (s *Store) Set(userID int64, v Settings) (Settings, error) {
+func (s *Store) Set(ctx context.Context, userID int64, v Settings) (Settings, error) {
 	v.PinnedFolders = cleanFolders(v.PinnedFolders)
 	v.LastUsed = normalize(v.LastUsed)
 
-	s.mu.Lock()
-	s.data[key(userID)] = v
-	snapshot, err := json.Marshal(s.data)
-	s.mu.Unlock()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return v, err
 	}
-	return v, s.write(snapshot)
+	defer tx.Rollback()
+
+	showRecent := 0
+	if v.ShowRecent {
+		showRecent = 1
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO user_settings (user_id, show_recent, last_used)
+		VALUES (?, ?, ?)
+		ON CONFLICT(user_id) DO UPDATE SET
+			show_recent = excluded.show_recent,
+			last_used   = excluded.last_used`,
+		userID, showRecent, v.LastUsed); err != nil {
+		return v, fmt.Errorf("не сохранить настройки: %w", err)
+	}
+
+	// Порядок папок значим, поэтому список переписывается целиком: так
+	// позиции всегда плотные и совпадают с тем, что видит пользователь.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM pinned_folders WHERE user_id = ?`, userID); err != nil {
+		return v, err
+	}
+	for i, folder := range v.PinnedFolders {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO pinned_folders (user_id, position, path) VALUES (?, ?, ?)`,
+			userID, i, folder); err != nil {
+			return v, fmt.Errorf("не сохранить папку %q: %w", folder, err)
+		}
+	}
+	return v, tx.Commit()
 }
 
 // RememberLastUsed запоминает папку последней задачи.
-func (s *Store) RememberLastUsed(userID int64, folder string) {
+func (s *Store) RememberLastUsed(ctx context.Context, userID int64, folder string) error {
 	folder = normalize(folder)
 	if folder == "" {
-		return
+		return nil
 	}
-	current := s.Get(userID)
-	if current.LastUsed == folder {
-		return
-	}
-	current.LastUsed = folder
-	_, _ = s.Set(userID, current)
-}
-
-func (s *Store) write(data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
-		return err
-	}
-	// Через временный файл: прерванная запись не испортит настройки.
-	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, s.path)
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO user_settings (user_id, show_recent, last_used)
+		VALUES (?, 1, ?)
+		ON CONFLICT(user_id) DO UPDATE SET last_used = excluded.last_used`,
+		userID, folder)
+	return err
 }
 
 func cleanFolders(in []string) []string {
@@ -138,5 +156,3 @@ func normalize(p string) string {
 	}
 	return p
 }
-
-func key(id int64) string { return strconv.FormatInt(id, 10) }

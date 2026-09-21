@@ -3,11 +3,8 @@ package watcher
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,14 +16,20 @@ type Notifier interface {
 	Notify(ctx context.Context, chatID int64, text string) error
 }
 
+// StateStore хранит последние известные статусы задач между запусками.
+type StateStore interface {
+	TaskStates(ctx context.Context) (map[string]string, error)
+	SaveTaskStates(ctx context.Context, states map[string]string) error
+}
+
 // Watcher опрашивает Download Station и сообщает о завершившихся задачах.
 type Watcher struct {
-	ds        downloadstation.Station
-	notifier  Notifier
-	chatIDs   []int64
-	interval  time.Duration
-	statePath string
-	log       *slog.Logger
+	ds       downloadstation.Station
+	notifier Notifier
+	store    StateStore
+	chatIDs  []int64
+	interval time.Duration
+	log      *slog.Logger
 
 	// seen хранит последний известный статус каждой задачи.
 	seen map[string]downloadstation.Status
@@ -39,11 +42,10 @@ type Options struct {
 	// ChatIDs — кому слать. Обычно совпадает со списком разрешённых.
 	ChatIDs  []int64
 	Interval time.Duration
-	// StatePath — файл, где хранится последнее известное состояние.
-	// Без него после перезапуска сервис повторно сообщит о задачах,
-	// которые завершились ещё до него. Пустая строка отключает хранение.
-	StatePath string
-	Logger    *slog.Logger
+	// Store хранит состояние между запусками. Без него после перезапуска
+	// сервис повторно сообщит о задачах, завершившихся ещё до него.
+	Store  StateStore
+	Logger *slog.Logger
 }
 
 // New создаёт наблюдателя.
@@ -55,15 +57,15 @@ func New(o Options) *Watcher {
 		o.Interval = 30 * time.Second
 	}
 	w := &Watcher{
-		ds:        o.Downloads,
-		notifier:  o.Notifier,
-		chatIDs:   o.ChatIDs,
-		interval:  o.Interval,
-		statePath: o.StatePath,
-		log:       o.Logger,
-		seen:      make(map[string]downloadstation.Status),
+		ds:       o.Downloads,
+		notifier: o.Notifier,
+		store:    o.Store,
+		chatIDs:  o.ChatIDs,
+		interval: o.Interval,
+		log:      o.Logger,
+		seen:     make(map[string]downloadstation.Status),
 	}
-	w.load()
+	w.load(context.Background())
 	return w
 }
 
@@ -83,7 +85,7 @@ func (w *Watcher) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			w.save()
+			w.save(context.Background())
 			return
 		case <-ticker.C:
 			w.check(ctx)
@@ -100,7 +102,7 @@ func (w *Watcher) snapshot(ctx context.Context) {
 	for _, t := range tasks {
 		w.seen[t.ID] = t.Status
 	}
-	w.save()
+	w.save(ctx)
 	w.log.Info("исходное состояние записано", "tasks", len(tasks))
 }
 
@@ -139,7 +141,7 @@ func (w *Watcher) check(ctx context.Context) {
 		}
 	}
 	if changed {
-		w.save()
+		w.save(ctx)
 	}
 }
 
@@ -205,45 +207,32 @@ func humanDuration(d time.Duration) string {
 	}
 }
 
-func (w *Watcher) load() {
-	if w.statePath == "" {
+func (w *Watcher) load(ctx context.Context) {
+	if w.store == nil {
 		return
 	}
-	data, err := os.ReadFile(w.statePath)
+	states, err := w.store.TaskStates(ctx)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			w.log.Warn("не прочитать сохранённое состояние", "path", w.statePath, "err", err)
-		}
+		w.log.Warn("не прочитать сохранённое состояние", "err", err)
 		return
 	}
-	if err := json.Unmarshal(data, &w.seen); err != nil {
-		w.log.Warn("сохранённое состояние испорчено, начинаем заново", "err", err)
-		w.seen = make(map[string]downloadstation.Status)
-		return
+	for id, status := range states {
+		w.seen[id] = downloadstation.Status(status)
 	}
-	w.log.Info("состояние восстановлено", "tasks", len(w.seen))
+	if len(w.seen) > 0 {
+		w.log.Info("состояние восстановлено", "tasks", len(w.seen))
+	}
 }
 
-func (w *Watcher) save() {
-	if w.statePath == "" {
+func (w *Watcher) save(ctx context.Context) {
+	if w.store == nil {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(w.statePath), 0o700); err != nil {
-		w.log.Warn("не создать каталог состояния", "err", err)
-		return
+	states := make(map[string]string, len(w.seen))
+	for id, status := range w.seen {
+		states[id] = string(status)
 	}
-	data, err := json.Marshal(w.seen)
-	if err != nil {
-		return
-	}
-	// Пишем через временный файл: прерванная запись не должна оставить
-	// испорченное состояние.
-	tmp := w.statePath + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := w.store.SaveTaskStates(ctx, states); err != nil {
 		w.log.Warn("не сохранить состояние", "err", err)
-		return
-	}
-	if err := os.Rename(tmp, w.statePath); err != nil {
-		w.log.Warn("не заменить файл состояния", "err", err)
 	}
 }

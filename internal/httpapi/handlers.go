@@ -63,7 +63,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u, _ := userFrom(ctx)
-	settings := s.userSettings(u.ID)
+	settings := s.userSettings(ctx, u.ID)
 	if settings.LastUsed == "" {
 		settings.LastUsed = dest
 	}
@@ -124,7 +124,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 	u, _ := userFrom(r.Context())
 	if s.settings != nil && req.Destination != "" {
-		s.settings.RememberLastUsed(u.ID, req.Destination)
+		if err := s.settings.RememberLastUsed(r.Context(), u.ID, req.Destination); err != nil {
+			s.log.Warn("не запомнить папку", "user", u.ID, "err", err)
+		}
 	}
 	s.log.Info("задача поставлена", "user", u.ID, "count", len(urls), "dest", req.Destination)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "count": len(urls)})

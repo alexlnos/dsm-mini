@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/alexlnos/dsm-mini/internal/store"
@@ -17,7 +18,7 @@ type settingsView struct {
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	u, _ := userFrom(r.Context())
 	writeJSON(w, http.StatusOK, settingsView{
-		Settings:  s.userSettings(u.ID),
+		Settings:  s.userSettings(r.Context(), u.ID),
 		Suggested: s.suggestFolders(r),
 	})
 }
@@ -33,7 +34,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.bad(w, "хранилище настроек недоступно")
 		return
 	}
-	saved, err := s.settings.Set(u.ID, req)
+	saved, err := s.settings.Set(r.Context(), u.ID, req)
 	if err != nil {
 		s.fail(w, r, err, "не сохранить настройки")
 		return
@@ -45,11 +46,18 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) userSettings(userID int64) store.Settings {
+func (s *Server) userSettings(ctx context.Context, userID int64) store.Settings {
 	if s.settings == nil {
 		return store.Defaults()
 	}
-	return s.settings.Get(userID)
+	settings, err := s.settings.Get(ctx, userID)
+	if err != nil {
+		// Настройки — не то, ради чего стоит отказывать в работе: показываем
+		// значения по умолчанию и пишем в журнал.
+		s.log.Warn("не прочитать настройки", "user", userID, "err", err)
+		return store.Defaults()
+	}
+	return settings
 }
 
 // suggestFolders собирает папки, которые есть смысл предложить: папку по
@@ -86,7 +94,7 @@ func (s *Server) suggestFolders(r *http.Request) []string {
 // их увидит пользователь: сначала закреплённые, затем, если разрешено,
 // недавние.
 func (s *Server) folderChoices(r *http.Request, userID int64) []string {
-	settings := s.userSettings(userID)
+	settings := s.userSettings(r.Context(), userID)
 
 	seen := map[string]bool{}
 	out := make([]string, 0, 12)
