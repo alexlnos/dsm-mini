@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   spk:
@@ -58,3 +60,33 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             || gh release upload "${GITHUB_REF_NAME}" dist/*.spk --clobber
+
+  # Каталог для «Источников пакетов» Центра пакетов: один статический файл на
+  # архитектуру. Сами .spk лежат в релизе — страница только говорит Центру
+  # пакетов, где их взять.
+  pages:
+    name: Каталог пакетов
+    needs: spk
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Собрать каталог
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          case "$version" in *-*) : ;; *) version="$version-1" ;; esac
+          python3 tools/make-feed.py "$version" --out public
+          cp spk/PACKAGE_ICON.PNG public/icon_72.png
+          cp spk/PACKAGE_ICON_256.PNG public/icon_256.png
+          ls public/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deploy
+        uses: actions/deploy-pages@v4
