@@ -1,7 +1,9 @@
 package bot
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"strings"
 
 	tg "github.com/go-telegram/bot"
@@ -9,6 +11,12 @@ import (
 
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
+
+// avatar is the project mark, put on the bot when it has none of its own.
+// Rendered from assets/icon.svg by tools/make-icons.sh.
+//
+//go:embed avatar.png
+var avatar []byte
 
 // Appearance is how the bot looks in Telegram.
 //
@@ -19,8 +27,8 @@ import (
 // The name is deliberately not here. It is the one thing the owner picks when
 // they create the bot, and overwriting it on every start took that choice away
 // — someone who renamed their bot in @BotFather found the old name back after
-// a restart. The avatar is not here either, for a duller reason: the Bot API
-// does not offer it (@BotFather, /setuserpic).
+// a restart. The avatar follows the same rule but can be helped along: an
+// empty profile gets the project mark, one the owner has set is left alone.
 type Appearance struct {
 	// ShortDescription is the line in the bot profile, up to 120 characters.
 	ShortDescription string
@@ -65,6 +73,7 @@ func (b *Bot) ConfigureAll(ctx context.Context) {
 	if err := b.setMenuButton(ctx, DefaultAppearance(i18n.Fallback).MenuButtonText); err != nil {
 		b.log.Warn("cannot set the menu button", "err", err)
 	}
+	b.setAvatarIfEmpty(ctx)
 	b.log.Info("bot appearance applied", "languages", len(i18n.Languages())+1)
 }
 
@@ -188,4 +197,46 @@ func (b *Bot) setMenuButton(ctx context.Context, text string) error {
 		},
 	})
 	return err
+}
+
+// setAvatarIfEmpty puts the project mark on a bot that has no picture.
+//
+// Only when there is none. The avatar belongs to whoever created the bot, and
+// a fresh one simply has nothing — filling that in is a courtesy, overwriting
+// a chosen picture would be the mistake the name once made.
+//
+// Both halves are recent: setMyProfilePhoto arrived in Bot API 9.4, and the
+// current photo is read with getUserProfilePhotos on the bot's own id, which
+// works even though the documentation describes it for users.
+func (b *Bot) setAvatarIfEmpty(ctx context.Context) {
+	me, err := b.api.GetMe(ctx)
+	if err != nil {
+		b.log.Warn("cannot ask who the bot is", "err", err)
+		return
+	}
+
+	photos, err := b.api.GetUserProfilePhotos(ctx, &tg.GetUserProfilePhotosParams{
+		UserID: me.ID,
+		Limit:  1,
+	})
+	if err != nil {
+		// Not worth failing the startup over a picture.
+		b.log.Warn("cannot read the bot picture", "err", err)
+		return
+	}
+	if photos.TotalCount > 0 {
+		return
+	}
+
+	_, err = b.api.SetMyProfilePhoto(ctx, &tg.SetMyProfilePhotoParams{
+		Photo: models.InputProfilePhotoStatic{
+			Photo:           "attach://avatar.png",
+			MediaAttachment: bytes.NewReader(avatar),
+		},
+	})
+	if err != nil {
+		b.log.Warn("cannot set the bot picture", "err", err)
+		return
+	}
+	b.log.Info("bot picture set: the profile had none")
 }

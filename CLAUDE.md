@@ -295,9 +295,14 @@ from the Telegram user's `language_code`, an unknown one gets English.
   language and **only when it changes**: across ten languages that is a couple
   of dozen requests otherwise.
 - **The name is not set from code.** It belongs to whoever created the bot, and
-  writing it on every start silently undid a rename made in @BotFather. The
-  avatar is not set either, for a duller reason — the Bot API has no method
-  for it.
+  writing it on every start silently undid a rename made in @BotFather.
+- **The avatar is set only when there is none.** `setMyProfilePhoto` arrived in
+  Bot API 9.4 (February 2026) — before that it really was a trip to @BotFather,
+  and a comment in this repository said so for a while after it stopped being
+  true. The current picture is read with `getUserProfilePhotos` on the bot's
+  own id: the documentation describes that method for users, but it answers for
+  a bot too — checked against the live API, both branches. An empty profile
+  gets `internal/bot/avatar.png`, a picture the owner chose is left alone.
 
 ## Build and run
 

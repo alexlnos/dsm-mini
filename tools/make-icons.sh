@@ -34,6 +34,10 @@ render 256 "$ROOT/spk/PACKAGE_ICON_256.PNG"
 # The SynoCommunity recipe builds the package itself and wants its own copy.
 render 256 "$ROOT/contrib/spksrc/spk/dsm-mini/src/dsm-mini.png"
 
+# The bot's own avatar, embedded in the binary: the service puts it on the bot
+# at startup when the bot has none of its own.
+render 512 "$ROOT/internal/bot/avatar.png"
+
 # The Mini App: the tab icon, and what Telegram shows while the app loads.
 render 192 "$ROOT/web/public/icon-192.png"
 render 512 "$ROOT/web/public/icon-512.png"
