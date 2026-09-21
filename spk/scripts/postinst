@@ -30,7 +30,9 @@ put DSM_INSECURE_TLS "true"
 put TELEGRAM_BOT_TOKEN "$wizard_bot_token"
 put ALLOWED_USER_IDS "$wizard_allowed_ids"
 put PUBLIC_URL "$wizard_public_url"
-put LISTEN_ADDR ":${wizard_port:-8080}"
+# Loopback only: the reverse proxy reaches the service through localhost,
+# and ":port" would also hand it to anyone on the local network.
+put LISTEN_ADDR "127.0.0.1:${wizard_port:-8080}"
 put LOG_LEVEL "info"
 
 chmod 600 "$ENV_FILE"

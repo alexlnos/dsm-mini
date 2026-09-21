@@ -113,6 +113,12 @@ The service is exposed to the internet and can delete files on the NAS.
   permanently holds the keys to every user's bot. Considered and declined in
   September 2026; the installation wizard explains the BotFather step instead.
 
+- **The service binds loopback only** (`127.0.0.1:8080`), because the DSM
+  reverse proxy reaches it through localhost. `:8080` would also publish it to
+  the whole local network — which is what the package actually did until
+  September 2026, while the README claimed the opposite. A security claim in
+  the documentation is worth checking against a live port, not against the
+  intent of the person who wrote it.
 - **Examples in documentation are invented, never copied from a live `.env`.**
   A real bot token once went into the README as the example token, spread into
   ten translations, nine wizard files and the compose block, and stayed there

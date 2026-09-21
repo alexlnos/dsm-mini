@@ -47,7 +47,10 @@ func Load() (*Config, error) {
 		DSMInsecure:   envBool("DSM_INSECURE_TLS", false),
 		BotToken:      env("TELEGRAM_BOT_TOKEN", ""),
 		PublicURL:     strings.TrimRight(env("PUBLIC_URL", ""), "/"),
-		ListenAddr:    env("LISTEN_ADDR", ":8080"),
+		// Loopback, not ":8080": the DSM reverse proxy connects through
+		// localhost, and binding every interface would put the app on the
+		// LAN as well, next to the one address that is supposed to reach it.
+		ListenAddr:    env("LISTEN_ADDR", "127.0.0.1:8080"),
 		LogLevel:      env("LOG_LEVEL", "info"),
 		WatchInterval: envDuration("WATCH_INTERVAL", 30*time.Second),
 	}
