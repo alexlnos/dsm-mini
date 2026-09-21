@@ -23,9 +23,9 @@ falta, qué hay en los discos y cómo se encuentra el NAS.
   <img src="docs/screenshots/es-storage.webp" width="19%" alt="Almacenamiento">
 </p>
 
-> Funcionando: el bot, la Mini App y las notificaciones. Probado en DSM 7.2.2 con
-> Download Station 4.1.2 y File Station 1.4.4. La compatibilidad con DSM 6 está
-> escrita según la documentación, pero no se ha comprobado en un DSM 6 real.
+> Funcionando: el bot, la Mini App y las notificaciones. Requiere DSM 7 o
+> posterior: en DSM 6 el paquete no se instalará y allí nadie lo ha probado.
+> Probado en DSM 7.2.2 con Download Station 4.1.2 y File Station 1.4.4.
 
 ## Qué sabe hacer
 
@@ -88,7 +88,7 @@ media hora: la mayor parte se va en el certificado, no en el servicio.
    obligatoriamente en `bot`. Por ejemplo: `alex_home_nas_bot`. Si está ocupado,
    BotFather pedirá otro.
 5. La respuesta es una línea como
-   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. Ese es el **token**.
+   `1234567890:AAExampleTokenReplaceThisWithYours0`. Ese es el **token**.
    Cópialo: lo necesitas en el paso 5.
 
 > El token es la contraseña del bot. Quien lo tenga controla el bot. No lo

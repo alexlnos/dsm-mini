@@ -28,7 +28,7 @@ FIELDS = [
     ("wizard_dsm_url", "dsm_url", "textfield", "https://localhost:5001", "", "nas"),
     ("wizard_dsm_user", "dsm_user", "textfield", "", "dsm-mini", "nas"),
     ("wizard_dsm_password", "dsm_password", "password", "", "", "nas"),
-    ("wizard_bot_token", "bot_token", "password", "", "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4", "tg"),
+    ("wizard_bot_token", "bot_token", "password", "", "1234567890:AAExampleTokenReplaceThisWithYours0", "tg"),
     ("wizard_allowed_ids", "allowed_ids", "textfield", "", "123456789,987654321", "tg"),
     ("wizard_public_url", "public_url", "textfield", "", "https://nas.example.com", "tg"),
     ("wizard_port", "port", "textfield", "8080", "", "tg"),

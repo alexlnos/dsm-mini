@@ -152,3 +152,47 @@ jobs:
             git diff --stat -- spk/WIZARD_UIFILES
             exit 1
           fi
+
+  # A real bot token once reached the repository as an "example" in the README,
+  # copied out of a live .env, and sat in ten translations and nine wizard
+  # files until the bot started getting spam. A token is shaped distinctly
+  # enough to be caught mechanically, so it is.
+  secrets:
+    name: No live secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No bot token outside the placeholder
+        run: |
+          python3 - <<'CHECK'
+          import pathlib, re, subprocess, sys
+
+          # The one token allowed to exist here: obviously fake, right shape.
+          PLACEHOLDER = "1234567890:AAExampleTokenReplaceThisWithYours0"
+          TOKEN = re.compile(r"\b\d{8,12}:[A-Za-z0-9_-]{30,}\b")
+
+          # Only what is actually in the repository. A developer's local .env
+          # holds a real token and is none of this check's business; a
+          # committed one very much is, and git ls-files would list it.
+          tracked = subprocess.run(["git", "ls-files", "-z"], capture_output=True,
+                                   text=True, check=True).stdout.split("\0")
+
+          bad = []
+          for name in filter(None, tracked):
+              path = pathlib.Path(name)
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for hit in TOKEN.findall(text):
+                  if hit != PLACEHOLDER:
+                      bad.append(f"{path}: {hit[:12]}…")
+
+          if bad:
+              for line in bad:
+                  print(f"::error::looks like a real bot token — {line}")
+              print("::error::If this is a live token: revoke it in @BotFather first, then remove it.")
+              sys.exit(1)
+          print("no token-shaped strings beyond the placeholder")
+          CHECK

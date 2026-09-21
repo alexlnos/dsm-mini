@@ -113,6 +113,14 @@ The service is exposed to the internet and can delete files on the NAS.
   permanently holds the keys to every user's bot. Considered and declined in
   September 2026; the installation wizard explains the BotFather step instead.
 
+- **Examples in documentation are invented, never copied from a live `.env`.**
+  A real bot token once went into the README as the example token, spread into
+  ten translations, nine wizard files and the compose block, and stayed there
+  until the bot started getting spam. The only token allowed in the repository
+  is `1234567890:AAExampleTokenReplaceThisWithYours0`; CI fails on anything
+  else shaped like a token, in the "No live secrets" job. The same goes for
+  real Telegram ids — `tools/shoot.js` had one.
+
 Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 
 ## Frontend

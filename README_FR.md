@@ -24,10 +24,10 @@ le NAS.
   <img src="docs/screenshots/fr-storage.webp" width="19%" alt="Stockage">
 </p>
 
-> Ce qui marche : le bot, la Mini App et les notifications. Vérifié sur DSM 7.2.2
-> avec Download Station 4.1.2 et File Station 1.4.4. La prise en charge de DSM 6
-> est écrite d'après la documentation, mais n'a pas été vérifiée sur un vrai
-> DSM 6.
+> Ce qui marche : le bot, la Mini App et les notifications. Il faut DSM 7 ou
+> plus récent — sur DSM 6 le paquet ne s'installera pas, et personne ne l'y a
+> testé. Vérifié sur DSM 7.2.2 avec Download Station 4.1.2 et File Station
+> 1.4.4.
 
 ## Ce qu'il sait faire
 
@@ -93,7 +93,7 @@ demi-heure : l'essentiel passe dans le certificat, pas dans le service lui-même
    obligatoirement par `bot`. Par exemple : `alex_home_nas_bot`. S'il est pris,
    BotFather en demande un autre.
 5. La réponse est une ligne du genre
-   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. C'est le **jeton**.
+   `1234567890:AAExampleTokenReplaceThisWithYours0`. C'est le **jeton**.
    Copiez-le — il servira à l'étape 5.
 
 > Le jeton est le mot de passe du bot. Qui l'a, commande le bot. Ne le publiez

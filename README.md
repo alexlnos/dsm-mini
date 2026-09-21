@@ -23,9 +23,9 @@ on the disks and how the NAS is feeling.
   <img src="docs/screenshots/en-storage.webp" width="19%" alt="Storage">
 </p>
 
-> Working: the bot, the Mini App and notifications. Tested on DSM 7.2.2 with
-> Download Station 4.1.2 and File Station 1.4.4. DSM 6 support is written from
-> the documentation but has not been checked on a live DSM 6.
+> Working: the bot, the Mini App and notifications. Requires DSM 7 or newer —
+> the package will not install on DSM 6, and it has never been tested there.
+> Checked on DSM 7.2.2 with Download Station 4.1.2 and File Station 1.4.4.
 
 ## What it can do
 
@@ -87,7 +87,7 @@ half an hour: most of it goes on the certificate, not on the service itself.
 4. Enter the bot's **username** — Latin letters, and it must end in `bot`. For
    example: `alex_home_nas_bot`. If it is taken, BotFather asks for another one.
 5. The answer is a line like
-   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. That is the **token**. Copy
+   `1234567890:AAExampleTokenReplaceThisWithYours0`. That is the **token**. Copy
    it — you need it in step 5.
 
 > The token is the bot's password. Whoever has it controls the bot. Do not post

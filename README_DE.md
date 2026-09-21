@@ -24,10 +24,10 @@ geht.
   <img src="docs/screenshots/de-storage.webp" width="19%" alt="Speicher">
 </p>
 
-> Funktioniert: der Bot, die Mini App und die Benachrichtigungen. Geprüft auf DSM
-> 7.2.2 mit Download Station 4.1.2 und File Station 1.4.4. Die Unterstützung für
-> DSM 6 ist nach der Dokumentation geschrieben, aber nicht an einem echten DSM 6
-> geprüft.
+> Funktioniert: der Bot, die Mini App und die Benachrichtigungen. Nötig ist DSM
+> 7 oder neuer — auf DSM 6 lässt sich das Paket nicht installieren, und geprüft
+> wurde es dort nie. Getestet auf DSM 7.2.2 mit Download Station 4.1.2 und
+> File Station 1.4.4.
 
 ## Was es kann
 
@@ -91,7 +91,7 @@ Dienst selbst.
    zwingend auf `bot` endend. Zum Beispiel: `alex_home_nas_bot`. Ist er vergeben,
    fragt BotFather nach einem anderen.
 5. Zurück kommt eine Zeile wie
-   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. Das ist das **Token**.
+   `1234567890:AAExampleTokenReplaceThisWithYours0`. Das ist das **Token**.
    Kopiere es — im Schritt 5 wird es gebraucht.
 
 > Das Token ist das Passwort des Bots. Wer es hat, steuert den Bot. Nicht in

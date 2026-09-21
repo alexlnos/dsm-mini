@@ -23,9 +23,9 @@ olduğunu ve NAS'ın durumunu görürsünüz.
   <img src="docs/screenshots/tr-storage.webp" width="19%" alt="Depolama">
 </p>
 
-> Çalışıyor: bot, Mini App ve bildirimler. DSM 7.2.2 üzerinde Download Station
-> 4.1.2 ve File Station 1.4.4 ile denendi. DSM 6 desteği belgelere bakılarak
-> yazıldı, gerçek bir DSM 6 üzerinde denenmedi.
+> Çalışıyor: bot, Mini App ve bildirimler. DSM 7 ya da daha yenisi gerekir —
+> DSM 6'ya paket kurulmaz ve orada hiç denenmedi. DSM 7.2.2 üzerinde Download
+> Station 4.1.2 ve File Station 1.4.4 ile denendi.
 
 ## Neler yapabiliyor
 
@@ -87,7 +87,7 @@ ayırın: zamanın çoğu servise değil, sertifikaya gidiyor.
 4. Botun **kullanıcı adını** yazın — Latin harfleriyle ve mutlaka `bot` ile
    bitecek. Örneğin: `alex_home_nas_bot`. Doluysa BotFather başkasını ister.
 5. Yanıt olarak şuna benzer bir satır gelir:
-   `8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg`. Bu, **belirteç**. Kopyalayın
+   `1234567890:AAExampleTokenReplaceThisWithYours0`. Bu, **belirteç**. Kopyalayın
    — 5. adımda gerekecek.
 
 > Belirteç botun parolasıdır. Elinde olan botu yönetir. Sohbetlerde ve GitHub'da
