@@ -1,40 +1,56 @@
-# Запуск dsm-mini одним контейнером.
+# dsm-mini — Telegram-бот с Mini App для Synology NAS.
 #
-# Значения берутся из файла .env, лежащего рядом с этим файлом: docker compose
-# читает его сам. Переменные перечислены явно, чтобы было видно, что вообще
-# настраивается, и чтобы пустая переменная не затирала разумное значение.
+# Это единственный файл, который нужен для запуска. Вставьте его целиком в
+# Container Manager (Проект → Создать → Создать docker-compose.yml) и замените
+# значения в разделе «ЗАПОЛНИТЕ». Никаких других файлов создавать не нужно.
+#
+# Осторожно со знаком доллара: docker compose считает его началом переменной.
+# Если в пароле есть $, напишите его дважды — «па$$роль» вместо «па$роль».
 services:
   dsm-mini:
-    # Если собираете образ сами, подставьте своё имя в Docker Hub.
-    image: ${DSM_MINI_IMAGE:-alexlnos/dsm-mini:latest}
+    image: alexlnos/dsm-mini:latest
     container_name: dsm-mini
     restart: unless-stopped
 
     environment:
-      # ── Synology DSM ───────────────────────────────────────────────────
-      DSM_URL: ${DSM_URL:?укажите адрес DSM в .env}
-      DSM_USER: ${DSM_USER:?укажите пользователя DSM в .env}
-      DSM_PASSWORD: ${DSM_PASSWORD:?укажите пароль DSM в .env}
-      DSM_INSECURE_TLS: ${DSM_INSECURE_TLS:-true}
+      # ──────────────── ЗАПОЛНИТЕ ЭТИ ШЕСТЬ СТРОК ────────────────
 
-      # ── Telegram ───────────────────────────────────────────────────────
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?укажите токен бота в .env}
-      ALLOWED_USER_IDS: ${ALLOWED_USER_IDS:?укажите свой Telegram ID в .env}
-      PUBLIC_URL: ${PUBLIC_URL:?укажите публичный адрес в .env}
+      # Локальный адрес DSM. Порт 5001 — HTTPS, 5000 — HTTP.
+      DSM_URL: "https://192.168.1.10:5001"
 
-      # ── Сервис ─────────────────────────────────────────────────────────
-      LISTEN_ADDR: ${LISTEN_ADDR:-:8080}
-      WATCH_INTERVAL: ${WATCH_INTERVAL:-30s}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      STATE_DIR: /data
+      # Отдельный пользователь DSM — не администратор и без двухэтапной
+      # проверки. Как его завести, написано в README.
+      DSM_USER: "dsm-mini"
+      DSM_PASSWORD: "пароль-этого-пользователя"
+
+      # Токен бота от @BotFather.
+      TELEGRAM_BOT_TOKEN: "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4Pp-yBU3Vg"
+
+      # Кому разрешён доступ: ваш Telegram ID от @userinfobot, через запятую.
+      # Пустое значение закрывает доступ ВСЕМ, а не открывает.
+      ALLOWED_USER_IDS: "123456789"
+
+      # Публичный HTTPS-адрес приложения: без порта и без слеша в конце.
+      PUBLIC_URL: "https://alex-nas.synology.me"
+
+      # ──────────── ниже менять не нужно ────────────
+
+      # Внутри сети у DSM самоподписанный сертификат — это нормально.
+      DSM_INSECURE_TLS: "true"
+      # Как часто спрашивать Download Station о завершённых задачах.
+      WATCH_INTERVAL: "30s"
+      # debug | info | warn | error
+      LOG_LEVEL: "info"
+      # Каталог базы внутри контейнера; наружу он вынесен томом ниже.
+      STATE_DIR: "/data"
 
     ports:
       # Наружу порт не публикуем: перед сервисом стоит обратный прокси DSM,
       # он же завершает TLS. 127.0.0.1 означает «только с самого NAS».
-      - "127.0.0.1:${HOST_PORT:-8080}:8080"
+      - "127.0.0.1:8080:8080"
 
     volumes:
-      # Настройки и состояние задач: переживают пересоздание контейнера.
+      # Настройки, язык и состояние задач. Переживает пересоздание контейнера.
       - dsm-mini-state:/data
 
 volumes:
