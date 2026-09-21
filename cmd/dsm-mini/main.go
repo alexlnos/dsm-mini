@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alexlnos/dsm-mini/internal/bot"
 	"github.com/alexlnos/dsm-mini/internal/config"
 	"github.com/alexlnos/dsm-mini/internal/db"
 	"github.com/alexlnos/dsm-mini/internal/dsm"
@@ -135,31 +134,6 @@ func run() error {
 	log.Info("база открыта", "path", databaseFile())
 	settings := store.New(database)
 
-	tgBot, err := bot.New(bot.Options{
-		Token:          cfg.BotToken,
-		AllowedUserIDs: cfg.AllowedUserIDs,
-		Downloads:      ds,
-		Settings:       settings,
-		PublicURL:      cfg.PublicURL,
-		Logger:         log,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Вид бота задаётся из кода на каждом языке словаря: имя, описания и
-	// команды не живут только в @BotFather. Значения читаются перед записью,
-	// поэтому перезапуск не тратит лимиты Telegram. Аватар Bot API менять не
-	// умеет — он ставится вручную.
-	//
-	// Делается в фоне: на десяти языках это два десятка обращений к Telegram,
-	// а до их окончания приложение уже должно отвечать.
-	go func() {
-		setupCtx, cancelSetup := context.WithTimeout(ctx, 2*time.Minute)
-		defer cancelSetup()
-		tgBot.ConfigureAll(setupCtx)
-	}()
-
 	static, err := web.Assets()
 	if err != nil {
 		log.Warn("Mini App не встроено в бинарник — будет доступен только бот", "err", err)
@@ -201,16 +175,12 @@ func run() error {
 		}
 	}()
 
+	// Бот живёт своей жизнью: без связи с Telegram он ждёт её появления, а
+	// Mini App всё это время работает — его открывает клиент на телефоне.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		tgBot.Start(ctx)
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		newWatcher(cfg, ds, tgBot, settings, log).Run(ctx)
+		runBot(ctx, cfg, ds, settings, log)
 	}()
 
 	// Состояние NAS держим наготове: иначе первый, кто откроет приложение,

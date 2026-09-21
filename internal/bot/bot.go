@@ -7,6 +7,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -74,13 +75,17 @@ func New(o Options) (*Bot, error) {
 		// поэтому неверный токен виден сразу при запуске, а не при первом
 		// сообщении. Подсказываем, где его взять.
 		if strings.Contains(err.Error(), "unauthorized") {
-			return nil, fmt.Errorf("Telegram отклонил токен бота — проверьте TELEGRAM_BOT_TOKEN, его выдаёт @BotFather: %w", err)
+			return nil, fmt.Errorf("%w: %w", ErrBadToken, err)
 		}
 		return nil, fmt.Errorf("не создать бота: %w", err)
 	}
 	b.api = api
 	return b, nil
 }
+
+// ErrBadToken — Telegram не принял токен. Повторять бессмысленно: это
+// ошибка настройки, а не связи.
+var ErrBadToken = errors.New("Telegram отклонил токен бота — проверьте TELEGRAM_BOT_TOKEN, его выдаёт @BotFather")
 
 // Start запускает получение обновлений и работает, пока жив контекст.
 //
