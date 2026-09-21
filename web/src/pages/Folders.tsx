@@ -4,6 +4,9 @@ import { alertMessage, backButton, haptic } from '../telegram'
 import type { Settings, SettingsView } from '../types'
 
 interface Props {
+  /** Путь, набранный руками: хранится выше, чтобы пережить уход с экрана. */
+  manual: string
+  onManualChange: (value: string) => void
   onBack: () => void
   /** Настройки изменились — обновить данные на остальных экранах. */
   onChanged: () => void
@@ -19,9 +22,8 @@ interface Props {
  * обновляется до ответа сервера, а при ошибке возвращается к прежнему
  * состоянию — иначе каждое нажатие ощущалось бы как задержка.
  */
-export function Folders({ onBack, onChanged, onPickOnNas }: Props) {
+export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas }: Props) {
   const [view, setView] = useState<SettingsView | null>(null)
-  const [manual, setManual] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => backButton(onBack), [onBack])
@@ -71,7 +73,7 @@ export function Folders({ onBack, onChanged, onPickOnNas }: Props) {
       alertMessage('Такая папка уже закреплена')
       return
     }
-    setManual('')
+    onManualChange('')
     haptic('light')
     void apply({ pinned_folders: [...pinned, clean] })
   }
@@ -158,7 +160,7 @@ export function Folders({ onBack, onChanged, onPickOnNas }: Props) {
             className="input inline"
             placeholder="Media/Podcasts"
             value={manual}
-            onChange={(e) => setManual(e.target.value)}
+            onChange={(e) => onManualChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') add(manual) }}
           />
           <button type="button" className="button compact" onClick={() => add(manual)}>

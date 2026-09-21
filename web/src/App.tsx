@@ -34,6 +34,11 @@ type Screen =
   // Выбор папки, куда скопировать или перенести отмеченные файлы.
   | { name: 'transferTarget'; paths: string[]; move: boolean }
 
+/** Экраны, которые относятся к вкладке загрузок. */
+function inDownloads(name: Screen['name']): boolean {
+  return name === 'downloads' || name === 'add' || name === 'folders' || name === 'task'
+}
+
 /** Как часто обновлять список, когда что-то качается. */
 const ACTIVE_POLL = 2500
 const IDLE_POLL = 15000
@@ -55,6 +60,12 @@ export function App() {
   // Выбранная вкладка загрузок тоже переживает переход. null — человек ещё
   // не выбирал сам, и можно подставить разумную.
   const [downloadsFilter, setDownloadsFilter] = useState<DownloadsFilter | null>(null)
+  // Путь, введённый руками в настройке папок: экран размонтируется при
+  // уходе на обзор NAS или другую вкладку, и набранное пропадало бы.
+  const [folderDraft, setFolderDraft] = useState('')
+  // На чём человек оставил вкладку загрузок: список, добавление, настройка
+  // папок или открытая задача. Возврат на вкладку приводит туда же.
+  const [downloadsScreen, setDownloadsScreen] = useState<Screen>({ name: 'downloads' })
 
 
   const refresh = useCallback(async () => {
@@ -157,10 +168,15 @@ export function App() {
     if (screen.name === 'task' && data && !current) setScreen({ name: 'downloads' })
   }, [screen, data, current])
 
-  // Экран задачи открыт из загрузок и остаётся их частью, поэтому панель
-  // вкладок на нём не прячется: уходить из задачи приходилось только назад.
-  const onDownloads = screen.name === 'downloads' || screen.name === 'task'
+  // Добавление, настройка папок и открытая задача — части раздела загрузок,
+  // а не отдельные места: панель вкладок на них остаётся, иначе выйти можно
+  // было только назад.
+  const onDownloads = inDownloads(screen.name)
   const showTabbar = onDownloads || screen.name === 'home' || screen.name === 'files'
+
+  useEffect(() => {
+    if (inDownloads(screen.name)) setDownloadsScreen(screen)
+  }, [screen])
 
   return (
     <div className="app">
@@ -223,6 +239,8 @@ export function App() {
         )}
         {screen.name === 'folders' && (
           <Folders
+            manual={folderDraft}
+            onManualChange={setFolderDraft}
             onBack={() => setScreen({ name: 'add' })}
             onChanged={() => void refresh()}
             onPickOnNas={() => setScreen({ name: 'pickFolder' })}
@@ -286,7 +304,11 @@ export function App() {
           <button
             type="button"
             className={onDownloads ? 'tab active' : 'tab'}
-            onClick={() => setScreen({ name: 'downloads' })}
+            onClick={() => {
+              // Повторное нажатие — к началу раздела, из другой вкладки —
+              // туда, где человека прервали.
+              setScreen(onDownloads ? { name: 'downloads' } : downloadsScreen)
+            }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
