@@ -178,6 +178,11 @@ func (s *stationV2) SetDestination(ctx context.Context, taskIDs []string, destin
 }
 
 // SetPriority меняет приоритет задачи в очереди.
+//
+// Осторожно: в Download Station это свойство задач eMule, а не BT. Для
+// торрентов NAS принимает вызов и отвечает успехом, но приоритет не
+// сохраняется и ни в одном ответе не возвращается — интерфейс такого
+// переключателя не показывает. Метод оставлен для тех, у кого eMule включён.
 func (s *stationV2) SetPriority(ctx context.Context, taskIDs []string, priority FilePriority) error {
 	if len(taskIDs) == 0 {
 		return fmt.Errorf("не указано ни одной задачи")

@@ -114,33 +114,6 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
         ))}
       </div>
 
-      <div className="section-head">
-        <span className="section-title">Приоритет в очереди</span>
-      </div>
-      <div className="card">
-        <div className="priority-row">
-          {PRIORITIES.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className="chip"
-              disabled={busy}
-              onClick={() => void run(() => api.setPriority([task.id], value))}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {/*
-          Download Station принимает приоритет задачи, но не возвращает его ни
-          в одном ответе — показать текущее значение нечем, поэтому это
-          кнопки-действия, а не переключатель с отмеченным состоянием.
-        */}
-        <div className="muted small priority-note">
-          NAS не сообщает текущий приоритет — кнопки задают новый.
-        </div>
-      </div>
-
       <div className="section-head row-between">
         <span className="section-title">Папка</span>
         <button type="button" className="link-button" onClick={() => setShowFolders((v) => !v)}>
