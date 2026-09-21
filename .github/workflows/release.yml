@@ -10,9 +10,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version for a trial build (nothing is published without a tag)
+        description: Version for a trial build, or the released version whose catalogue to republish
         required: false
         default: 0.0.0
+      republish_catalogue:
+        description: Rebuild the Package Center catalogue for that released version
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -67,7 +72,7 @@ jobs:
   pages:
     name: Package catalogue
     needs: spk
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' || inputs.republish_catalogue
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -75,11 +80,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            value="${GITHUB_REF_NAME#v}"
+          else
+            value="${{ inputs.version }}"
+          fi
+          echo "tag=v${value%%-*}" >> $GITHUB_OUTPUT
+          case "$value" in *-*) : ;; *) value="$value-1" ;; esac
+          echo "value=$value" >> $GITHUB_OUTPUT
+
+      # The packages come from the release itself rather than from a fresh
+      # build: the catalogue carries their md5 and size, and those have to
+      # describe the exact file people will download, not one built again
+      # from a branch that has moved on since the tag.
+      - name: Take the packages from the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ steps.version.outputs.tag }}" \
+            --pattern '*.spk' --dir dist
+          ls -la dist/
+
       - name: Build the catalogue
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          case "$version" in *-*) : ;; *) version="$version-1" ;; esac
-          python3 tools/make-feed.py "$version" --out public
+          python3 tools/make-feed.py "${{ steps.version.outputs.value }}" --spk dist --out public
           cp spk/PACKAGE_ICON.PNG public/icon_72.png
           cp spk/PACKAGE_ICON_256.PNG public/icon_256.png
           ls public/

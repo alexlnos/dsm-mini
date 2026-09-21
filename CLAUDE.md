@@ -186,6 +186,16 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   architecture**, and static files cannot filter. It is published on a tag; the
   `github-pages` environment has to allow `v*` tags, otherwise the job fails
   before its first step.
+- Every catalogue entry carries **`md5` and `size` of the .spk**. Package Center
+  reads both out of the feed and passes them to the backend as `checksum` and
+  `filesize` — visible in `PkgManApp.js` on the NAS, in the
+  `SYNO.Core.Package.Installation` `upgrade`/`install` call. `make-feed.py`
+  takes them from the file itself and refuses to build a catalogue without it,
+  so an entry cannot describe a package that is not there.
+- The catalogue is built from the **.spk files of the release**, downloaded back
+  with `gh release download`, not from a fresh build: `md5` has to describe the
+  exact file people will get, and a rebuild from a branch that moved on since
+  the tag is a different file.
 - The wizard files in `spk/WIZARD_UIFILES/` are generated and committed; CI
   regenerates them and fails if the result differs. The same goes for the ten
   READMEs: a check compares the language links, because a translation nothing

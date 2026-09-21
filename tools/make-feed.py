@@ -11,9 +11,15 @@ of a handler we lay out one static file per architecture — GitHub Pages serves
 them over an ordinary GET and no server is needed. People add the address
 matching their model.
 
-    tools/make-feed.py 1.2.3 --out public
+The catalogue has to carry the md5 and the size of every .spk: the Package
+Center reads both out of it and passes them to the backend as `checksum` and
+`filesize` (see PkgManApp.js on the NAS, the SYNO.Core.Package.Installation
+upgrade call). Without them an update ends with "Invalid file format".
+
+    tools/make-feed.py 1.2.3 --spk dist --out public
 """
 import argparse
+import hashlib
 import json
 import pathlib
 
@@ -33,8 +39,17 @@ DESC = ("Telegram bot with a Mini App to manage your Synology NAS: "
         "Download Station, File Station, disks, virtual machines and containers.")
 
 
-def entry(version: str, arch: str) -> dict:
+def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
     spk = f"dsm-mini-{version}-{arch}.spk"
+
+    # The file itself is the source of the checksum and the size: taking them
+    # from anywhere else is how a catalogue starts describing a package that
+    # no longer exists.
+    path = spk_dir / spk
+    if not path.is_file():
+        raise SystemExit(f"no package {path} — build it before the catalogue")
+    body = path.read_bytes()
+
     return {
         "package": "dsm-mini",
         "version": version,
@@ -42,6 +57,8 @@ def entry(version: str, arch: str) -> dict:
         "desc": DESC,
         # The file lives in a GitHub release: the catalogue only names it.
         "link": f"https://github.com/{REPO}/releases/download/v{version.split('-')[0]}/{spk}",
+        "md5": hashlib.md5(body).hexdigest(),
+        "size": len(body),
         "thumbnail": [f"{PAGES}/icon_72.png"],
         "thumbnail_retina": [f"{PAGES}/icon_256.png"],
         "maintainer": "alexlnos",
@@ -102,14 +119,16 @@ INDEX = """<!doctype html>
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("version", help="package version, for example 1.2.3-1")
+    ap.add_argument("--spk", default="dist", help="directory with the built .spk files")
     ap.add_argument("--out", default="public", help="where to put the catalogue")
     args = ap.parse_args()
 
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    spk_dir = pathlib.Path(args.spk)
     for arch, syno_archs in ARCHS.items():
-        body = {"packages": [entry(args.version, arch)]}
+        body = {"packages": [entry(args.version, arch, spk_dir)]}
         (out / f"{arch}.json").write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
         # Every platform name gets its own file: people should not have to
         # know their epyc7002 is amd64. The files are identical, so it is a copy.
