@@ -1,7 +1,6 @@
 package i18n
 
 var tr = map[string]string{
-	"look.name":  "NAS İndirmeleri",
 	"look.short": "Evdeki Synology’deki indirmeleri ve dosyaları doğrudan Telegram’dan yönetin.",
 	"look.description": "Bir magnet bağlantısı ya da .torrent dosyası gönderin — klasör önerip sıraya alayım. " +
 		"Aşağıdaki düğme uygulamayı açar: orada ne indiğini, ne kadar kaldığını ve NAS’ta ne olduğunu görürsünüz.",

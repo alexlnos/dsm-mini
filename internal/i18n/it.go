@@ -1,7 +1,6 @@
 package i18n
 
 var it = map[string]string{
-	"look.name":  "Download NAS",
 	"look.short": "Gestisci download e file del tuo Synology di casa direttamente da Telegram.",
 	"look.description": "Manda un link magnet o un file .torrent: ti proporrò una cartella e lo metterò in coda. " +
 		"Il pulsante qui sotto apre l’app: lì si vede cosa sta scaricando, quanto manca e cosa c’è sul NAS.",

@@ -16,11 +16,12 @@ import (
 // repository rather than in @BotFather settings, which are written down
 // nowhere and get lost when the owner changes.
 //
-// The only thing the Bot API does not offer is the avatar: it is changed by
-// hand through @BotFather (/setuserpic).
+// The name is deliberately not here. It is the one thing the owner picks when
+// they create the bot, and overwriting it on every start took that choice away
+// — someone who renamed their bot in @BotFather found the old name back after
+// a restart. The avatar is not here either, for a duller reason: the Bot API
+// does not offer it (@BotFather, /setuserpic).
 type Appearance struct {
-	// Name is the name in the chat header, up to 64 characters.
-	Name string
 	// ShortDescription is the line in the bot profile, up to 120 characters.
 	ShortDescription string
 	// Description is the text on an empty chat screen before the first
@@ -34,12 +35,11 @@ type Appearance struct {
 
 // DefaultAppearance is the bot's looks in a given language.
 //
-// Telegram stores the name, description and commands separately per language
-// and shows them by the client's language. An empty language means the
-// defaults, seen by everyone who has no translation of their own.
+// Telegram stores the descriptions and commands separately per language and
+// shows them by the client's language. An empty language means the defaults,
+// seen by everyone who has no translation of their own.
 func DefaultAppearance(lang i18n.Lang) Appearance {
 	return Appearance{
-		Name:             i18n.T(lang, "look.name"),
 		ShortDescription: i18n.T(lang, "look.short"),
 		Description:      i18n.T(lang, "look.description"),
 		MenuButtonText:   i18n.T(lang, "look.menuButton"),
@@ -52,9 +52,9 @@ func DefaultAppearance(lang i18n.Lang) Appearance {
 
 // ConfigureAll sets the bot's looks in every language of the dictionary.
 //
-// Telegram stores the name, description and commands separately per language
-// and shows them by the client's language. Values with no language are seen
-// by everyone who has no translation of their own.
+// Telegram stores the descriptions and commands separately per language and
+// shows them by the client's language. Values with no language are seen by
+// everyone who has no translation of their own.
 func (b *Bot) ConfigureAll(ctx context.Context) {
 	// The common looks first: they double as the fallback for unknown languages.
 	b.Configure(ctx, "", DefaultAppearance(i18n.Fallback))
@@ -70,9 +70,8 @@ func (b *Bot) ConfigureAll(ctx context.Context) {
 
 // Configure brings the bot's looks to the given ones for a single language.
 //
-// Values are read first: Telegram limits name changes harshly (after a few
-// in a row it answers "retry after 60"), and on a service restart there is
-// usually nothing to change. It also saves the rate limits across ten languages.
+// Values are read first: on a service restart there is usually nothing to
+// change, and reading costs less than the rate limits across ten languages.
 //
 // Errors do not stop the startup: a failed appearance setting is worth a
 // warning in the log, not leaving the user without a bot.
@@ -85,21 +84,6 @@ func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 	}
 
 	steps := []step{
-		{
-			what: "name",
-			current: func() (string, error) {
-				n, err := b.api.GetMyName(ctx, &tg.GetMyNameParams{LanguageCode: lang})
-				if err != nil {
-					return "", err
-				}
-				return n.Name, nil
-			},
-			wanted: look.Name,
-			apply: func() error {
-				_, err := b.api.SetMyName(ctx, &tg.SetMyNameParams{Name: look.Name, LanguageCode: lang})
-				return err
-			},
-		},
 		{
 			what: "short description",
 			current: func() (string, error) {

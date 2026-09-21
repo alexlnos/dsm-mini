@@ -1,7 +1,6 @@
 package i18n
 
 var pl = map[string]string{
-	"look.name":  "Pobierania NAS",
 	"look.short": "Zarządzaj pobieraniami i plikami domowego Synology prosto z Telegrama.",
 	"look.description": "Wyślij link magnet albo plik .torrent — zaproponuję folder i dodam do kolejki. " +
 		"Przycisk poniżej otwiera aplikację: widać w niej, co się pobiera, ile zostało i co leży na NAS.",

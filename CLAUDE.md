@@ -286,9 +286,13 @@ from the Telegram user's `language_code`, an unknown one gets English.
 - API error messages travel as a **key**, not as text: `s.fail(w, r, err,
   "api.readFolder")`. The person gets a translation, the log stays English, and
   the DSM code goes in a separate field — digits read the same in any language.
-- The bot's appearance (name, descriptions, commands) is set for every language
-  and **only when it changes**: Telegram limits name changes hard, and across ten
-  languages that is a couple of dozen requests.
+- The bot's appearance (descriptions, commands, menu button) is set for every
+  language and **only when it changes**: across ten languages that is a couple
+  of dozen requests otherwise.
+- **The name is not set from code.** It belongs to whoever created the bot, and
+  writing it on every start silently undid a rename made in @BotFather. The
+  avatar is not set either, for a duller reason — the Bot API has no method
+  for it.
 
 ## Build and run
 
