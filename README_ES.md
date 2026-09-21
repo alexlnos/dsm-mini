@@ -262,11 +262,25 @@ en tu idioma.
 
 ### Cambiar los ajustes
 
-Todo lo que preguntó el asistente está en un único archivo,
-`/var/packages/dsm-mini/var/config.env`. Lo más simple para cambiar un valor es
-instalar el paquete sobre sí mismo: el asistente vuelve a preguntar. Para editar
-el archivo directamente hace falta SSH al NAS; después de editarlo, detén e
-inicia el paquete en el Centro de paquetes.
+Todo lo que preguntó el asistente vive en un archivo del NAS,
+`/var/packages/dsm-mini/var/config.env`, con permisos `600`.
+
+Instalar el paquete sobre sí mismo **no** vuelve a preguntar: el asistente
+corre al instalar, y una actualización deja el archivo a propósito — por eso
+los ajustes sobreviven. Quedan dos caminos:
+
+- **Editar el archivo por SSH** (Panel de control → Terminal y SNMP → activar
+  SSH) y reiniciar el paquete en el Centro de paquetes. Así se conserva todo
+  lo demás:
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='tu-nuevo-token'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Desinstalar e instalar de nuevo**: el asistente lo pregunta todo otra vez.
+  Junto con los ajustes se borra la base que está al lado, o sea las carpetas
+  fijadas, el idioma y los últimos estados conocidos de las tareas.
 
 ## Actualizar
 

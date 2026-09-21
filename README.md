@@ -257,11 +257,24 @@ Center.
 
 ### Changing the settings
 
-Everything the wizard asked for is in one file,
-`/var/packages/dsm-mini/var/config.env`. The simplest way to change a value is to
-install the package over itself — the wizard asks again. To edit the file
-directly you need SSH to the NAS; after editing, stop and start the package in
-Package Center.
+Everything the wizard asked for lives in one file on the NAS,
+`/var/packages/dsm-mini/var/config.env`, mode `600`.
+
+Installing the package over itself will **not** ask again: the wizard runs on
+installation, and an upgrade deliberately leaves the file alone — that is why
+settings survive an update. So there are two ways:
+
+- **Edit the file over SSH** (Control Panel → Terminal & SNMP → Enable SSH),
+  then restart the package in Package Center. This keeps everything:
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='your-new-token'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Uninstall and install again** — the wizard asks for everything anew. This
+  also removes the database next to the settings, so the pinned folders, the
+  language and the last known task statuses are gone.
 
 ## Updating
 

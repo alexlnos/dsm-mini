@@ -276,11 +276,25 @@ les messages du bot dans votre langue.
 
 ### Changer les réglages
 
-Tout ce que l'assistant a demandé tient dans un fichier,
-`/var/packages/dsm-mini/var/config.env`. Le plus simple pour changer une valeur
-est d'installer le paquet par-dessus lui-même — l'assistant redemande. Pour
-éditer le fichier directement il faut un accès SSH au NAS ; après l'édition,
-arrêtez puis démarrez le paquet dans le Centre de paquets.
+Tout ce que l'assistant a demandé tient dans un fichier sur le NAS,
+`/var/packages/dsm-mini/var/config.env`, droits `600`.
+
+Installer le paquet par-dessus lui-même ne redemande **rien** : l'assistant
+tourne à l'installation, et une mise à jour laisse le fichier exprès — c'est
+pour cela que les réglages survivent. Restent deux voies :
+
+- **Modifier le fichier en SSH** (Panneau de configuration → Terminal et SNMP
+  → activer SSH), puis redémarrer le paquet dans le Centre de paquets. Tout le
+  reste est conservé :
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='votre-nouveau-jeton'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Désinstaller puis réinstaller** — l'assistant redemande tout. Avec les
+  réglages disparaît aussi la base à côté : les dossiers épinglés, la langue et
+  les derniers états connus des tâches.
 
 ## Mise à jour
 

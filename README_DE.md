@@ -270,11 +270,26 @@ und Bot-Nachrichten in deiner Sprache.
 
 ### Einstellungen ändern
 
-Alles, was der Assistent gefragt hat, steht in einer Datei:
-`/var/packages/dsm-mini/var/config.env`. Am einfachsten ändert man einen Wert,
-indem man das Paket über sich selbst installiert — der Assistent fragt erneut.
-Um die Datei direkt zu bearbeiten, braucht es SSH auf das NAS; danach das Paket
-im Paket-Zentrum stoppen und starten.
+Alles, was der Assistent gefragt hat, steht auf dem NAS in einer Datei:
+`/var/packages/dsm-mini/var/config.env`, Rechte `600`.
+
+Das Paket über sich selbst zu installieren fragt **nicht** erneut: der
+Assistent läuft bei der Installation, und eine Aktualisierung lässt die Datei
+absichtlich in Ruhe — darum überstehen die Einstellungen ein Update. Bleiben
+zwei Wege:
+
+- **Die Datei über SSH bearbeiten** (Systemsteuerung → Terminal & SNMP → SSH
+  einschalten) und das Paket im Paket-Zentrum neu starten. So bleibt alles
+  andere erhalten:
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='dein-neues-token'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Deinstallieren und neu installieren** — der Assistent fragt alles noch
+  einmal. Mit den Einstellungen verschwindet auch die Datenbank daneben: die
+  angehefteten Ordner, die Sprache und die zuletzt bekannten Aufgabenzustände.
 
 ## Aktualisieren
 

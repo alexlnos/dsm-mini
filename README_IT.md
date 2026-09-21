@@ -265,11 +265,25 @@ lingua.
 
 ### Cambiare le impostazioni
 
-Tutto quello che ha chiesto la procedura guidata sta in un solo file,
-`/var/packages/dsm-mini/var/config.env`. Il modo più semplice di cambiare un
-valore è installare il pacchetto sopra sé stesso — la procedura guidata chiede di
-nuovo. Per modificare il file direttamente serve l'SSH sul NAS; dopo la modifica,
-arresta e avvia il pacchetto nel Centro pacchetti.
+Tutto quello che ha chiesto la procedura guidata sta in un file sul NAS,
+`/var/packages/dsm-mini/var/config.env`, permessi `600`.
+
+Installare il pacchetto sopra sé stesso **non** chiede di nuovo: la procedura
+guidata gira all'installazione, e un aggiornamento lascia il file apposta — è
+per questo che le impostazioni sopravvivono. Restano due strade:
+
+- **Modificare il file via SSH** (Pannello di controllo → Terminale e SNMP →
+  attivare SSH) e riavviare il pacchetto dal Centro pacchetti. Così resta
+  tutto il resto:
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='il-tuo-nuovo-token'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Disinstallare e installare di nuovo**: la procedura guidata richiede tutto
+  daccapo. Insieme alle impostazioni sparisce il database lì accanto: cartelle
+  fissate, lingua e ultimi stati noti delle attività.
 
 ## Aggiornare
 

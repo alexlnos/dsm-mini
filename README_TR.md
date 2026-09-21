@@ -261,11 +261,25 @@ dilinizde olur.
 
 ### Ayarları değiştirmek
 
-Sihirbazın sorduğu her şey tek bir dosyada:
-`/var/packages/dsm-mini/var/config.env`. Bir değeri değiştirmenin en basit yolu
-paketi kendi üzerine kurmak — sihirbaz yeniden sorar. Dosyayı doğrudan düzenlemek
-için NAS'a SSH gerekir; düzenledikten sonra paketi Paket Merkezi'nde durdurup
-başlatın.
+Sihirbazın sorduğu her şey NAS'ta tek bir dosyada:
+`/var/packages/dsm-mini/var/config.env`, izinler `600`.
+
+Paketi kendi üzerine kurmak yeniden **sormaz**: sihirbaz kurulumda çalışır ve
+bir güncelleme dosyaya bilerek dokunmaz — ayarların güncellemeyi atlatmasının
+nedeni budur. Geriye iki yol kalıyor:
+
+- **Dosyayı SSH ile düzenlemek** (Denetim Masası → Terminal ve SNMP → SSH'i
+  açın), sonra paketi Paket Merkezi'nden yeniden başlatmak. Böylece geri kalan
+  her şey durur:
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='yeni-belirteciniz'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Kaldırıp yeniden kurmak** — sihirbaz her şeyi baştan sorar. Ayarlarla
+  birlikte yanındaki veritabanı da gider: sabitlenen klasörler, dil ve
+  görevlerin son bilinen durumları.
 
 ## Güncelleme
 

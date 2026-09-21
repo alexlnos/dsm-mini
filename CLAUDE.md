@@ -199,6 +199,13 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   is for. Whoever fills this in has never seen the project and is being asked
   for a password and a token — "DSM user" alone does not say which user, and
   the list of allowed ids does not explain itself at all.
+- The wizard runs **only on installation**. There is no `upgrade_uifile` and no
+  upgrade script, so an update leaves `config.env` untouched — which is exactly
+  why settings survive one. The consequence is easy to get wrong: installing
+  the package over itself does **not** re-ask anything. Changing a setting
+  means editing `config.env` over SSH, or uninstalling and installing again,
+  which also takes the database next to it. The README said the opposite for a
+  while, contradicting its own paragraph two lines below.
 - Wizard settings arrive in `postinst` as environment variables named after the
   keys from `WIZARD_UIFILES`. They are written to the file in single quotes: a
   password with a space or a `$` would otherwise break the service start.

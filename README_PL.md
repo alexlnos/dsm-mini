@@ -260,11 +260,24 @@ języku.
 
 ### Zmienić ustawienia
 
-Wszystko, o co pytał kreator, leży w jednym pliku
-`/var/packages/dsm-mini/var/config.env`. Najprościej zmienić wartość,
-instalując pakiet na samym sobie — kreator zapyta od nowa. Plik można też
-poprawić wprost, przez SSH; po poprawce zatrzymaj i uruchom pakiet w Centrum
-pakietów.
+Wszystko, o co pytał kreator, leży na NAS-ie w jednym pliku
+`/var/packages/dsm-mini/var/config.env` z uprawnieniami `600`.
+
+Instalacja pakietu na samym sobie **o nic nie zapyta**: kreator działa przy
+instalacji, a aktualizacja celowo nie rusza tego pliku — właśnie dlatego
+ustawienia ją przeżywają. Zostają dwie drogi:
+
+- **Poprawić plik przez SSH** (Panel sterowania → Terminal i SNMP → włącz SSH)
+  i zrestartować pakiet w Centrum pakietów. Tak zostaje cała reszta:
+
+  ```bash
+  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='twoj-nowy-token'|" /var/packages/dsm-mini/var/config.env
+  sudo synopkg restart dsm-mini
+  ```
+
+- **Odinstalować i zainstalować ponownie** — kreator zapyta o wszystko od nowa.
+  Razem z ustawieniami zniknie baza obok: przypięte foldery, język i ostatnie
+  znane statusy zadań.
 
 ## Aktualizacja
 
