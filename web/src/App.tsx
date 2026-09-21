@@ -46,6 +46,9 @@ export function App() {
   // этого введённая ссылка пропадала бы.
   const [addDraft, setAddDraft] = useState<AddDraft>({ link: '', destination: '' })
   const [sending, setSending] = useState(false)
+  // Открытая папка переживает переход на другую вкладку: возвращать человека
+  // в корень каждый раз — заставлять его заново идти тем же путём.
+  const [filesPath, setFilesPath] = useState('/')
 
 
   const refresh = useCallback(async () => {
@@ -148,6 +151,11 @@ export function App() {
     if (screen.name === 'task' && data && !current) setScreen({ name: 'downloads' })
   }, [screen, data, current])
 
+  // Экран задачи открыт из загрузок и остаётся их частью, поэтому панель
+  // вкладок на нём не прячется: уходить из задачи приходилось только назад.
+  const onDownloads = screen.name === 'downloads' || screen.name === 'task'
+  const showTabbar = onDownloads || screen.name === 'home' || screen.name === 'files'
+
   return (
     <div className="app">
       <main className="content">
@@ -184,6 +192,8 @@ export function App() {
         )}
         {screen.name === 'files' && (
           <Files
+            initialPath={filesPath}
+            onPathChange={setFilesPath}
             onTransfer={(paths, move) => setScreen({ name: 'transferTarget', paths, move })}
           />
         )}
@@ -251,7 +261,7 @@ export function App() {
         )}
       </main>
 
-      {(screen.name === 'home' || screen.name === 'downloads' || screen.name === 'files') && (
+      {showTabbar && (
         <nav className="tabbar">
           <button
             type="button"
@@ -266,7 +276,7 @@ export function App() {
           </button>
           <button
             type="button"
-            className={screen.name === 'downloads' ? 'tab active' : 'tab'}
+            className={onDownloads ? 'tab active' : 'tab'}
             onClick={() => setScreen({ name: 'downloads' })}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"

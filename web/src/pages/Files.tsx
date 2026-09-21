@@ -37,10 +37,17 @@ interface FilesProps {
   pending?: { paths: string[]; move: boolean } | null
   /** Отмеченные файлы отправлены в другую папку: открыть выбор назначения. */
   onTransfer?: (paths: string[], move: boolean) => void
+  /**
+   * Куда пользователь перешёл.
+   *
+   * Вкладка «Файлы» размонтируется при переходе на другую вкладку, и без
+   * этого возврат всегда приводил бы в корень, а не туда, где человек был.
+   */
+  onPathChange?: (path: string) => void
 }
 
 export function Files({
-  pickMode, onPick, onCancelPick, initialPath, pending, onTransfer,
+  pickMode, onPick, onCancelPick, initialPath, pending, onTransfer, onPathChange,
 }: FilesProps = {}) {
   const [path, setPath] = useState('/')
   const [entries, setEntries] = useState<Entry[]>([])
@@ -50,6 +57,13 @@ export function Files({
   const [preview, setPreview] = useState<Entry | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+
+  // Начальная папка берётся один раз, при открытии экрана: дальше человек
+  // ходит сам, и возврат к ней сбивал бы его с пути. Обработчик держим в
+  // ссылке, чтобы его смена не перезапускала обзор с начала.
+  const start = useRef(initialPath)
+  const report = useRef(onPathChange)
+  report.current = onPathChange
 
   // stay = обновление той же папки после действия: список не сбрасываем,
   // иначе он мигнул бы заглушками на каждое переименование.
@@ -62,6 +76,7 @@ export function Files({
       setEntries(entries ?? [])
       setPath(target)
       setSelected(new Set())
+      report.current?.(target)
     } catch (e) {
       setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не прочитать папку')
     } finally {
@@ -70,9 +85,9 @@ export function Files({
   }, [])
 
   useEffect(() => {
-    const start = initialPath ? '/' + initialPath.replace(/^\/+/, '') : '/'
-    void load(start)
-  }, [load, initialPath])
+    const from = start.current
+    void load(from ? '/' + from.replace(/^\/+/, '') : '/')
+  }, [load])
 
   useEffect(() => {
     if (!pickMode || !onCancelPick) return
