@@ -143,6 +143,11 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   tab again goes back to the start of the section.
 - Initial values that arrive as a prop (`initialPath`) are taken **once** through
   `useRef`: sending them back up from a handler makes the screen reload itself.
+- A handler that writes and then navigates **waits for the write first**. The
+  screens read their data when they mount, so switching first and saving after
+  lands on a screen that fetched a moment too early: pinning a folder from the
+  NAS browser showed "nothing pinned" until the screen was opened again, while
+  the server already had it. Order: write, refresh, then `setScreen`.
 - Settings are saved **immediately**, with no "Save" button: the interface
   updates before the server answers and rolls back on an error.
 - Padding inside cards comes from the card's own `padding`, not from `margin` on

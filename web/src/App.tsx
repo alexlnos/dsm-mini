@@ -100,21 +100,26 @@ export function App() {
   // A folder picked in the NAS browser is pinned at once: there is no screen
   // with a Save button any more, so there is nothing to lose.
   const pinFolder = useCallback(async (path: string) => {
-    setScreen({ name: 'folders' })
-    if (!path) return
-    try {
-      const settings = await api.settings()
-      const pinned = settings.pinned_folders ?? []
-      if (pinned.includes(path)) return
-      await api.saveSettings({
-        pinned_folders: [...pinned, path],
-        show_recent: settings.show_recent,
-        last_used: settings.last_used,
-      })
-      void refresh()
-    } catch {
-      // The settings screen will show the current state and report the error itself.
+    if (path) {
+      try {
+        const settings = await api.settings()
+        const pinned = settings.pinned_folders ?? []
+        if (!pinned.includes(path)) {
+          await api.saveSettings({
+            pinned_folders: [...pinned, path],
+            show_recent: settings.show_recent,
+            last_used: settings.last_used,
+          })
+        }
+        await refresh()
+      } catch {
+        // The settings screen will show the current state and report the error itself.
+      }
     }
+    // Only now: the settings screen reads the folders when it mounts, so
+    // switching to it before the write lands showed the list as it was a
+    // moment ago — the folder just picked was missing from it.
+    setScreen({ name: 'folders' })
   }, [refresh])
 
   // The default folder is filled in until the user picks their own.
