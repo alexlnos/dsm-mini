@@ -12,6 +12,8 @@
  * кэша или прошлого опроса), обновление идёт молча, без мигания.
  */
 
+import { t } from '../i18n'
+
 /** Ширины строк по кругу: одинаковые полоски выглядят как таблица, а не текст. */
 const WIDTHS = ['64%', '46%', '73%', '54%', '68%']
 
@@ -37,7 +39,7 @@ interface RowsProps {
 /** Список карточек: имя, подпись и, если нужно, кнопка. */
 export function SkeletonRows({ count = 3, dot = false, action = false }: RowsProps) {
   return (
-    <div className="list" role="status" aria-label="Загружаю">
+    <div className="list" role="status" aria-label={t('common.loading')}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="card vm" aria-hidden="true">
           <div className="vm-head">
@@ -71,7 +73,7 @@ export function SkeletonTiles({ count = 2 }: { count?: number }) {
 /** Строки журнала: точка, сообщение в две строки и время. */
 export function SkeletonEvents({ count = 5 }: { count?: number }) {
   return (
-    <div className="list" role="status" aria-label="Загружаю">
+    <div className="list" role="status" aria-label={t('common.loading')}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="card event" aria-hidden="true">
           <span className="sk sk-dot" />
@@ -103,7 +105,7 @@ export function SkeletonMeters() {
 /** Строки файлового списка: значок, имя и размер. */
 export function SkeletonEntries({ count = 6 }: { count?: number }) {
   return (
-    <div className="list" role="status" aria-label="Загружаю">
+    <div className="list" role="status" aria-label={t('common.loading')}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="card entry" aria-hidden="true">
           <div className="entry-main">
@@ -122,7 +124,7 @@ export function SkeletonEntries({ count = 6 }: { count?: number }) {
 /** Карточки загрузок: кольцо прогресса, имя и строка состояния. */
 export function SkeletonTasks({ count = 3 }: { count?: number }) {
   return (
-    <div className="list" role="status" aria-label="Загружаю">
+    <div className="list" role="status" aria-label={t('common.loading')}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="card task" aria-hidden="true">
           <div className="task-head">
@@ -141,7 +143,7 @@ export function SkeletonTasks({ count = 3 }: { count?: number }) {
 /** Карточки дисков в списке «Диски». */
 export function SkeletonDisks({ count = 4 }: { count?: number }) {
   return (
-    <div className="card" role="status" aria-label="Загружаю">
+    <div className="card" role="status" aria-label={t('common.loading')}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} aria-hidden="true">
           {i > 0 && <div className="divider" />}

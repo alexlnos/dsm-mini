@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { alertMessage, backButton, haptic } from '../telegram'
+import { t } from '../i18n'
 import type { Settings, SettingsView } from '../types'
 
 interface Props {
@@ -33,7 +34,7 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
       setView(await api.settings())
       setError(null)
     } catch (e) {
-      setError(describe(e, 'Не загрузить настройки'))
+      setError(describe(e, t('folders.loadFailed')))
     }
   }, [])
 
@@ -60,7 +61,7 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
       } catch (e) {
         setView(previous)
         haptic('error')
-        alertMessage(describe(e, 'Не сохранить'))
+        alertMessage(describe(e, t('folders.saveFailed')))
       }
     },
     [view, pinned, showRecent, onChanged],
@@ -70,7 +71,7 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
     const clean = folder.trim().replace(/^\/+|\/+$/g, '')
     if (!clean) return
     if (pinned.includes(clean)) {
-      alertMessage('Такая папка уже закреплена')
+      alertMessage(t('folders.alreadyPinned'))
       return
     }
     onManualChange('')
@@ -97,16 +98,14 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
   return (
     <div className="page">
       <div className="card summary">
-        <h1>Папки</h1>
-        <div className="muted">
-          Появятся на экране добавления в этом порядке. Изменения сохраняются сразу.
-        </div>
+        <h1>{t('folders.title')}</h1>
+        <div className="muted">{t('folders.hint')}</div>
       </div>
 
       {error && <div className="card error-card">{error}</div>}
 
       <div className="section-head">
-        <span className="section-title">Закреплённые</span>
+        <span className="section-title">{t('folders.pinned')}</span>
       </div>
 
       <div className="list">
@@ -116,7 +115,7 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
               type="button"
               className="icon-button small danger"
               onClick={() => unpin(folder)}
-              aria-label={`Убрать ${folder}`}
+              aria-label={t('folders.removeAria', { folder })}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="3" strokeLinecap="round" aria-hidden="true">
@@ -127,14 +126,14 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
               <span className="entry-name">{folder}</span>
             </span>
             <button type="button" className="icon-button small" onClick={() => move(i, -1)}
-                    disabled={i === 0} aria-label="Выше">
+                    disabled={i === 0} aria-label={t('folders.up')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M6 14l6-6 6 6" />
               </svg>
             </button>
             <button type="button" className="icon-button small" onClick={() => move(i, 1)}
-                    disabled={i === pinned.length - 1} aria-label="Ниже">
+                    disabled={i === pinned.length - 1} aria-label={t('folders.down')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M6 10l6 6 6-6" />
@@ -145,13 +144,13 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
 
         {pinned.length === 0 && (
           <div className="card empty-text">
-            Ничего не закреплено — на экране добавления покажутся недавние папки.
+            {t('folders.empty')}
           </div>
         )}
       </div>
 
       <div className="section-head">
-        <span className="section-title">Добавить</span>
+        <span className="section-title">{t('folders.addSection')}</span>
       </div>
 
       <div className="card">
@@ -164,12 +163,12 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
             onKeyDown={(e) => { if (e.key === 'Enter') add(manual) }}
           />
           <button type="button" className="button compact" onClick={() => add(manual)}>
-            Добавить
+            {t('common.add')}
           </button>
         </div>
         <div className="divider" />
         <button type="button" className="settings-link" onClick={onPickOnNas}>
-          <span>Выбрать на NAS</span>
+          <span>{t('common.pickOnNas')}</span>
           <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor"
                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M1.5 1.5L7 7.5l-5.5 6" />
@@ -180,7 +179,7 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
       {suggested.length > 0 && (
         <>
           <div className="section-head">
-            <span className="section-title">Используются сейчас</span>
+            <span className="section-title">{t('folders.inUse')}</span>
           </div>
           <div className="chips">
             {suggested.map((folder) => (
@@ -195,10 +194,8 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
       <div className="card">
         <label className="settings-row toggle" htmlFor="recent">
           <span className="settings-text">
-            <span>Показывать недавние</span>
-            <span className="muted small">
-              Папки последних задач появятся под закреплёнными
-            </span>
+            <span>{t('folders.showRecent')}</span>
+            <span className="muted small">{t('folders.showRecentHint')}</span>
           </span>
           <input
             id="recent"

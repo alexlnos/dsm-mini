@@ -1,4 +1,5 @@
 import { hasNativeBack } from '../telegram'
+import { t } from '../i18n'
 
 interface Props {
   title: string
@@ -18,7 +19,7 @@ export function ScreenTitle({ title, onBack, children }: Props) {
   return (
     <div className="home-head">
       {!hasNativeBack() && (
-        <button type="button" className="back-button" onClick={onBack} aria-label="Назад">
+        <button type="button" className="back-button" onClick={onBack} aria-label={t('common.back')}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 18l-6-6 6-6" />

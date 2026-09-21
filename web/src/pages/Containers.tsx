@@ -4,6 +4,7 @@ import { SkeletonRows } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { readCache, writeCache } from '../cache'
 import { size } from '../format'
+import { formatNumber, t } from '../i18n'
 import { alertMessage, backButton, haptic } from '../telegram'
 import type { Container } from '../types'
 
@@ -27,7 +28,7 @@ export function Containers({ onBack }: Props) {
       writeCache('containers', data.containers ?? [])
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить список контейнеров')
+      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('containers.listFailed'))
     } finally {
       setLoaded(true)
     }
@@ -43,7 +44,7 @@ export function Containers({ onBack }: Props) {
       await load()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
     } finally {
       setBusy(null)
     }
@@ -52,9 +53,14 @@ export function Containers({ onBack }: Props) {
   return (
     <div className="page">
       <div className="card summary">
-        <ScreenTitle title="Контейнеры" onBack={onBack}>
+        <ScreenTitle title={t('containers.title')} onBack={onBack}>
           {list.length > 0 && (
-            <span className="badge">{list.filter((c) => c.running).length} из {list.length}</span>
+            <span className="badge">
+              {t('common.outOf', {
+                value: list.filter((c) => c.running).length,
+                total: list.length,
+              })}
+            </span>
           )}
         </ScreenTitle>
       </div>
@@ -75,9 +81,9 @@ export function Containers({ onBack }: Props) {
               <path d="M3 18h18" />
             </svg>
           </div>
-          <div className="empty-title">Контейнеров нет</div>
+          <div className="empty-title">{t('containers.emptyTitle')}</div>
           <div className="empty-text">
-            Container Manager работает, но ни один контейнер не создан.
+            {t('containers.emptyText')}
           </div>
         </div>
       )}
@@ -96,7 +102,7 @@ export function Containers({ onBack }: Props) {
                 className={c.running ? 'icon-button danger' : 'icon-button ok'}
                 disabled={busy === c.name}
                 onClick={() => void act(c, c.running ? 'stop' : 'start')}
-                aria-label={c.running ? 'Остановить' : 'Запустить'}
+                aria-label={c.running ? t('containers.stop') : t('containers.start')}
               >
                 {c.running ? (
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -111,17 +117,17 @@ export function Containers({ onBack }: Props) {
             </div>
             <div className="vm-foot">
               <span className={c.running ? 'vm-status on' : 'vm-status'}>
-                {c.running ? 'Работает' : c.status || 'Остановлен'}
+                {c.running ? t('containers.running') : c.status || t('containers.stopped')}
               </span>
               {c.running && (
                 <span className="muted tnum">
-                  {c.cpu.toFixed(1).replace('.', ',')}% · {size(c.memory)}
+                  {formatNumber(c.cpu, 1)}% · {size(c.memory)}
                 </span>
               )}
               {c.running && (
                 <button type="button" className="link-button" disabled={busy === c.name}
                         onClick={() => void act(c, 'restart')}>
-                  перезапустить
+                  {t('containers.restart')}
                 </button>
               )}
             </div>

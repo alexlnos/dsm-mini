@@ -1,4 +1,5 @@
 import { eta, size, speed, statusLabel, taskTitle } from '../format'
+import { t } from '../i18n'
 import type { Task } from '../types'
 import { ProgressRing } from './ProgressRing'
 
@@ -39,7 +40,7 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
           type="button"
           className="task-open"
           onClick={() => onOpen(task)}
-          aria-label="Подробности задачи"
+          aria-label={t('downloads.detailsAria')}
         >
           <ProgressRing value={task.progress} color={look.color} glyph={look.glyph} />
         </button>
@@ -47,7 +48,8 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
         <button type="button" className="task-text" onClick={() => onOpen(task)}>
           <span className="task-title">{taskTitle(task.title)}</span>
           <span className="task-meta">
-            {task.destination || '—'} · {size(task.downloaded)} из {size(task.size)}
+            {task.destination || t('common.dash')} ·{' '}
+            {t('common.outOf', { value: size(task.downloaded), total: size(task.size) })}
           </span>
         </button>
 
@@ -57,7 +59,7 @@ export function TaskCard({ task, busy, onToggle, onOpen }: Props) {
           className="icon-button"
           disabled={busy}
           onClick={() => onToggle(task)}
-          aria-label={paused ? 'Возобновить' : 'Остановить'}
+          aria-label={paused ? t('downloads.resume') : t('downloads.pause')}
         >
           {paused ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

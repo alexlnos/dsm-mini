@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { ApiError } from '../api'
 import { alertMessage, backButton, haptic } from '../telegram'
+import { t } from '../i18n'
 import type { Overview } from '../types'
 
 /** Несохранённое содержимое экрана: живёт выше, чтобы пережить обзор NAS. */
@@ -40,22 +41,22 @@ export function Add({
       const text = await navigator.clipboard.readText()
       if (text) onDraftChange({ ...draft, link: text.trim() })
     } catch {
-      alertMessage('Буфер обмена недоступен — вставьте ссылку вручную')
+      alertMessage(t('add.clipboardUnavailable'))
     }
   }
 
   return (
     <div className="page">
       <div className="card form">
-        <h1 className="card-title">Новая загрузка</h1>
+        <h1 className="card-title">{t('add.title')}</h1>
 
-        <label className="field-label" htmlFor="link">Ссылка</label>
+        <label className="field-label" htmlFor="link">{t('add.linkLabel')}</label>
         <div className="input-wrap">
           <textarea
             id="link"
             rows={3}
             className="input"
-            placeholder="magnet:?xt=urn:btih:… или https://…"
+            placeholder={t('add.linkPlaceholder')}
             value={link}
             onChange={(e) => onDraftChange({ ...draft, link: e.target.value })}
           />
@@ -64,7 +65,7 @@ export function Add({
               type="button"
               className="input-clear"
               onClick={() => { haptic('light'); onDraftChange({ ...draft, link: '' }) }}
-              aria-label="Очистить"
+              aria-label={t('add.clear')}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
@@ -76,15 +77,15 @@ export function Add({
 
         <div className="row">
           <button type="button" className="button secondary" onClick={paste}>
-            Из буфера
+            {t('add.fromClipboard')}
           </button>
         </div>
       </div>
 
       <div className="section-head row-between">
-        <span className="section-title">Куда положить</span>
+        <span className="section-title">{t('add.whereTo')}</span>
         <button type="button" className="link-button" onClick={onConfigureFolders}>
-          Настроить
+          {t('add.configure')}
         </button>
       </div>
 
@@ -108,7 +109,7 @@ export function Add({
               type="button"
               className="icon-button small"
               onClick={() => onBrowse(folder)}
-              aria-label={`Открыть ${folder} и выбрать вложенную папку`}
+              aria-label={t('add.openFolderAria', { folder })}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -126,7 +127,7 @@ export function Add({
               <path d="M11 11.5v4" /><path d="M9 13.5h4" />
             </svg>
           </span>
-          <span className="folder-name accent">Выбрать папку на NAS</span>
+          <span className="folder-name accent">{t('add.pickOnNas')}</span>
         </button>
       </div>
 
@@ -136,7 +137,7 @@ export function Add({
         disabled={sending || !link.trim()}
         onClick={onSend}
       >
-        {sending ? 'Ставлю…' : 'Поставить в очередь'}
+        {sending ? t('add.submitting') : t('add.submit')}
       </button>
     </div>
   )
@@ -144,5 +145,5 @@ export function Add({
 
 export function describeError(e: unknown): string {
   if (e instanceof ApiError) return e.detail ?? e.message
-  return 'Не получилось поставить задачу'
+  return t('add.failed')
 }

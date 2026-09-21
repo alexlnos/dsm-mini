@@ -3,6 +3,7 @@ import { SkeletonMeters } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { readCache, writeCache } from '../cache'
 import { size, speed, uptime } from '../format'
+import { t } from '../i18n'
 import type { Overview, StorageOverview, SystemOverview } from '../types'
 
 export type Section = 'downloads' | 'files' | 'vms' | 'containers' | 'storage' | 'notifications'
@@ -44,7 +45,7 @@ export function Home({ downloads, onOpen }: Props) {
       }
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : 'NAS недоступен')
+      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('home.offline'))
     }
   }, [])
 
@@ -68,19 +69,27 @@ export function Home({ downloads, onOpen }: Props) {
     id: Section; name: string; note: string; kind: string; pkg?: string
   }> = [
     {
-      id: 'downloads', name: 'Загрузки', kind: 'down', pkg: 'DownloadStation',
-      note: activeTasks > 0 ? `${activeTasks} активных · ${doneTasks} готовы` : `${doneTasks} задач`,
+      id: 'downloads', name: t('app.downloads'), kind: 'down', pkg: 'DownloadStation',
+      note: activeTasks > 0
+        ? t('home.activeNote', { active: activeTasks, done: doneTasks })
+        : t('home.tasksNote', { count: doneTasks }),
     },
-    { id: 'files', name: 'Файлы', kind: 'files', pkg: 'FileStation', note: 'обзор и загрузка' },
-    { id: 'vms', name: 'Виртуальные машины', kind: 'vm', pkg: 'Virtualization', note: 'управление' },
-    { id: 'containers', name: 'Контейнеры', kind: 'docker', pkg: 'ContainerManager', note: 'Container Manager' },
+    { id: 'files', name: t('app.files'), kind: 'files', pkg: 'FileStation', note: t('home.filesNote') },
+    { id: 'vms', name: t('app.vms'), kind: 'vm', pkg: 'Virtualization', note: t('home.vmsNote') },
     {
-      id: 'storage', name: 'Хранилище', kind: 'disk',
-      note: storage
-        ? `${storage.disks?.length ?? 0} дисков · ${storage.pools?.length ?? 0} пула`
-        : 'диски и тома',
+      id: 'containers', name: t('app.containers'), kind: 'docker',
+      pkg: 'ContainerManager', note: 'Container Manager',
     },
-    { id: 'notifications', name: 'Уведомления', kind: 'bell', note: 'журнал событий NAS' },
+    {
+      id: 'storage', name: t('app.storage'), kind: 'disk',
+      note: storage
+        ? t('home.storageNote', {
+          disks: t('storage.disksCount', { count: storage.disks?.length ?? 0 }),
+          pools: t('storage.poolsCount', { count: storage.pools?.length ?? 0 }),
+        })
+        : t('home.storageFallbackNote'),
+    },
+    { id: 'notifications', name: t('app.notifications'), kind: 'bell', note: t('home.logNote') },
   ]
 
   return (
@@ -98,10 +107,10 @@ export function Home({ downloads, onOpen }: Props) {
           <div className="home-title">
             <div className="home-name">{info?.hostname || 'NAS'}</div>
             <div className="muted tnum home-sub">
-              {info ? `${info.model} · DSM ${info.firmware?.split('-')[0] ?? ''}` : 'подключаюсь…'}
+              {info ? `${info.model} · DSM ${info.firmware?.split('-')[0] ?? ''}` : t('home.connecting')}
             </div>
           </div>
-          <span className={error ? 'badge bad' : 'badge ok'}>{error ? 'нет связи' : 'в сети'}</span>
+          <span className={error ? 'badge bad' : 'badge ok'}>{error ? t('home.noLink') : t('home.online')}</span>
         </div>
 
         {error && <div className="home-error">{error}</div>}
@@ -124,9 +133,9 @@ export function Home({ downloads, onOpen }: Props) {
       {volumes.length > 0 && (
         <div className="card widget">
           <div className="widget-head">
-            <span className="widget-title">Хранилище</span>
+            <span className="widget-title">{t('home.storage')}</span>
             <span className={storage?.healthy ? 'widget-state ok' : 'widget-state bad'}>
-              {storage?.healthy ? 'исправно' : 'требует внимания'}
+              {storage?.healthy ? t('home.healthy') : t('home.needsAttention')}
             </span>
           </div>
           {volumes.map((v) => {
@@ -134,8 +143,10 @@ export function Home({ downloads, onOpen }: Props) {
             return (
               <div key={v.id} className="volume-row">
                 <div className="volume-head">
-                  <span className="volume-name">{v.name || v.id.replace('volume_', 'Том ')}</span>
-                  <span className="muted tnum">свободно {size(v.total - v.used)}</span>
+                  <span className="volume-name">
+                    {v.name || t('home.volume', { number: v.id.replace('volume_', '') })}
+                  </span>
+                  <span className="muted tnum">{t('home.free', { size: size(v.total - v.used) })}</span>
                 </div>
                 <div className="bar">
                   <div
@@ -153,7 +164,7 @@ export function Home({ downloads, onOpen }: Props) {
       )}
 
       <div className="section-head">
-        <span className="section-title">Приложения</span>
+        <span className="section-title">{t('home.apps')}</span>
       </div>
 
       <div className="list">
@@ -181,7 +192,7 @@ export function Home({ downloads, onOpen }: Props) {
                 </svg>
               ) : (
                 <span className="app-off">
-                  {state?.installed ? 'не запущен' : 'не установлен'}
+                  {state?.installed ? t('home.notRunning') : t('home.notInstalled')}
                 </span>
               )}
             </button>

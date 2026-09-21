@@ -3,6 +3,7 @@ import { ScreenTitle } from '../components/ScreenTitle'
 import { SkeletonEvents, SkeletonTiles } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { logDay, logTime } from '../format'
+import { t } from '../i18n'
 import { backButton } from '../telegram'
 import type { LogEntry } from '../types'
 
@@ -27,7 +28,7 @@ export function Notifications({ onBack }: Props) {
       setEntries(data.entries ?? [])
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить журнал')
+      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('log.failed'))
     } finally {
       setLoading(false)
     }
@@ -52,17 +53,17 @@ export function Notifications({ onBack }: Props) {
   return (
     <div className="page">
       <div className="card summary">
-        <ScreenTitle title="События" onBack={onBack}>
-          <span className="muted tnum">журнал NAS</span>
+        <ScreenTitle title={t('log.title')} onBack={onBack}>
+          <span className="muted tnum">{t('log.subtitle')}</span>
         </ScreenTitle>
         {loading && entries.length === 0 ? <SkeletonTiles /> : (
         <div className="tiles">
           <div className="tile">
-            <span className="tile-label">Записей</span>
+            <span className="tile-label">{t('log.records')}</span>
             <span className="tile-value tnum">{entries.length}</span>
           </div>
           <div className="tile">
-            <span className="tile-label">Проблемных</span>
+            <span className="tile-label">{t('log.problems')}</span>
             <span className="tile-value tnum" style={{ color: problems ? 'var(--bad)' : undefined }}>
               {problems}
             </span>
@@ -72,7 +73,7 @@ export function Notifications({ onBack }: Props) {
       </div>
 
       <div className="segments" role="tablist">
-        {([['all', 'Все'], ['problems', 'Важные']] as const).map(([id, label]) => (
+        {([['all', t('log.tabAll')], ['problems', t('log.tabProblems')]] as const).map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -91,7 +92,7 @@ export function Notifications({ onBack }: Props) {
 
       {!loading && !error && entries.length === 0 && (
         <div className="card empty-text">
-          {filter === 'problems' ? 'Ошибок и предупреждений нет.' : 'Журнал пуст.'}
+          {filter === 'problems' ? t('log.emptyProblems') : t('log.empty')}
         </div>
       )}
 

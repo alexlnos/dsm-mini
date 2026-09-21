@@ -3,6 +3,7 @@ import { Preview } from '../components/Preview'
 import { Bar, SkeletonEntries } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { size } from '../format'
+import { t } from '../i18n'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
 import type { Entry } from '../types'
 
@@ -84,7 +85,7 @@ export function Files({
       setSelected(new Set())
       report.current?.(target)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не прочитать папку')
+      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('files.readFailed'))
     } finally {
       setLoading(false)
     }
@@ -124,7 +125,7 @@ export function Files({
       await load(path, true)
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
     } finally {
       setBusy(null)
     }
@@ -132,25 +133,25 @@ export function Files({
 
   async function removeSelected() {
     const names = chosen.map((e) => e.name).join(', ')
-    if (!(await confirmAction(`Удалить безвозвратно: ${names}?`))) return
+    if (!(await confirmAction(t('files.confirmDelete', { names })))) return
     await act('delete', () => api.deleteFiles(chosen.map((e) => e.path)))
   }
 
   async function renameEntry(entry: Entry) {
-    const name = window.prompt('Новое имя', entry.name)
+    const name = window.prompt(t('files.newName'), entry.name)
     if (!name || name === entry.name) return
     await act('rename', () => api.rename(entry.path, name))
   }
 
   async function createFolder() {
-    const name = window.prompt('Имя новой папки')
+    const name = window.prompt(t('files.newFolderName'))
     if (!name) return
     await act('mkdir', () => api.createFolder(path, name))
   }
 
   async function upload(file: File) {
     if (path === '/') {
-      alertMessage('Выберите папку: в корень загружать нельзя')
+      alertMessage(t('files.rootUpload'))
       return
     }
     await act('upload', () => api.upload(path, file, false))
@@ -162,13 +163,13 @@ export function Files({
       const status = await api.transferStatus(taskId)
       if (status.finished) {
         if (status.skipped) {
-          alertMessage('Часть файлов пропущена: в папке назначения уже есть файлы с такими именами.')
+          alertMessage(t('files.someSkipped'))
         }
         return
       }
       await new Promise((r) => setTimeout(r, 1000))
     }
-    alertMessage('Операция ещё идёт на NAS — обновите папку позже.')
+    alertMessage(t('files.stillRunning'))
   }
 
   async function applyPending() {
@@ -216,7 +217,7 @@ export function Files({
               type="button"
               className="back-button"
               onClick={() => void load(parentOf(path))}
-              aria-label="На уровень выше"
+              aria-label={t('files.up')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -224,12 +225,12 @@ export function Files({
               </svg>
             </button>
           )}
-          <h1>{segments.at(-1) ?? 'Общие папки'}</h1>
+          <h1>{segments.at(-1) ?? t('files.shares')}</h1>
         </div>
         {loading && entries.length === 0 ? (
           <Bar width="38%" height={13} />
         ) : (
-          <div className="muted tnum">{entries.length} объектов</div>
+          <div className="muted tnum">{t('files.objects', { count: entries.length })}</div>
         )}
 
         {pending && (
@@ -240,9 +241,10 @@ export function Files({
               disabled={path === '/' || busy !== null}
               onClick={() => void applyPending()}
             >
-              {busy ? 'Переношу…' : (
-                path === '/' ? 'Откройте папку'
-                  : `${pending.move ? 'Перенести' : 'Скопировать'} сюда · ${pending.paths.length}`
+              {busy ? t('files.transferring') : (
+                path === '/' ? t('files.openFolderFirst')
+                  : t(pending.move ? 'files.moveHere' : 'files.copyHere',
+                    { count: pending.paths.length })
               )}
             </button>
           </div>
@@ -256,7 +258,9 @@ export function Files({
               disabled={path === '/'}
               onClick={() => onPick?.(path.replace(/^\/+/, ''))}
             >
-              {path === '/' ? 'Откройте папку' : `Выбрать ${segments.at(-1)}`}
+              {path === '/'
+                ? t('files.openFolderFirst')
+                : t('files.pickHere', { folder: segments.at(-1) ?? '' })}
             </button>
           </div>
         )}
@@ -265,10 +269,10 @@ export function Files({
           <div className="row">
             <button type="button" className="button secondary"
                     onClick={() => fileInput.current?.click()}>
-              Загрузить
+              {t('common.upload')}
             </button>
             <button type="button" className="button secondary" onClick={() => void createFolder()}>
-              Новая папка
+              {t('common.newFolder')}
             </button>
           </div>
         )}
@@ -307,13 +311,13 @@ export function Files({
                 <span className="entry-text">
                   <span className="entry-name">{entry.name}</span>
                   <span className="entry-meta tnum">
-                    {entry.is_dir ? 'папка' : size(entry.size)}
+                    {entry.is_dir ? t('files.folderKind') : size(entry.size)}
                   </span>
                 </span>
               </button>
               {canEdit && (
                 <button type="button" className="icon-button small" onClick={() => void renameEntry(entry)}
-                        aria-label="Переименовать">
+                        aria-label={t('common.rename')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
@@ -332,15 +336,15 @@ export function Files({
           <span className="action-count tnum">{chosen.length}</span>
           <button type="button" className="action" disabled={busy !== null}
                   onClick={() => onTransfer?.(chosen.map((e) => e.path), false)}>
-            Копировать
+            {t('common.copy')}
           </button>
           <button type="button" className="action" disabled={busy !== null}
                   onClick={() => onTransfer?.(chosen.map((e) => e.path), true)}>
-            Перенести
+            {t('common.move')}
           </button>
           <button type="button" className="action danger" disabled={busy !== null}
                   onClick={() => void removeSelected()}>
-            Удалить
+            {t('common.delete')}
           </button>
         </div>
       )}

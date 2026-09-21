@@ -5,6 +5,7 @@ import { api, ApiError } from '../api'
 import { readCache, writeCache } from '../cache'
 import type { Guest, VMHost } from '../types'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
+import { formatNumber, t } from '../i18n'
 
 interface Props {
   onBack: () => void
@@ -13,9 +14,9 @@ interface Props {
 function ram(mb: number): string {
   if (mb >= 1024) {
     const gb = mb / 1024
-    return `${gb % 1 === 0 ? gb : gb.toFixed(1).replace('.', ',')} ГБ`
+    return `${formatNumber(gb, gb % 1 === 0 ? 0 : 1)} ${t('unit.gb')}`
   }
-  return `${mb} МБ`
+  return `${mb} ${t('unit.mb')}`
 }
 
 export function VMs({ onBack }: Props) {
@@ -38,7 +39,7 @@ export function VMs({ onBack }: Props) {
       writeCache('vm-host', data.host)
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить список машин')
+      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('vms.listFailed'))
     } finally {
       setLoaded(true)
     }
@@ -56,7 +57,7 @@ export function VMs({ onBack }: Props) {
     const starting = !guest.running
     if (!starting) {
       const ok = await confirmAction(
-        `Выключить «${guest.name}»? Гостевой системе будет отправлена команда завершения работы.`,
+        t('vms.confirmShutdown', { name: guest.name }),
       )
       if (!ok) return
     }
@@ -67,7 +68,7 @@ export function VMs({ onBack }: Props) {
       await load()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
     } finally {
       setBusy(null)
     }
@@ -76,18 +77,22 @@ export function VMs({ onBack }: Props) {
   return (
     <div className="page">
       <div className="card summary">
-        <ScreenTitle title="Машины" onBack={onBack}>
-          {host && <span className="badge">{host.running_vms} из {host.total_vms}</span>}
+        <ScreenTitle title={t('vms.title')} onBack={onBack}>
+          {host && (
+            <span className="badge">
+              {t('common.outOf', { value: host.running_vms, total: host.total_vms })}
+            </span>
+          )}
         </ScreenTitle>
         {!host && !loaded && <SkeletonTiles />}
         {host && (
           <div className="tiles">
             <div className="tile">
-              <span className="tile-label">Свободно RAM</span>
+              <span className="tile-label">{t('vms.freeRam')}</span>
               <span className="tile-value tnum">{ram(host.free_ram_mb)}</span>
             </div>
             <div className="tile">
-              <span className="tile-label">Занято vCPU</span>
+              <span className="tile-label">{t('vms.usedVcpu')}</span>
               <span className="tile-value tnum">{host.used_vcpu}</span>
             </div>
           </div>
@@ -106,7 +111,7 @@ export function VMs({ onBack }: Props) {
               <div className="vm-text">
                 <span className="vm-name">{g.name}</span>
                 <span className="vm-specs tnum">
-                  {g.vcpu} vCPU · {ram(g.ram_mb)} · диск {ram(g.disk_mb)}
+                  {t('vms.specs', { vcpu: g.vcpu, ram: ram(g.ram_mb), disk: ram(g.disk_mb) })}
                 </span>
               </div>
               <button
@@ -114,7 +119,7 @@ export function VMs({ onBack }: Props) {
                 className={g.running ? 'icon-button danger' : 'icon-button ok'}
                 disabled={busy === g.id}
                 onClick={() => void act(g)}
-                aria-label={g.running ? 'Выключить' : 'Запустить'}
+                aria-label={g.running ? t('vms.stop') : t('vms.start')}
               >
                 {g.running ? (
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -129,15 +134,15 @@ export function VMs({ onBack }: Props) {
             </div>
             <div className="vm-foot">
               <span className={g.running ? 'vm-status on' : 'vm-status'}>
-                {g.running ? 'Работает' : 'Выключена'}
+                {g.running ? t('vms.running') : t('vms.stopped')}
               </span>
-              {g.autorun && <span className="muted tnum">автозапуск</span>}
+              {g.autorun && <span className="muted tnum">{t('vms.autorun')}</span>}
             </div>
           </div>
         ))}
 
         {loaded && !error && guests.length === 0 && (
-          <div className="card empty-text">Машин нет.</div>
+          <div className="card empty-text">{t('vms.empty')}</div>
         )}
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type {
   Container, Entry, FilePriority, Guest, LogEntry, Overview, Settings, SettingsView,
   StorageOverview, SystemOverview, Task, TaskDetails, VMHost,
@@ -47,7 +48,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = parsed as { error?: string; detail?: string } | null
     throw new ApiError(
       response.status,
-      body?.error ?? `Ошибка ${response.status}`,
+      body?.error ?? t('error.http', { status: response.status }),
       body?.detail,
     )
   }
@@ -65,7 +66,7 @@ async function fetchBlob(path: string): Promise<Blob> {
   if (authToken) headers.set('Authorization', `tma ${authToken}`)
   const response = await fetch(path, { headers })
   if (!response.ok) {
-    let message = `Ошибка ${response.status}`
+    let message = t('error.http', { status: response.status })
     try {
       const body = await response.json() as { error?: string }
       if (body?.error) message = body.error

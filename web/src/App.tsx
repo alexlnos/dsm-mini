@@ -12,6 +12,7 @@ import { TaskDetail } from './pages/TaskDetail'
 import { api, ApiError } from './api'
 import { readCache, writeCache } from './cache'
 import { alertMessage, haptic } from './telegram'
+import { t } from './i18n'
 import type { Overview, Task } from './types'
 
 type Screen =
@@ -76,11 +77,11 @@ export function App() {
       setError(null)
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
-        setError('Доступ закрыт: ваш Telegram ID не в списке разрешённых.')
+        setError(t('access.forbidden'))
       } else if (e instanceof ApiError && e.status === 401) {
-        setError('Откройте приложение через бота — Telegram не подтвердил вход.')
+        setError(t('access.unauthorized'))
       } else {
-        setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Сервис недоступен')
+        setError(e instanceof ApiError ? (e.detail ?? e.message) : t('access.unavailable'))
       }
     }
   }, [])
@@ -126,7 +127,7 @@ export function App() {
   const submit = useCallback(async () => {
     const urls = addDraft.link.split('\n').map((s) => s.trim()).filter(Boolean)
     if (urls.length === 0) {
-      alertMessage('Вставьте ссылку')
+      alertMessage(t('add.needLink'))
       return
     }
     setSending(true)
@@ -154,7 +155,7 @@ export function App() {
       void refresh()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не сменить папку')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('task.moveFailed'))
     }
   }, [refresh])
 
@@ -299,7 +300,7 @@ export function App() {
                  strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 10.5L12 4l8 6.5" /><path d="M6 10v9h12v-9" />
             </svg>
-            <span>Главная</span>
+            <span>{t('tab.home')}</span>
           </button>
           <button
             type="button"
@@ -314,7 +315,7 @@ export function App() {
                  strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 4v11" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M4 19h16" />
             </svg>
-            <span>Загрузки</span>
+            <span>{t('tab.downloads')}</span>
           </button>
           <button
             type="button"
@@ -334,7 +335,7 @@ export function App() {
                  strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5z" />
             </svg>
-            <span>Файлы</span>
+            <span>{t('tab.files')}</span>
           </button>
         </nav>
       )}

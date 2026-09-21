@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
+import { t } from '../i18n'
 import { size as humanSize } from '../format'
 import type { Entry } from '../types'
 
@@ -56,7 +57,7 @@ export function Preview({ entry, onClose }: Props) {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : 'Не удалось открыть файл')
+          setError(e instanceof ApiError ? e.message : t('preview.failed'))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -75,7 +76,7 @@ export function Preview({ entry, onClose }: Props) {
       <div className="preview" onClick={(e) => e.stopPropagation()}>
         <div className="preview-head">
           <span className="preview-name">{entry.name}</span>
-          <button type="button" className="icon-button small" onClick={onClose} aria-label="Закрыть">
+          <button type="button" className="icon-button small" onClick={onClose} aria-label={t('common.close')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
               <path d="M6 6l12 12" /><path d="M18 6L6 18" />
@@ -84,7 +85,7 @@ export function Preview({ entry, onClose }: Props) {
         </div>
 
         <div className="preview-body">
-          {loading && <div className="muted">Загружаю…</div>}
+          {loading && <div className="muted">{t('common.loading')}</div>}
           {error && <div className="preview-error">{error}</div>}
 
           {!loading && !error && url && (
@@ -95,7 +96,7 @@ export function Preview({ entry, onClose }: Props) {
           )}
           {!loading && !error && !isImage && !isText && (
             <div className="muted preview-none">
-              Просмотр для таких файлов не предусмотрен.
+              {t('preview.unsupported')}
               <br />
               {humanSize(entry.size)}
             </div>

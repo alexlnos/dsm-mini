@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { setAuthToken } from './api'
 import { initTelegram } from './telegram'
+import { t } from './i18n'
 import './styles.css'
 
 const initData = initTelegram()
@@ -16,11 +17,8 @@ if (root) {
         <App />
       ) : (
         <div className="standalone">
-          <h1>Откройте через Telegram</h1>
-          <p>
-            Приложение работает внутри бота: Telegram передаёт подпись, по которой
-            сервис узнаёт, кто вы. По прямой ссылке в браузере оно не откроется.
-          </p>
+          <h1>{t('standalone.title')}</h1>
+          <p>{t('standalone.text')}</p>
         </div>
       )}
     </StrictMode>,

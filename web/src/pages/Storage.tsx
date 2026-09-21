@@ -4,6 +4,7 @@ import { Bar, SkeletonDisks } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { readCache, writeCache } from '../cache'
 import { size } from '../format'
+import { t } from '../i18n'
 import { backButton } from '../telegram'
 import type { Disk, StorageOverview } from '../types'
 
@@ -33,7 +34,7 @@ export function Storage({ onBack }: Props) {
       writeCache('storage', fresh)
       setError(null)
     } catch (e) {
-      setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить состояние хранилища')
+      setError(e instanceof ApiError ? (e.detail ?? e.message) : t('storage.failed'))
     }
   }, [])
 
@@ -54,23 +55,25 @@ export function Storage({ onBack }: Props) {
   return (
     <div className="page">
       <div className="card summary">
-        <ScreenTitle title="Хранилище" onBack={onBack}>
+        <ScreenTitle title={t('storage.title')} onBack={onBack}>
           {data && (
             <span className={data.healthy ? 'badge ok' : 'badge bad'}>
-              {data.healthy ? 'исправно' : 'внимание'}
+              {data.healthy ? t('storage.healthy') : t('storage.attention')}
             </span>
           )}
         </ScreenTitle>
         {data ? (
           <div className="muted tnum">
-            {disks.length} дисков · {pools.length} пула · {volumes.length} тома
+            {t('storage.disksCount', { count: disks.length })}
+            {' · '}{t('storage.poolsCount', { count: pools.length })}
+            {' · '}{t('storage.volumesCount', { count: volumes.length })}
           </div>
         ) : (
           <Bar width="52%" height={13} />
         )}
 
         <div className="bays">
-          <div className="bays-label">Отсеки SATA</div>
+          <div className="bays-label">{t('storage.baysSata')}</div>
           <div className="bays-grid">
             {bays.map((disk, i) => (
               <div key={i} className={disk ? 'bay' : data ? 'bay empty' : 'bay sk'}>
@@ -82,7 +85,7 @@ export function Storage({ onBack }: Props) {
 
           {nvme.length > 0 && (
             <>
-              <div className="bays-label">Слоты M.2</div>
+              <div className="bays-label">{t('storage.slotsM2')}</div>
               <div className="bays-row">
                 {nvme.map((disk, i) => (
                   <div key={disk.id} className="bay m2">
@@ -100,15 +103,19 @@ export function Storage({ onBack }: Props) {
 
       {volumes.length > 0 && (
         <>
-          <div className="section-head"><span className="section-title">Тома</span></div>
+          <div className="section-head"><span className="section-title">{t('storage.volumes')}</span></div>
           <div className="list">
             {volumes.map((v) => {
               const percent = v.total > 0 ? Math.round((v.used / v.total) * 100) : 0
               return (
                 <div key={v.id} className="card volume">
                   <div className="volume-head">
-                    <span className="volume-name">{v.name || v.id.replace('volume_', 'Том ')}</span>
-                    <span className="muted tnum">{size(v.used)} из {size(v.total)}</span>
+                    <span className="volume-name">
+                      {v.name || t('home.volume', { number: v.id.replace('volume_', '') })}
+                    </span>
+                    <span className="muted tnum">
+                      {t('common.outOf', { value: size(v.used), total: size(v.total) })}
+                    </span>
                   </div>
                   <div className="bar">
                     <div
@@ -121,7 +128,9 @@ export function Storage({ onBack }: Props) {
                   </div>
                   <div className="volume-foot">
                     <span className="muted">{v.fs_type?.toUpperCase()}</span>
-                    <span className="vm-status on">{v.status === 'normal' ? 'исправен' : v.status}</span>
+                    <span className="vm-status on">
+                      {v.status === 'normal' ? t('storage.volumeOk') : v.status}
+                    </span>
                   </div>
                 </div>
               )
@@ -132,14 +141,16 @@ export function Storage({ onBack }: Props) {
 
       {pools.length > 0 && (
         <>
-          <div className="section-head"><span className="section-title">Пулы</span></div>
+          <div className="section-head"><span className="section-title">{t('storage.pools')}</span></div>
           <div className="card">
             {pools.map((p, i) => (
               <div key={p.id}>
                 {i > 0 && <div className="divider" />}
                 <div className="pool">
                   <div className="volume-head">
-                    <span className="volume-name">{p.id.replace('reuse_', 'Пул ')}</span>
+                    <span className="volume-name">
+                      {t('storage.pool', { number: p.id.replace('reuse_', '') })}
+                    </span>
                     <span className="muted tnum">{size(p.total)}</span>
                   </div>
                   <div className="muted tnum pool-disks">
@@ -153,7 +164,7 @@ export function Storage({ onBack }: Props) {
         </>
       )}
 
-      <div className="section-head"><span className="section-title">Диски</span></div>
+      <div className="section-head"><span className="section-title">{t('storage.disks')}</span></div>
       {!data && !error && <SkeletonDisks count={4} />}
       {data && (
       <div className="card">

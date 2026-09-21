@@ -4,8 +4,12 @@
  * Работаем через глобальный объект, а не только через SDK: приложение должно
  * открываться и в обычном браузере при разработке, где ничего этого нет.
  */
+import { setLocale } from './i18n'
+
 interface TelegramWebApp {
   initData?: string
+  /** Разобранные параметры запуска; подпись у них та же, что у initData. */
+  initDataUnsafe?: { user?: { language_code?: string } }
   colorScheme?: 'light' | 'dark'
   themeParams?: Record<string, string>
   viewportStableHeight?: number
@@ -55,7 +59,31 @@ export function initTelegram(): string {
   // приложение по-прежнему можно крестиком и кнопкой «назад».
   if (supports(app, '7.7')) app?.disableVerticalSwipes?.()
 
-  return app?.initData || initDataFromLocation()
+  const initData = app?.initData || initDataFromLocation()
+  setLocale(languageCode(app, initData))
+  return initData
+}
+
+/**
+ * Язык, выбранный человеком в Telegram.
+ *
+ * Клиент отдаёт его разобранным, но если скрипт не загрузился, тот же код
+ * лежит в подписанных параметрах запуска. Совсем без Telegram (разработка в
+ * браузере) спрашиваем браузер.
+ */
+function languageCode(app: TelegramWebApp | undefined, initData: string): string | undefined {
+  const known = app?.initDataUnsafe?.user?.language_code
+  if (known) return known
+  try {
+    const raw = new URLSearchParams(initData).get('user')
+    if (raw) {
+      const user = JSON.parse(raw) as { language_code?: string }
+      if (user.language_code) return user.language_code
+    }
+  } catch {
+    // Параметры могут быть любыми — язык не повод ломать запуск.
+  }
+  return navigator.language
 }
 
 /**

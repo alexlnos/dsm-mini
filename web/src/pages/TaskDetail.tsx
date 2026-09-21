@@ -3,6 +3,7 @@ import { ProgressRing } from '../components/ProgressRing'
 import { appearance } from '../components/TaskCard'
 import { api, ApiError } from '../api'
 import { eta, size, speed, statusLabel, taskTitle } from '../format'
+import { t } from '../i18n'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
 import type { FilePriority, Task, TaskDetails } from '../types'
 
@@ -16,11 +17,14 @@ interface Props {
   onBrowse: (from: string) => void
 }
 
-const PRIORITIES: Array<[FilePriority, string]> = [
-  ['low', 'Низкий'],
-  ['normal', 'Обычный'],
-  ['high', 'Высокий'],
-]
+/** Подписи считаются при отрисовке: язык известен только в рантайме. */
+function priorities(): Array<[FilePriority, string]> {
+  return [
+    ['low', t('task.priorityLow')],
+    ['normal', t('task.priorityNormal')],
+    ['high', t('task.priorityHigh')],
+  ]
+}
 
 export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props) {
   const [details, setDetails] = useState<TaskDetails | null>(null)
@@ -65,14 +69,14 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
       after?.()
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : t('common.failed'))
     } finally {
       setBusy(false)
     }
   }
 
   async function remove() {
-    if (!(await confirmAction('Удалить задачу? Это необратимо.'))) return
+    if (!(await confirmAction(t('task.confirmDelete')))) return
     await run(() => api.action('delete', [task.id]))
     onBack()
   }
@@ -87,12 +91,13 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
         <div className="detail-percent tnum">{Math.round(task.progress * 100)}%</div>
         <div className="detail-status" style={{ color: look.color }}>
           {statusLabel(task.status)}
-          {task.eta_seconds ? ` · осталось ${eta(task.eta_seconds)}` : ''}
+          {task.eta_seconds ? t('task.etaLeft', { eta: eta(task.eta_seconds) }) : ''}
         </div>
 
         <div className="detail-title">{taskTitle(task.title)}</div>
         <div className="muted tnum detail-sub">
-          {size(task.downloaded)} из {size(task.size)} · {speed(task.speed_down)}
+          {t('common.outOf', { value: size(task.downloaded), total: size(task.size) })}
+          {' · '}{speed(task.speed_down)}
         </div>
 
         <div className="row">
@@ -103,19 +108,19 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
               disabled={busy}
               onClick={() => void run(() => api.action(paused ? 'resume' : 'pause', [task.id]))}
             >
-              {paused ? 'Возобновить' : 'Пауза'}
+              {paused ? t('task.resume') : t('task.pause')}
             </button>
           )}
           <button type="button" className="button danger" disabled={busy} onClick={() => void remove()}>
-            Удалить
+            {t('common.delete')}
           </button>
         </div>
       </div>
 
       <div className="tiles grid">
         {([
-          ['Сиды / пиры', `${task.seeders} / ${task.leechers}`],
-          ['Роздано', size(task.uploaded)],
+          [t('task.seedsPeers'), `${task.seeders} / ${task.leechers}`],
+          [t('task.uploaded'), size(task.uploaded)],
         ] as Array<[string, string]>).map(([label, value]) => (
           <div key={label} className="card tile-card">
             <span className="tile-label">{label}</span>
@@ -125,14 +130,14 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
       </div>
 
       <div className="section-head row-between">
-        <span className="section-title">Папка</span>
+        <span className="section-title">{t('task.folder')}</span>
         <button type="button" className="link-button" onClick={() => setShowFolders((v) => !v)}>
-          {showFolders ? 'Свернуть' : 'Перенести'}
+          {showFolders ? t('task.collapse') : t('task.moveTo')}
         </button>
       </div>
       <div className="card">
         <div className="settings-row">
-          <span className="entry-name">{task.destination || '—'}</span>
+          <span className="entry-name">{task.destination || t('common.dash')}</span>
         </div>
         {showFolders && (
           <>
@@ -149,12 +154,12 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
                 )}
               >
                 <span>{folder}</span>
-                <span className="muted">перенести</span>
+                <span className="muted">{t('task.moveHint')}</span>
               </button>
             ))}
             <div className="divider" />
             <button type="button" className="settings-link" onClick={() => onBrowse(task.destination)}>
-              <span>Выбрать на NAS</span>
+              <span>{t('common.pickOnNas')}</span>
               <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="currentColor"
                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M1.5 1.5L7 7.5l-5.5 6" />
@@ -166,22 +171,21 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
 
       <div className="section-head">
         <span className="section-title">
-          Файлы{files.length > 0 ? ` · ${files.length}` : ''}
+          {t('task.files')}{files.length > 0 ? ` · ${files.length}` : ''}
         </span>
       </div>
 
       {notActive && (
         <div className="card empty-text">
-          Состав раздачи виден, только пока задача качается или раздаётся: NAS
-          закрывает её при остановке. Возобновите задачу, чтобы увидеть файлы.
+          {t('task.filesClosed')}
         </div>
       )}
 
       {!notActive && files.length === 0 && (
         <div className="card empty-text">
           {task.active
-            ? 'Получаю список файлов… NAS отдаёт его не сразу после запуска.'
-            : 'Список файлов пуст.'}
+            ? t('task.filesLoading')
+            : t('task.filesEmpty')}
         </div>
       )}
 
@@ -208,10 +212,10 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
 
             <div className="file-foot">
               <span className="muted tnum">
-                {size(file.downloaded)} из {size(file.size)}
+                {t('common.outOf', { value: size(file.downloaded), total: size(file.size) })}
               </span>
               <div className="file-priority">
-                {PRIORITIES.map(([value, label]) => (
+                {priorities().map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
@@ -233,7 +237,7 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
       {details?.trackers && details.trackers.length > 0 && (
         <>
           <div className="section-head">
-            <span className="section-title">Трекеры</span>
+            <span className="section-title">{t('task.trackers')}</span>
           </div>
           <div className="card">
             {details.trackers.map((tracker, i) => (
@@ -242,7 +246,11 @@ export function TaskDetail({ task, folders, onBack, onChanged, onBrowse }: Props
                 <div className="tracker">
                   <span className="tracker-url">{tracker.url}</span>
                   <span className="muted tnum small">
-                    {tracker.status} · сидов {tracker.seeds} · пиров {tracker.peers}
+                    {t('task.trackerLine', {
+                      status: tracker.status,
+                      seeds: tracker.seeds,
+                      peers: tracker.peers,
+                    })}
                   </span>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { TaskCard } from '../components/TaskCard'
 import { SkeletonTasks } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { size, speed } from '../format'
+import { t } from '../i18n'
 import { alertMessage, haptic } from '../telegram'
 import type { Overview, Task } from '../types'
 
@@ -63,17 +64,19 @@ export function Downloads({
     <div className="page">
       <div className="card summary">
         <div className="summary-head">
-          <h1>Загрузки</h1>
-          {activeCount > 0 && <span className="badge">{activeCount} активных</span>}
+          <h1>{t('downloads.title')}</h1>
+          {activeCount > 0 && (
+            <span className="badge">{t('downloads.activeBadge', { count: activeCount })}</span>
+          )}
         </div>
 
         <div className="tiles">
           <div className="tile">
-            <span className="tile-label ok">Приём</span>
+            <span className="tile-label ok">{t('downloads.rx')}</span>
             <span className="tile-value tnum">{speed(data?.stats.speed_down ?? 0)}</span>
           </div>
           <div className="tile">
-            <span className="tile-label">Отдача</span>
+            <span className="tile-label">{t('downloads.tx')}</span>
             <span className="tile-value tnum">{speed(data?.stats.speed_up ?? 0)}</span>
           </div>
         </div>
@@ -83,7 +86,10 @@ export function Downloads({
             <div className="volume-head">
               <span className="muted">{volume.mount_point}</span>
               <span className="muted tnum">
-                свободно {size(volume.size_free)} из {size(volume.size_total)}
+                {t('downloads.freeOf', {
+                  free: size(volume.size_free),
+                  total: size(volume.size_total),
+                })}
               </span>
             </div>
             <div className="bar">
@@ -99,7 +105,11 @@ export function Downloads({
       </div>
 
       <div className="segments" role="tablist">
-        {([['active', 'Активные'], ['done', 'Готовы'], ['all', 'Все']] as const).map(([id, label]) => (
+        {([
+          ['active', t('downloads.tabActive')],
+          ['done', t('downloads.tabDone')],
+          ['all', t('downloads.tabAll')],
+        ] as const).map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -139,17 +149,17 @@ export function Downloads({
                 <path d="M12 4v11" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M4 19h16" />
               </svg>
             </div>
-            <div className="empty-title">Здесь пусто</div>
+            <div className="empty-title">{t('downloads.emptyTitle')}</div>
             <div className="empty-text">
               {shownFilter === 'done'
-                ? 'Завершённые задачи появятся тут, когда что-нибудь докачается.'
-                : 'Пришлите ссылку боту или добавьте её кнопкой ниже.'}
+                ? t('downloads.emptyDone')
+                : t('downloads.emptyOther')}
             </div>
           </div>
         )}
       </div>
 
-      <button type="button" className="fab" onClick={onAdd} aria-label="Добавить загрузку">
+      <button type="button" className="fab" onClick={onAdd} aria-label={t('downloads.addAria')}>
         <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
           <path d="M12 5v14" /><path d="M5 12h14" />
@@ -161,5 +171,5 @@ export function Downloads({
 
 function describe(e: unknown): string {
   if (e instanceof ApiError) return e.detail ? `${e.message}: ${e.detail}` : e.message
-  return 'Не получилось связаться с сервисом'
+  return t('error.noService')
 }
