@@ -3,7 +3,7 @@
       "step_title": "NAS-Zugang",
       "items": [
          {
-            "desc": "Legen Sie für den Dienst einen eigenen DSM-Benutzer an statt einen Administrator zu verwenden: Systemsteuerung → Benutzer & Gruppe → Erstellen. Erlauben Sie nur Download Station und File Station und aktivieren Sie keine Zwei-Faktor-Authentifizierung."
+            "desc": "Der Dienst meldet sich bei DSM an wie Sie und kann Dateien löschen. Geben Sie ihm ein eigenes Konto statt eines Administrators: Systemsteuerung → Benutzer & Gruppe → Erstellen, Zugriff nur auf Download Station und File Station."
          },
          {
             "type": "textfield",
@@ -24,11 +24,32 @@
             ]
          },
          {
+            "desc": "So lassen. Der Dienst läuft auf diesem NAS und erreicht DSM über die Maschine selbst; 5001 ist der HTTPS-Port, 5000 der HTTP-Port."
+         },
+         {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_dsm_user",
-                  "desc": "DSM-Benutzer",
+                  "desc": "DSM-Benutzer für den Dienst",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Pflichtfeld"
+                  },
+                  "emptyText": "dsm-mini"
+               }
+            ]
+         },
+         {
+            "desc": "Das Konto, das Sie gerade angelegt haben. Schalten Sie dafür keine zweistufige Verifizierung ein: einen Einmalcode kann eine Konfigurationsdatei nicht liefern, und die Anmeldung scheitert schlicht."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "Passwort dieses Benutzers",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -38,18 +59,7 @@
             ]
          },
          {
-            "type": "password",
-            "subitems": [
-               {
-                  "key": "wizard_dsm_password",
-                  "desc": "DSM-Passwort",
-                  "defaultValue": "",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Pflichtfeld"
-                  }
-               }
-            ]
+            "desc": "Liegt auf diesem NAS in der Einstellungsdatei des Pakets, lesbar nur für root, und kommt nie ins Protokoll — bei einer Ablehnung wird der Grund geschrieben, nicht der Wert."
          }
       ]
    },
@@ -57,7 +67,7 @@
       "step_title": "Telegram",
       "items": [
          {
-            "desc": "Erstellen Sie einen Bot bei @BotFather und holen Sie Ihre numerische ID von @userinfobot."
+            "desc": "Der Bot ist der Eingang: Menschen schreiben ihm, und die App öffnet sich daraus."
          },
          {
             "type": "password",
@@ -69,16 +79,20 @@
                   "validator": {
                      "allowBlank": false,
                      "errorText": "Pflichtfeld"
-                  }
+                  },
+                  "emptyText": "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4"
                }
             ]
+         },
+         {
+            "desc": "Öffnen Sie @BotFather in Telegram und senden Sie /newbot — die Antwort ist eine Zeile wie die hier gezeigte. Wer das Token hat, steuert den Bot; behandeln Sie es wie ein Passwort."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_allowed_ids",
-                  "desc": "Erlaubte Telegram-IDs (durch Komma getrennt)",
+                  "desc": "Wer den Bot benutzen darf — numerische IDs, durch Komma getrennt",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -87,9 +101,13 @@
                         "expr": "/^[0-9]+(,[0-9]+)*$/",
                         "errorText": "Nur Ziffern und Kommas"
                      }
-                  }
+                  },
+                  "emptyText": "123456789,987654321"
                }
             ]
+         },
+         {
+            "desc": "Ihr Bot ist offen: Start drücken kann jeder, der ihn findet. Erst diese Liste entscheidet, wem geantwortet wird und wer die App öffnen darf — alle anderen werden abgewiesen. Ihre Nummer nennt Ihnen @userinfobot; es ist die Konto-ID, nicht der @Name. Eine leere Liste lässt niemanden hinein, nicht jeden."
          },
          {
             "type": "textfield",
@@ -105,19 +123,20 @@
                         "expr": "/^https:\\/\\/[^\\/]+$/",
                         "errorText": "Muss mit https:// beginnen, ohne Schrägstrich am Ende"
                      }
-                  }
+                  },
+                  "emptyText": "https://nas.example.com"
                }
             ]
          },
          {
-            "desc": "Telegram öffnet die Mini App nur über HTTPS mit gültigem Zertifikat. Richten Sie in DSM einen Reverse-Proxy von dieser Adresse auf localhost und den Port unten ein."
+            "desc": "Telegram öffnet eine Mini App nur über https mit echtem Zertifikat: eine lokale Adresse oder ein selbstsigniertes geht nicht auf. Zeigen Sie diesen Namen auf das NAS und legen Sie dann unter Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy eine Weiterleitung auf localhost und den Port unten an. Ohne Schrägstrich am Ende."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_port",
-                  "desc": "Lokaler Port",
+                  "desc": "Lokaler Port auf dem NAS",
                   "defaultValue": "8080",
                   "validator": {
                      "allowBlank": false,
@@ -129,6 +148,9 @@
                   }
                }
             ]
+         },
+         {
+            "desc": "Der Dienst lauscht auf diesem Port für das NAS selbst, nicht nach außen. Nur ändern, wenn hier schon etwas 8080 belegt."
          }
       ]
    }

@@ -176,6 +176,11 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - DSM 7 runs package scripts as the package user, not as root (`conf/privilege`
   with `run-as: package`). Writing is only possible into the package's `var` —
   which is also what survives an upgrade, unlike `target`.
+- Each wizard field carries three things: a short label, an example shown in
+  the empty field (`emptyText`) and a line underneath saying what the setting
+  is for. Whoever fills this in has never seen the project and is being asked
+  for a password and a token — "DSM user" alone does not say which user, and
+  the list of allowed ids does not explain itself at all.
 - Wizard settings arrive in `postinst` as environment variables named after the
   keys from `WIZARD_UIFILES`. They are written to the file in single quotes: a
   password with a space or a `$` would otherwise break the service start.

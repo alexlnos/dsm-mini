@@ -3,7 +3,7 @@
       "step_title": "Accès au NAS",
       "items": [
          {
-            "desc": "Créez un utilisateur DSM dédié au service plutôt qu'un administrateur : Panneau de configuration → Utilisateur et groupe → Créer. N'autorisez que Download Station et File Station, et n'activez pas la double authentification."
+            "desc": "Le service se connecte à DSM comme vous et sait supprimer des fichiers. Donnez-lui un compte à lui plutôt qu'un administrateur : Panneau de configuration → Utilisateur et groupe → Créer, accès à Download Station et File Station uniquement."
          },
          {
             "type": "textfield",
@@ -17,18 +17,39 @@
                      "errorText": "Champ obligatoire",
                      "regex": {
                         "expr": "/^https?:\\/\\/[^\\/]+$/",
-                        "errorText": "Doit commencer par https:// et sans barre oblique finale"
+                        "errorText": "Doit commencer par https:// et finir sans barre oblique"
                      }
                   }
                }
             ]
          },
          {
+            "desc": "Laissez tel quel. Le service tourne sur ce NAS et joint DSM par la machine elle-même ; 5001 est le port HTTPS, 5000 le port HTTP."
+         },
+         {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_dsm_user",
-                  "desc": "Utilisateur DSM",
+                  "desc": "Utilisateur DSM pour le service",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire"
+                  },
+                  "emptyText": "dsm-mini"
+               }
+            ]
+         },
+         {
+            "desc": "Le compte que vous venez de créer. Ne lui activez pas la vérification en deux étapes : un code à usage unique ne peut pas venir d'un fichier de configuration, et la connexion échouera simplement."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "Mot de passe de cet utilisateur",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -38,18 +59,7 @@
             ]
          },
          {
-            "type": "password",
-            "subitems": [
-               {
-                  "key": "wizard_dsm_password",
-                  "desc": "Mot de passe DSM",
-                  "defaultValue": "",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Champ obligatoire"
-                  }
-               }
-            ]
+            "desc": "Conservé sur ce NAS dans le fichier de réglages du paquet, lisible par root seulement, et jamais écrit dans le journal — sur un refus on note la raison, pas la valeur."
          }
       ]
    },
@@ -57,7 +67,7 @@
       "step_title": "Telegram",
       "items": [
          {
-            "desc": "Créez un bot avec @BotFather et récupérez votre identifiant numérique auprès de @userinfobot."
+            "desc": "Le bot est l'entrée : les gens lui écrivent, et l'application s'ouvre depuis lui."
          },
          {
             "type": "password",
@@ -69,16 +79,20 @@
                   "validator": {
                      "allowBlank": false,
                      "errorText": "Champ obligatoire"
-                  }
+                  },
+                  "emptyText": "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4"
                }
             ]
+         },
+         {
+            "desc": "Ouvrez @BotFather dans Telegram et envoyez /newbot — il répond par une ligne comme celle montrée ici. Qui détient le jeton commande le bot : traitez-le comme un mot de passe."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_allowed_ids",
-                  "desc": "Identifiants Telegram autorisés (séparés par des virgules)",
+                  "desc": "Qui peut utiliser le bot — identifiants numériques séparés par des virgules",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -87,9 +101,13 @@
                         "expr": "/^[0-9]+(,[0-9]+)*$/",
                         "errorText": "Chiffres et virgules uniquement"
                      }
-                  }
+                  },
+                  "emptyText": "123456789,987654321"
                }
             ]
+         },
+         {
+            "desc": "Votre bot est ouvert : n'importe qui le trouvant peut appuyer sur Démarrer. C'est cette liste qui décide à qui l'on répond et qui peut ouvrir l'application — les autres sont refusés. @userinfobot vous donne votre numéro ; c'est l'identifiant du compte, pas le @nom. Une liste vide ne laisse entrer personne, pas tout le monde."
          },
          {
             "type": "textfield",
@@ -103,21 +121,22 @@
                      "errorText": "Champ obligatoire",
                      "regex": {
                         "expr": "/^https:\\/\\/[^\\/]+$/",
-                        "errorText": "Doit commencer par https:// et sans barre oblique finale"
+                        "errorText": "Doit commencer par https:// et finir sans barre oblique"
                      }
-                  }
+                  },
+                  "emptyText": "https://nas.example.com"
                }
             ]
          },
          {
-            "desc": "Telegram n'ouvre la Mini App qu'en HTTPS avec un certificat valide. Configurez dans DSM un proxy inverse de cette adresse vers localhost et le port ci-dessous."
+            "desc": "Telegram n'ouvre une Mini App qu'en https avec un vrai certificat : une adresse locale ou un certificat auto-signé ne s'ouvriront pas. Faites pointer ce nom vers le NAS, puis ajoutez Panneau de configuration → Portail de connexion → Avancé → Proxy inversé depuis cette adresse vers localhost et le port ci-dessous. Sans barre oblique à la fin."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_port",
-                  "desc": "Port local",
+                  "desc": "Port local sur le NAS",
                   "defaultValue": "8080",
                   "validator": {
                      "allowBlank": false,
@@ -129,6 +148,9 @@
                   }
                }
             ]
+         },
+         {
+            "desc": "Le service écoute sur ce port pour le NAS lui-même, pas vers l'extérieur. À changer seulement si quelque chose occupe déjà 8080 ici."
          }
       ]
    }

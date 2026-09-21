@@ -4,7 +4,13 @@
 The wizard asks for the settings during installation, so nothing has to be
 edited afterwards. DSM shows the file matching its interface language:
 install_uifile is the common one (English), install_uifile_rus is Russian and
-so on. The language suffixes come from DSM's list and do not match Telegram codes.
+so on.
+
+Every field gets three things: a short label, an example in the empty field
+(`emptyText`, which DSM shows as placeholder text) and a line underneath
+saying what the setting is for. The person filling this in has usually never
+seen the project before and is being asked for a password and a token — "DSM
+user" alone does not tell them which user, or why not the administrator.
 
 The texts live here in one table: adding a language means extending the dict.
 """
@@ -13,15 +19,19 @@ import pathlib
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "spk" / "WIZARD_UIFILES"
 
-# Wizard fields. The key becomes an environment variable in postinst.
+# Wizard fields, in the order they are shown.
+#   env key, text key, component, default, placeholder, step
+#
+# The placeholders are the same in every language — they are addresses,
+# numbers and a token, not prose.
 FIELDS = [
-    ("wizard_dsm_url", "dsm_url", "textfield", "https://localhost:5001"),
-    ("wizard_dsm_user", "dsm_user", "textfield", ""),
-    ("wizard_dsm_password", "dsm_password", "password", ""),
-    ("wizard_bot_token", "bot_token", "password", ""),
-    ("wizard_allowed_ids", "allowed_ids", "textfield", ""),
-    ("wizard_public_url", "public_url", "textfield", ""),
-    ("wizard_port", "port", "textfield", "8080"),
+    ("wizard_dsm_url", "dsm_url", "textfield", "https://localhost:5001", "", "nas"),
+    ("wizard_dsm_user", "dsm_user", "textfield", "", "dsm-mini", "nas"),
+    ("wizard_dsm_password", "dsm_password", "password", "", "", "nas"),
+    ("wizard_bot_token", "bot_token", "password", "", "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4", "tg"),
+    ("wizard_allowed_ids", "allowed_ids", "textfield", "", "123456789,987654321", "tg"),
+    ("wizard_public_url", "public_url", "textfield", "", "https://nas.example.com", "tg"),
+    ("wizard_port", "port", "textfield", "8080", "", "tg"),
 ]
 
 # The suffixes are DSM language codes from the Synology developer guide, not
@@ -31,170 +41,250 @@ FIELDS = [
 TEXTS = {
     None: {  # English — the common file
         "step_nas": "NAS access",
-        "step_telegram": "Telegram",
-        "nas_intro": "Create a separate DSM user for this service instead of using an administrator: Control Panel → User & Group → Create. Give it access to Download Station and File Station only, and do not enable two-factor authentication.",
+        "nas_intro": "The service signs in to DSM the way you do, and it can delete files. Give it an account of its own rather than an administrator: Control Panel → User & Group → Create, access to Download Station and File Station only.",
         "dsm_url": "DSM address",
-        "dsm_user": "DSM user",
-        "dsm_password": "DSM password",
-        "telegram_intro": "Create a bot with @BotFather and get your numeric ID from @userinfobot.",
+        "dsm_url_note": "Leave this as it is. The service runs on this NAS and reaches DSM through the machine itself; 5001 is the HTTPS port, 5000 the HTTP one.",
+        "dsm_user": "DSM user for the service",
+        "dsm_user_note": "The account you have just created. Do not turn on two-factor verification for it: a one-time code cannot be typed in from a configuration file, and the sign-in will simply fail.",
+        "dsm_password": "Password of that user",
+        "dsm_password_note": "Kept on this NAS in the package's own settings file, readable by root only, and never written to the log — a refusal is logged with its reason, not with the value.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "The bot is the entrance: people write to it, and the app opens from it.",
         "bot_token": "Bot token",
-        "allowed_ids": "Allowed Telegram IDs (comma separated)",
+        "bot_token_note": "Open @BotFather in Telegram, send /newbot, and it answers with a line like the one shown here. Whoever holds the token controls the bot, so treat it as a password.",
+        "allowed_ids": "Who may use the bot — numeric IDs, comma separated",
+        "allowed_ids_note": "Your bot is public: anyone who finds it can press Start. This list is what decides whose messages are answered and who may open the app — everyone else is refused. Get your number from @userinfobot; it is the account id, not the @username. An empty list lets nobody in, not everybody.",
         "public_url": "Public HTTPS address of the app",
-        "public_hint": "Telegram opens the Mini App only over HTTPS with a valid certificate. Set up a reverse proxy in DSM from this address to localhost and the port below.",
-        "port": "Local port",
+        "public_url_note": "Telegram opens a Mini App only over https with a real certificate: a local address or a self-signed one will not open. Point this name at the NAS, then add Control Panel → Login Portal → Advanced → Reverse Proxy from it to localhost and the port below. No slash at the end.",
+        "port": "Local port on the NAS",
+        "port_note": "The service listens on this port for the NAS itself, not for the outside world. Change it only if something here already holds 8080.",
+
         "required": "This field is required",
-        "url_error": "Must start with https:// and contain no trailing slash",
+        "url_error": "Must start with https:// and have no trailing slash",
         "ids_error": "Digits and commas only",
         "port_error": "Port number only",
     },
+
     "rus": {
         "step_nas": "Доступ к NAS",
-        "step_telegram": "Telegram",
-        "nas_intro": "Заведите для службы отдельного пользователя DSM, а не используйте администратора: Панель управления → Пользователь и группа → Создать. Дайте права только на Download Station и File Station и не включайте двухэтапную проверку.",
+        "nas_intro": "Служба входит в DSM так же, как вы, и умеет удалять файлы. Заведите ей отдельную учётную запись, а не отдавайте администратора: Панель управления → Пользователь и группа → Создать, доступ только к Download Station и File Station.",
         "dsm_url": "Адрес DSM",
-        "dsm_user": "Пользователь DSM",
-        "dsm_password": "Пароль DSM",
-        "telegram_intro": "Создайте бота у @BotFather, а свой числовой идентификатор узнайте у @userinfobot.",
+        "dsm_url_note": "Оставьте как есть. Служба работает на этом же NAS и обращается к DSM через саму машину; 5001 — порт HTTPS, 5000 — HTTP.",
+        "dsm_user": "Пользователь DSM для службы",
+        "dsm_user_note": "Та учётная запись, которую вы только что создали. Двухэтапную проверку ей не включайте: одноразовый код неоткуда взять в файле настроек, и вход просто не пройдёт.",
+        "dsm_password": "Пароль этого пользователя",
+        "dsm_password_note": "Хранится на этом NAS в файле настроек пакета, читать его может только root, и в журнал он не попадает — при отказе пишется причина, а не значение.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "Бот — это вход: люди пишут ему, и приложение открывается из него.",
         "bot_token": "Токен бота",
-        "allowed_ids": "Разрешённые Telegram ID (через запятую)",
+        "bot_token_note": "Откройте в Telegram @BotFather, отправьте /newbot — он ответит строкой вроде показанной здесь. Кто получил токен, тот управляет ботом, поэтому обращайтесь с ним как с паролем.",
+        "allowed_ids": "Кому можно пользоваться ботом — числовые ID через запятую",
+        "allowed_ids_note": "Ваш бот открыт: нажать «Старт» может любой, кто его найдёт. Именно этот список решает, кому отвечать и кого пускать в приложение, — остальные получат отказ. Свой номер узнайте у @userinfobot: это идентификатор учётной записи, а не @имя. Пустой список не пускает никого, а не всех.",
         "public_url": "Публичный HTTPS-адрес приложения",
-        "public_hint": "Telegram открывает Mini App только по HTTPS с настоящим сертификатом. Настройте в DSM обратный прокси с этого адреса на localhost и порт ниже.",
-        "port": "Локальный порт",
+        "public_url_note": "Telegram открывает Mini App только по https с настоящим сертификатом: локальный адрес и самоподписанный не откроются. Направьте это имя на NAS, потом добавьте Панель управления → Портал входа → Дополнительно → Обратный прокси-сервер с него на localhost и порт ниже. Без слеша в конце.",
+        "port": "Локальный порт на NAS",
+        "port_note": "Служба слушает этот порт для самого NAS, а не наружу. Менять только если 8080 здесь уже кем-то занят.",
+
         "required": "Поле обязательно",
-        "url_error": "Должен начинаться с https:// и быть без слеша в конце",
+        "url_error": "Должно начинаться с https:// и быть без слеша в конце",
         "ids_error": "Только цифры и запятые",
         "port_error": "Только номер порта",
     },
+
     "ger": {
         "step_nas": "NAS-Zugang",
-        "step_telegram": "Telegram",
-        "nas_intro": "Legen Sie für den Dienst einen eigenen DSM-Benutzer an statt einen Administrator zu verwenden: Systemsteuerung → Benutzer & Gruppe → Erstellen. Erlauben Sie nur Download Station und File Station und aktivieren Sie keine Zwei-Faktor-Authentifizierung.",
+        "nas_intro": "Der Dienst meldet sich bei DSM an wie Sie und kann Dateien löschen. Geben Sie ihm ein eigenes Konto statt eines Administrators: Systemsteuerung → Benutzer & Gruppe → Erstellen, Zugriff nur auf Download Station und File Station.",
         "dsm_url": "DSM-Adresse",
-        "dsm_user": "DSM-Benutzer",
-        "dsm_password": "DSM-Passwort",
-        "telegram_intro": "Erstellen Sie einen Bot bei @BotFather und holen Sie Ihre numerische ID von @userinfobot.",
+        "dsm_url_note": "So lassen. Der Dienst läuft auf diesem NAS und erreicht DSM über die Maschine selbst; 5001 ist der HTTPS-Port, 5000 der HTTP-Port.",
+        "dsm_user": "DSM-Benutzer für den Dienst",
+        "dsm_user_note": "Das Konto, das Sie gerade angelegt haben. Schalten Sie dafür keine zweistufige Verifizierung ein: einen Einmalcode kann eine Konfigurationsdatei nicht liefern, und die Anmeldung scheitert schlicht.",
+        "dsm_password": "Passwort dieses Benutzers",
+        "dsm_password_note": "Liegt auf diesem NAS in der Einstellungsdatei des Pakets, lesbar nur für root, und kommt nie ins Protokoll — bei einer Ablehnung wird der Grund geschrieben, nicht der Wert.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "Der Bot ist der Eingang: Menschen schreiben ihm, und die App öffnet sich daraus.",
         "bot_token": "Bot-Token",
-        "allowed_ids": "Erlaubte Telegram-IDs (durch Komma getrennt)",
+        "bot_token_note": "Öffnen Sie @BotFather in Telegram und senden Sie /newbot — die Antwort ist eine Zeile wie die hier gezeigte. Wer das Token hat, steuert den Bot; behandeln Sie es wie ein Passwort.",
+        "allowed_ids": "Wer den Bot benutzen darf — numerische IDs, durch Komma getrennt",
+        "allowed_ids_note": "Ihr Bot ist offen: Start drücken kann jeder, der ihn findet. Erst diese Liste entscheidet, wem geantwortet wird und wer die App öffnen darf — alle anderen werden abgewiesen. Ihre Nummer nennt Ihnen @userinfobot; es ist die Konto-ID, nicht der @Name. Eine leere Liste lässt niemanden hinein, nicht jeden.",
         "public_url": "Öffentliche HTTPS-Adresse der App",
-        "public_hint": "Telegram öffnet die Mini App nur über HTTPS mit gültigem Zertifikat. Richten Sie in DSM einen Reverse-Proxy von dieser Adresse auf localhost und den Port unten ein.",
-        "port": "Lokaler Port",
+        "public_url_note": "Telegram öffnet eine Mini App nur über https mit echtem Zertifikat: eine lokale Adresse oder ein selbstsigniertes geht nicht auf. Zeigen Sie diesen Namen auf das NAS und legen Sie dann unter Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy eine Weiterleitung auf localhost und den Port unten an. Ohne Schrägstrich am Ende.",
+        "port": "Lokaler Port auf dem NAS",
+        "port_note": "Der Dienst lauscht auf diesem Port für das NAS selbst, nicht nach außen. Nur ändern, wenn hier schon etwas 8080 belegt.",
+
         "required": "Pflichtfeld",
         "url_error": "Muss mit https:// beginnen, ohne Schrägstrich am Ende",
         "ids_error": "Nur Ziffern und Kommas",
         "port_error": "Nur eine Portnummer",
     },
+
     "fre": {
         "step_nas": "Accès au NAS",
-        "step_telegram": "Telegram",
-        "nas_intro": "Créez un utilisateur DSM dédié au service plutôt qu'un administrateur : Panneau de configuration → Utilisateur et groupe → Créer. N'autorisez que Download Station et File Station, et n'activez pas la double authentification.",
+        "nas_intro": "Le service se connecte à DSM comme vous et sait supprimer des fichiers. Donnez-lui un compte à lui plutôt qu'un administrateur : Panneau de configuration → Utilisateur et groupe → Créer, accès à Download Station et File Station uniquement.",
         "dsm_url": "Adresse DSM",
-        "dsm_user": "Utilisateur DSM",
-        "dsm_password": "Mot de passe DSM",
-        "telegram_intro": "Créez un bot avec @BotFather et récupérez votre identifiant numérique auprès de @userinfobot.",
+        "dsm_url_note": "Laissez tel quel. Le service tourne sur ce NAS et joint DSM par la machine elle-même ; 5001 est le port HTTPS, 5000 le port HTTP.",
+        "dsm_user": "Utilisateur DSM pour le service",
+        "dsm_user_note": "Le compte que vous venez de créer. Ne lui activez pas la vérification en deux étapes : un code à usage unique ne peut pas venir d'un fichier de configuration, et la connexion échouera simplement.",
+        "dsm_password": "Mot de passe de cet utilisateur",
+        "dsm_password_note": "Conservé sur ce NAS dans le fichier de réglages du paquet, lisible par root seulement, et jamais écrit dans le journal — sur un refus on note la raison, pas la valeur.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "Le bot est l'entrée : les gens lui écrivent, et l'application s'ouvre depuis lui.",
         "bot_token": "Jeton du bot",
-        "allowed_ids": "Identifiants Telegram autorisés (séparés par des virgules)",
+        "bot_token_note": "Ouvrez @BotFather dans Telegram et envoyez /newbot — il répond par une ligne comme celle montrée ici. Qui détient le jeton commande le bot : traitez-le comme un mot de passe.",
+        "allowed_ids": "Qui peut utiliser le bot — identifiants numériques séparés par des virgules",
+        "allowed_ids_note": "Votre bot est ouvert : n'importe qui le trouvant peut appuyer sur Démarrer. C'est cette liste qui décide à qui l'on répond et qui peut ouvrir l'application — les autres sont refusés. @userinfobot vous donne votre numéro ; c'est l'identifiant du compte, pas le @nom. Une liste vide ne laisse entrer personne, pas tout le monde.",
         "public_url": "Adresse HTTPS publique de l'application",
-        "public_hint": "Telegram n'ouvre la Mini App qu'en HTTPS avec un certificat valide. Configurez dans DSM un proxy inverse de cette adresse vers localhost et le port ci-dessous.",
-        "port": "Port local",
+        "public_url_note": "Telegram n'ouvre une Mini App qu'en https avec un vrai certificat : une adresse locale ou un certificat auto-signé ne s'ouvriront pas. Faites pointer ce nom vers le NAS, puis ajoutez Panneau de configuration → Portail de connexion → Avancé → Proxy inversé depuis cette adresse vers localhost et le port ci-dessous. Sans barre oblique à la fin.",
+        "port": "Port local sur le NAS",
+        "port_note": "Le service écoute sur ce port pour le NAS lui-même, pas vers l'extérieur. À changer seulement si quelque chose occupe déjà 8080 ici.",
+
         "required": "Champ obligatoire",
-        "url_error": "Doit commencer par https:// et sans barre oblique finale",
+        "url_error": "Doit commencer par https:// et finir sans barre oblique",
         "ids_error": "Chiffres et virgules uniquement",
         "port_error": "Numéro de port uniquement",
     },
-    "spn": {
-        "step_nas": "Acceso al NAS",
-        "step_telegram": "Telegram",
-        "nas_intro": "Cree un usuario de DSM propio para el servicio en lugar de usar un administrador: Panel de control → Usuario y grupo → Crear. Permita solo Download Station y File Station, y no active la verificación en dos pasos.",
-        "dsm_url": "Dirección de DSM",
-        "dsm_user": "Usuario de DSM",
-        "dsm_password": "Contraseña de DSM",
-        "telegram_intro": "Cree un bot con @BotFather y obtenga su identificador numérico en @userinfobot.",
-        "bot_token": "Token del bot",
-        "allowed_ids": "IDs de Telegram permitidos (separados por comas)",
-        "public_url": "Dirección HTTPS pública de la aplicación",
-        "public_hint": "Telegram abre la Mini App solo por HTTPS con un certificado válido. Configure en DSM un proxy inverso desde esta dirección a localhost y el puerto de abajo.",
-        "port": "Puerto local",
-        "required": "Campo obligatorio",
-        "url_error": "Debe empezar por https:// y sin barra final",
-        "ids_error": "Solo dígitos y comas",
-        "port_error": "Solo el número de puerto",
-    },
+
     "ita": {
         "step_nas": "Accesso al NAS",
-        "step_telegram": "Telegram",
-        "nas_intro": "Crea un utente DSM dedicato al servizio invece di usare un amministratore: Pannello di controllo → Utente e gruppo → Crea. Concedi solo Download Station e File Station e non attivare la verifica in due passaggi.",
+        "nas_intro": "Il servizio accede a DSM come te e sa cancellare file. Dagli un account suo invece di un amministratore: Pannello di controllo → Utente e gruppo → Crea, accesso solo a Download Station e File Station.",
         "dsm_url": "Indirizzo DSM",
-        "dsm_user": "Utente DSM",
-        "dsm_password": "Password DSM",
-        "telegram_intro": "Crea un bot con @BotFather e prendi il tuo identificativo numerico da @userinfobot.",
+        "dsm_url_note": "Lascialo così. Il servizio gira su questo NAS e raggiunge DSM attraverso la macchina stessa; 5001 è la porta HTTPS, 5000 quella HTTP.",
+        "dsm_user": "Utente DSM per il servizio",
+        "dsm_user_note": "L'account che hai appena creato. Non attivargli la verifica in due passaggi: un codice usa e getta non può arrivare da un file di configurazione e l'accesso semplicemente fallisce.",
+        "dsm_password": "Password di quell'utente",
+        "dsm_password_note": "Resta su questo NAS nel file delle impostazioni del pacchetto, leggibile solo da root, e non finisce mai nel registro — in un rifiuto si scrive il motivo, non il valore.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "Il bot è l'ingresso: le persone gli scrivono e l'applicazione si apre da lì.",
         "bot_token": "Token del bot",
-        "allowed_ids": "ID Telegram consentiti (separati da virgola)",
-        "public_url": "Indirizzo HTTPS pubblico dell'app",
-        "public_hint": "Telegram apre la Mini App solo via HTTPS con certificato valido. Configura in DSM un proxy inverso da questo indirizzo a localhost e alla porta qui sotto.",
-        "port": "Porta locale",
+        "bot_token_note": "Apri @BotFather in Telegram e manda /newbot: risponde con una riga come quella mostrata qui. Chi ha il token comanda il bot, quindi trattalo come una password.",
+        "allowed_ids": "Chi può usare il bot — ID numerici separati da virgole",
+        "allowed_ids_note": "Il tuo bot è aperto: chiunque lo trovi può premere Avvia. È questo elenco a decidere a chi rispondere e chi può aprire l'applicazione — gli altri vengono respinti. Il tuo numero te lo dà @userinfobot; è l'id dell'account, non il @nome. Un elenco vuoto non fa entrare nessuno, non tutti.",
+        "public_url": "Indirizzo HTTPS pubblico dell'applicazione",
+        "public_url_note": "Telegram apre una Mini App solo via https con un certificato vero: un indirizzo locale o uno autofirmato non si apriranno. Fai puntare questo nome al NAS, poi aggiungi Pannello di controllo → Portale di accesso → Avanzate → Proxy inverso da qui a localhost e alla porta qui sotto. Senza barra finale.",
+        "port": "Porta locale sul NAS",
+        "port_note": "Il servizio ascolta su questa porta per il NAS stesso, non verso l'esterno. Cambiala solo se qui qualcosa occupa già la 8080.",
+
         "required": "Campo obbligatorio",
-        "url_error": "Deve iniziare con https:// e senza barra finale",
+        "url_error": "Deve iniziare con https:// e non finire con una barra",
         "ids_error": "Solo cifre e virgole",
-        "port_error": "Solo il numero di porta",
+        "port_error": "Solo un numero di porta",
     },
+
+    "spn": {
+        "step_nas": "Acceso al NAS",
+        "nas_intro": "El servicio entra en DSM igual que tú y puede borrar archivos. Dale una cuenta propia en vez de un administrador: Panel de control → Usuario y grupo → Crear, acceso solo a Download Station y File Station.",
+        "dsm_url": "Dirección de DSM",
+        "dsm_url_note": "Déjala como está. El servicio corre en este mismo NAS y llega a DSM por la propia máquina; 5001 es el puerto HTTPS y 5000 el HTTP.",
+        "dsm_user": "Usuario de DSM para el servicio",
+        "dsm_user_note": "La cuenta que acabas de crear. No le actives la verificación en dos pasos: un código de un solo uso no puede salir de un archivo de configuración y el inicio de sesión sencillamente fallará.",
+        "dsm_password": "Contraseña de ese usuario",
+        "dsm_password_note": "Se guarda en este NAS, en el archivo de ajustes del paquete, legible solo por root, y nunca llega al registro: ante un rechazo se escribe el motivo, no el valor.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "El bot es la entrada: la gente le escribe y la aplicación se abre desde él.",
+        "bot_token": "Token del bot",
+        "bot_token_note": "Abre @BotFather en Telegram y envía /newbot: responde con una línea como la que se ve aquí. Quien tiene el token manda en el bot, así que trátalo como una contraseña.",
+        "allowed_ids": "Quién puede usar el bot — ID numéricos separados por comas",
+        "allowed_ids_note": "Tu bot está abierto: cualquiera que lo encuentre puede pulsar Iniciar. Es esta lista la que decide a quién se responde y quién puede abrir la aplicación; al resto se le niega. Tu número te lo da @userinfobot; es el id de la cuenta, no el @nombre. Una lista vacía no deja entrar a nadie, no a todos.",
+        "public_url": "Dirección HTTPS pública de la aplicación",
+        "public_url_note": "Telegram abre una Mini App solo por https con un certificado de verdad: una dirección local o uno autofirmado no abrirán. Apunta este nombre al NAS y añade Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso desde él hacia localhost y el puerto de abajo. Sin barra al final.",
+        "port": "Puerto local en el NAS",
+        "port_note": "El servicio escucha en este puerto para el propio NAS, no hacia fuera. Cámbialo solo si algo aquí ya ocupa el 8080.",
+
+        "required": "Campo obligatorio",
+        "url_error": "Debe empezar por https:// y no llevar barra al final",
+        "ids_error": "Solo dígitos y comas",
+        "port_error": "Solo un número de puerto",
+    },
+
     "ptb": {
         "step_nas": "Acesso ao NAS",
-        "step_telegram": "Telegram",
-        "nas_intro": "Crie um usuário do DSM só para o serviço em vez de usar um administrador: Painel de controle → Usuário e grupo → Criar. Libere apenas Download Station e File Station e não ative a verificação em duas etapas.",
+        "nas_intro": "O serviço entra no DSM do mesmo jeito que você e consegue excluir arquivos. Dê a ele uma conta própria em vez de um administrador: Painel de Controle → Usuário e grupo → Criar, acesso só ao Download Station e ao File Station.",
         "dsm_url": "Endereço do DSM",
-        "dsm_user": "Usuário do DSM",
-        "dsm_password": "Senha do DSM",
-        "telegram_intro": "Crie um bot com @BotFather e pegue seu identificador numérico com @userinfobot.",
-        "bot_token": "Token do bot",
-        "allowed_ids": "IDs do Telegram permitidos (separados por vírgula)",
-        "public_url": "Endereço HTTPS público do aplicativo",
-        "public_hint": "O Telegram abre o Mini App apenas por HTTPS com certificado válido. Configure no DSM um proxy reverso desse endereço para localhost e a porta abaixo.",
-        "port": "Porta local",
-        "required": "Campo obrigatório",
-        "url_error": "Deve começar com https:// e sem barra no final",
-        "ids_error": "Apenas dígitos e vírgulas",
-        "port_error": "Apenas o número da porta",
-    },
-    "plk": {
-        "step_nas": "Dostęp do NAS",
+        "dsm_url_note": "Deixe como está. O serviço roda neste mesmo NAS e alcança o DSM pela própria máquina; 5001 é a porta HTTPS, 5000 a HTTP.",
+        "dsm_user": "Usuário do DSM para o serviço",
+        "dsm_user_note": "A conta que você acabou de criar. Não ligue a verificação em duas etapas nela: um código único não tem como vir de um arquivo de configuração e o login simplesmente falha.",
+        "dsm_password": "Senha desse usuário",
+        "dsm_password_note": "Fica neste NAS, no arquivo de configurações do pacote, legível só pelo root, e nunca vai para o registro — numa recusa escreve-se o motivo, não o valor.",
+
         "step_telegram": "Telegram",
-        "nas_intro": "Załóż dla usługi osobnego użytkownika DSM zamiast używać administratora: Panel sterowania → Użytkownik i grupa → Utwórz. Daj uprawnienia tylko do Download Station i File Station i nie włączaj weryfikacji dwuetapowej.",
+        "telegram_intro": "O bot é a entrada: as pessoas escrevem para ele e o aplicativo abre a partir dele.",
+        "bot_token": "Token do bot",
+        "bot_token_note": "Abra o @BotFather no Telegram e mande /newbot: ele responde com uma linha como a mostrada aqui. Quem tem o token comanda o bot, então trate-o como uma senha.",
+        "allowed_ids": "Quem pode usar o bot — IDs numéricos separados por vírgula",
+        "allowed_ids_note": "Seu bot é aberto: qualquer um que o encontre pode apertar Iniciar. É esta lista que decide para quem responder e quem pode abrir o aplicativo — os demais são recusados. Seu número vem do @userinfobot; é o id da conta, não o @nome. Uma lista vazia não deixa ninguém entrar, e não todo mundo.",
+        "public_url": "Endereço HTTPS público do aplicativo",
+        "public_url_note": "O Telegram abre um Mini App só por https com certificado de verdade: um endereço local ou um autoassinado não abrem. Aponte este nome para o NAS e depois adicione Painel de Controle → Portal de login → Avançado → Proxy reverso dele para o localhost e a porta abaixo. Sem barra no fim.",
+        "port": "Porta local no NAS",
+        "port_note": "O serviço escuta nesta porta para o próprio NAS, não para fora. Mude só se algo aqui já ocupa a 8080.",
+
+        "required": "Campo obrigatório",
+        "url_error": "Precisa começar com https:// e não terminar com barra",
+        "ids_error": "Somente dígitos e vírgulas",
+        "port_error": "Somente um número de porta",
+    },
+
+    "plk": {
+        "step_nas": "Dostęp do NAS-a",
+        "nas_intro": "Usługa loguje się do DSM tak samo jak ty i potrafi kasować pliki. Daj jej własne konto zamiast administratora: Panel sterowania → Użytkownik i grupa → Utwórz, dostęp tylko do Download Station i File Station.",
         "dsm_url": "Adres DSM",
-        "dsm_user": "Użytkownik DSM",
-        "dsm_password": "Hasło DSM",
-        "telegram_intro": "Utwórz bota u @BotFather, a swój numeryczny identyfikator pobierz od @userinfobot.",
+        "dsm_url_note": "Zostaw tak, jak jest. Usługa działa na tym samym NAS-ie i sięga do DSM przez samą maszynę; 5001 to port HTTPS, 5000 — HTTP.",
+        "dsm_user": "Użytkownik DSM dla usługi",
+        "dsm_user_note": "Konto, które przed chwilą założyłeś. Nie włączaj mu weryfikacji dwuetapowej: kod jednorazowy nie ma jak trafić z pliku konfiguracyjnego i logowanie po prostu się nie uda.",
+        "dsm_password": "Hasło tego użytkownika",
+        "dsm_password_note": "Leży na tym NAS-ie w pliku ustawień pakietu, czytelnym tylko dla roota, i nigdy nie trafia do dziennika — przy odmowie zapisywana jest przyczyna, nie wartość.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "Bot jest wejściem: ludzie do niego piszą, a aplikacja otwiera się z niego.",
         "bot_token": "Token bota",
-        "allowed_ids": "Dozwolone identyfikatory Telegrama (po przecinku)",
+        "bot_token_note": "Otwórz @BotFather w Telegramie i wyślij /newbot — odpowie linią taką jak pokazana tutaj. Kto ma token, ten rządzi botem, więc traktuj go jak hasło.",
+        "allowed_ids": "Kto może używać bota — numeryczne ID po przecinku",
+        "allowed_ids_note": "Twój bot jest otwarty: każdy, kto go znajdzie, może nacisnąć Start. To ta lista decyduje, komu odpowiadać i kto może otworzyć aplikację — reszta dostaje odmowę. Swój numer poznasz u @userinfobot; to identyfikator konta, nie @nazwa. Pusta lista nie wpuszcza nikogo, a nie wszystkich.",
         "public_url": "Publiczny adres HTTPS aplikacji",
-        "public_hint": "Telegram otwiera Mini App tylko po HTTPS z ważnym certyfikatem. Skonfiguruj w DSM odwrotny serwer proxy z tego adresu na localhost i port poniżej.",
-        "port": "Port lokalny",
+        "public_url_note": "Telegram otwiera Mini App tylko po https z prawdziwym certyfikatem: adres lokalny ani samopodpisany się nie otworzą. Skieruj tę nazwę na NAS-a, a potem dodaj Panel sterowania → Portal logowania → Zaawansowane → Zwrotny serwer proxy z niej na localhost i port poniżej. Bez ukośnika na końcu.",
+        "port": "Port lokalny na NAS-ie",
+        "port_note": "Usługa słucha na tym porcie dla samego NAS-a, nie na zewnątrz. Zmieniaj tylko wtedy, gdy coś tutaj już zajmuje 8080.",
+
         "required": "Pole wymagane",
         "url_error": "Musi zaczynać się od https:// i nie kończyć ukośnikiem",
         "ids_error": "Tylko cyfry i przecinki",
         "port_error": "Tylko numer portu",
     },
+
     "trk": {
         "step_nas": "NAS erişimi",
-        "step_telegram": "Telegram",
-        "nas_intro": "Hizmet için yönetici yerine ayrı bir DSM kullanıcısı oluşturun: Denetim Masası → Kullanıcı ve Grup → Oluştur. Yalnızca Download Station ve File Station izni verin ve iki adımlı doğrulamayı açmayın.",
+        "nas_intro": "Servis DSM'ye sizin gibi girer ve dosya silebilir. Ona yönetici yerine kendi hesabını verin: Denetim Masası → Kullanıcı ve Grup → Oluştur, yalnızca Download Station ve File Station erişimi.",
         "dsm_url": "DSM adresi",
-        "dsm_user": "DSM kullanıcısı",
-        "dsm_password": "DSM parolası",
-        "telegram_intro": "@BotFather ile bir bot oluşturun, sayısal kimliğinizi @userinfobot'tan alın.",
+        "dsm_url_note": "Olduğu gibi bırakın. Servis bu NAS'ın kendisinde çalışır ve DSM'ye makinenin içinden ulaşır; 5001 HTTPS, 5000 HTTP bağlantı noktasıdır.",
+        "dsm_user": "Servis için DSM kullanıcısı",
+        "dsm_user_note": "Az önce oluşturduğunuz hesap. Buna iki aşamalı doğrulama açmayın: tek kullanımlık kod bir yapılandırma dosyasından gelemez ve oturum açma basitçe başarısız olur.",
+        "dsm_password": "O kullanıcının parolası",
+        "dsm_password_note": "Bu NAS'ta, paketin kendi ayar dosyasında durur, yalnızca root okuyabilir ve hiçbir zaman günlüğe yazılmaz — bir reddedişte değer değil, neden yazılır.",
+
+        "step_telegram": "Telegram",
+        "telegram_intro": "Bot giriş kapısıdır: insanlar ona yazar ve uygulama oradan açılır.",
         "bot_token": "Bot belirteci",
-        "allowed_ids": "İzin verilen Telegram kimlikleri (virgülle)",
-        "public_url": "Uygulamanın herkese açık HTTPS adresi",
-        "public_hint": "Telegram, Mini App'i yalnızca geçerli sertifikalı HTTPS üzerinden açar. DSM'de bu adresten localhost'a ve aşağıdaki porta ters proxy kurun.",
-        "port": "Yerel port",
+        "bot_token_note": "Telegram'da @BotFather'ı açıp /newbot gönderin: burada görülen gibi bir satırla yanıt verir. Belirteci elinde tutan botu yönetir, o yüzden ona parola gibi davranın.",
+        "allowed_ids": "Botu kimler kullanabilir — virgülle ayrılmış sayısal kimlikler",
+        "allowed_ids_note": "Botunuz açıktır: onu bulan herkes Başlat'a basabilir. Kime yanıt verileceğine ve uygulamayı kimin açabileceğine bu liste karar verir; geri kalanı reddedilir. Numaranızı @userinfobot söyler; bu, @adınız değil hesap kimliğidir. Boş liste herkesi değil, hiç kimseyi içeri almaz.",
+        "public_url": "Uygulamanın genel HTTPS adresi",
+        "public_url_note": "Telegram bir Mini App'i yalnızca gerçek sertifikalı https üzerinden açar: yerel bir adres ya da kendinden imzalı bir sertifika açılmaz. Bu adı NAS'a yönlendirin, sonra Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy ile buradan localhost'a ve aşağıdaki bağlantı noktasına aktarın. Sonunda eğik çizgi olmasın.",
+        "port": "NAS üzerindeki yerel bağlantı noktası",
+        "port_note": "Servis bu bağlantı noktasını dışarıya değil, NAS'ın kendisine dinler. Yalnızca burada 8080'i tutan başka bir şey varsa değiştirin.",
+
         "required": "Bu alan zorunlu",
         "url_error": "https:// ile başlamalı ve sonunda eğik çizgi olmamalı",
         "ids_error": "Yalnızca rakam ve virgül",
-        "port_error": "Yalnızca port numarası",
+        "port_error": "Yalnızca bağlantı noktası numarası",
     },
 }
 
 
-def field(key, text_key, kind, default, t):
+def field(key, text_key, kind, default, placeholder, t):
     """One wizard field in the shape DSM understands."""
     validator = {"allowBlank": False, "errorText": t["required"]}
     if text_key == "public_url":
@@ -206,31 +296,30 @@ def field(key, text_key, kind, default, t):
     elif text_key == "dsm_url":
         validator["regex"] = {"expr": "/^https?:\\/\\/[^\\/]+$/", "errorText": t["url_error"]}
 
-    return {
-        "type": kind,
-        "subitems": [{
-            "key": key,
-            "desc": t[text_key],
-            "defaultValue": default,
-            "validator": validator,
-        }],
+    subitem = {
+        "key": key,
+        "desc": t[text_key],
+        "defaultValue": default,
+        "validator": validator,
     }
+    # emptyText is the placeholder DSM shows in an empty field; with a default
+    # filled in there is nothing to show it in.
+    if placeholder and not default:
+        subitem["emptyText"] = placeholder
+
+    return {"type": kind, "subitems": [subitem]}
 
 
 def wizard(t):
-    nas = [{"desc": t["nas_intro"]}]
-    telegram = [{"desc": t["telegram_intro"]}]
-    for key, text_key, kind, default in FIELDS:
-        item = field(key, text_key, kind, default, t)
-        if text_key.startswith("dsm_"):
-            nas.append(item)
-        else:
-            if text_key == "port":
-                telegram.append({"desc": t["public_hint"]})
-            telegram.append(item)
+    steps = {"nas": [{"desc": t["nas_intro"]}], "tg": [{"desc": t["telegram_intro"]}]}
+    for key, text_key, kind, default, placeholder, step in FIELDS:
+        steps[step].append(field(key, text_key, kind, default, placeholder, t))
+        # The explanation goes after its field, where it reads as a caption
+        # rather than as another thing to fill in.
+        steps[step].append({"desc": t[f"{text_key}_note"]})
     return [
-        {"step_title": t["step_nas"], "items": nas},
-        {"step_title": t["step_telegram"], "items": telegram},
+        {"step_title": t["step_nas"], "items": steps["nas"]},
+        {"step_title": t["step_telegram"], "items": steps["tg"]},
     ]
 
 

@@ -1,9 +1,9 @@
 [
    {
-      "step_title": "Dostęp do NAS",
+      "step_title": "Dostęp do NAS-a",
       "items": [
          {
-            "desc": "Załóż dla usługi osobnego użytkownika DSM zamiast używać administratora: Panel sterowania → Użytkownik i grupa → Utwórz. Daj uprawnienia tylko do Download Station i File Station i nie włączaj weryfikacji dwuetapowej."
+            "desc": "Usługa loguje się do DSM tak samo jak ty i potrafi kasować pliki. Daj jej własne konto zamiast administratora: Panel sterowania → Użytkownik i grupa → Utwórz, dostęp tylko do Download Station i File Station."
          },
          {
             "type": "textfield",
@@ -24,11 +24,32 @@
             ]
          },
          {
+            "desc": "Zostaw tak, jak jest. Usługa działa na tym samym NAS-ie i sięga do DSM przez samą maszynę; 5001 to port HTTPS, 5000 — HTTP."
+         },
+         {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_dsm_user",
-                  "desc": "Użytkownik DSM",
+                  "desc": "Użytkownik DSM dla usługi",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Pole wymagane"
+                  },
+                  "emptyText": "dsm-mini"
+               }
+            ]
+         },
+         {
+            "desc": "Konto, które przed chwilą założyłeś. Nie włączaj mu weryfikacji dwuetapowej: kod jednorazowy nie ma jak trafić z pliku konfiguracyjnego i logowanie po prostu się nie uda."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "Hasło tego użytkownika",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -38,18 +59,7 @@
             ]
          },
          {
-            "type": "password",
-            "subitems": [
-               {
-                  "key": "wizard_dsm_password",
-                  "desc": "Hasło DSM",
-                  "defaultValue": "",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Pole wymagane"
-                  }
-               }
-            ]
+            "desc": "Leży na tym NAS-ie w pliku ustawień pakietu, czytelnym tylko dla roota, i nigdy nie trafia do dziennika — przy odmowie zapisywana jest przyczyna, nie wartość."
          }
       ]
    },
@@ -57,7 +67,7 @@
       "step_title": "Telegram",
       "items": [
          {
-            "desc": "Utwórz bota u @BotFather, a swój numeryczny identyfikator pobierz od @userinfobot."
+            "desc": "Bot jest wejściem: ludzie do niego piszą, a aplikacja otwiera się z niego."
          },
          {
             "type": "password",
@@ -69,16 +79,20 @@
                   "validator": {
                      "allowBlank": false,
                      "errorText": "Pole wymagane"
-                  }
+                  },
+                  "emptyText": "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4"
                }
             ]
+         },
+         {
+            "desc": "Otwórz @BotFather w Telegramie i wyślij /newbot — odpowie linią taką jak pokazana tutaj. Kto ma token, ten rządzi botem, więc traktuj go jak hasło."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_allowed_ids",
-                  "desc": "Dozwolone identyfikatory Telegrama (po przecinku)",
+                  "desc": "Kto może używać bota — numeryczne ID po przecinku",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -87,9 +101,13 @@
                         "expr": "/^[0-9]+(,[0-9]+)*$/",
                         "errorText": "Tylko cyfry i przecinki"
                      }
-                  }
+                  },
+                  "emptyText": "123456789,987654321"
                }
             ]
+         },
+         {
+            "desc": "Twój bot jest otwarty: każdy, kto go znajdzie, może nacisnąć Start. To ta lista decyduje, komu odpowiadać i kto może otworzyć aplikację — reszta dostaje odmowę. Swój numer poznasz u @userinfobot; to identyfikator konta, nie @nazwa. Pusta lista nie wpuszcza nikogo, a nie wszystkich."
          },
          {
             "type": "textfield",
@@ -105,19 +123,20 @@
                         "expr": "/^https:\\/\\/[^\\/]+$/",
                         "errorText": "Musi zaczynać się od https:// i nie kończyć ukośnikiem"
                      }
-                  }
+                  },
+                  "emptyText": "https://nas.example.com"
                }
             ]
          },
          {
-            "desc": "Telegram otwiera Mini App tylko po HTTPS z ważnym certyfikatem. Skonfiguruj w DSM odwrotny serwer proxy z tego adresu na localhost i port poniżej."
+            "desc": "Telegram otwiera Mini App tylko po https z prawdziwym certyfikatem: adres lokalny ani samopodpisany się nie otworzą. Skieruj tę nazwę na NAS-a, a potem dodaj Panel sterowania → Portal logowania → Zaawansowane → Zwrotny serwer proxy z niej na localhost i port poniżej. Bez ukośnika na końcu."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_port",
-                  "desc": "Port lokalny",
+                  "desc": "Port lokalny na NAS-ie",
                   "defaultValue": "8080",
                   "validator": {
                      "allowBlank": false,
@@ -129,6 +148,9 @@
                   }
                }
             ]
+         },
+         {
+            "desc": "Usługa słucha na tym porcie dla samego NAS-a, nie na zewnątrz. Zmieniaj tylko wtedy, gdy coś tutaj już zajmuje 8080."
          }
       ]
    }

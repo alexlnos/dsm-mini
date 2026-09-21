@@ -3,7 +3,7 @@
       "step_title": "NAS erişimi",
       "items": [
          {
-            "desc": "Hizmet için yönetici yerine ayrı bir DSM kullanıcısı oluşturun: Denetim Masası → Kullanıcı ve Grup → Oluştur. Yalnızca Download Station ve File Station izni verin ve iki adımlı doğrulamayı açmayın."
+            "desc": "Servis DSM'ye sizin gibi girer ve dosya silebilir. Ona yönetici yerine kendi hesabını verin: Denetim Masası → Kullanıcı ve Grup → Oluştur, yalnızca Download Station ve File Station erişimi."
          },
          {
             "type": "textfield",
@@ -24,11 +24,32 @@
             ]
          },
          {
+            "desc": "Olduğu gibi bırakın. Servis bu NAS'ın kendisinde çalışır ve DSM'ye makinenin içinden ulaşır; 5001 HTTPS, 5000 HTTP bağlantı noktasıdır."
+         },
+         {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_dsm_user",
-                  "desc": "DSM kullanıcısı",
+                  "desc": "Servis için DSM kullanıcısı",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu"
+                  },
+                  "emptyText": "dsm-mini"
+               }
+            ]
+         },
+         {
+            "desc": "Az önce oluşturduğunuz hesap. Buna iki aşamalı doğrulama açmayın: tek kullanımlık kod bir yapılandırma dosyasından gelemez ve oturum açma basitçe başarısız olur."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "O kullanıcının parolası",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -38,18 +59,7 @@
             ]
          },
          {
-            "type": "password",
-            "subitems": [
-               {
-                  "key": "wizard_dsm_password",
-                  "desc": "DSM parolası",
-                  "defaultValue": "",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Bu alan zorunlu"
-                  }
-               }
-            ]
+            "desc": "Bu NAS'ta, paketin kendi ayar dosyasında durur, yalnızca root okuyabilir ve hiçbir zaman günlüğe yazılmaz — bir reddedişte değer değil, neden yazılır."
          }
       ]
    },
@@ -57,7 +67,7 @@
       "step_title": "Telegram",
       "items": [
          {
-            "desc": "@BotFather ile bir bot oluşturun, sayısal kimliğinizi @userinfobot'tan alın."
+            "desc": "Bot giriş kapısıdır: insanlar ona yazar ve uygulama oradan açılır."
          },
          {
             "type": "password",
@@ -69,16 +79,20 @@
                   "validator": {
                      "allowBlank": false,
                      "errorText": "Bu alan zorunlu"
-                  }
+                  },
+                  "emptyText": "8929377165:AAFHfZfqKDUEFdv-Yq4TJ9etz4"
                }
             ]
+         },
+         {
+            "desc": "Telegram'da @BotFather'ı açıp /newbot gönderin: burada görülen gibi bir satırla yanıt verir. Belirteci elinde tutan botu yönetir, o yüzden ona parola gibi davranın."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_allowed_ids",
-                  "desc": "İzin verilen Telegram kimlikleri (virgülle)",
+                  "desc": "Botu kimler kullanabilir — virgülle ayrılmış sayısal kimlikler",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -87,16 +101,20 @@
                         "expr": "/^[0-9]+(,[0-9]+)*$/",
                         "errorText": "Yalnızca rakam ve virgül"
                      }
-                  }
+                  },
+                  "emptyText": "123456789,987654321"
                }
             ]
+         },
+         {
+            "desc": "Botunuz açıktır: onu bulan herkes Başlat'a basabilir. Kime yanıt verileceğine ve uygulamayı kimin açabileceğine bu liste karar verir; geri kalanı reddedilir. Numaranızı @userinfobot söyler; bu, @adınız değil hesap kimliğidir. Boş liste herkesi değil, hiç kimseyi içeri almaz."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_public_url",
-                  "desc": "Uygulamanın herkese açık HTTPS adresi",
+                  "desc": "Uygulamanın genel HTTPS adresi",
                   "defaultValue": "",
                   "validator": {
                      "allowBlank": false,
@@ -105,30 +123,34 @@
                         "expr": "/^https:\\/\\/[^\\/]+$/",
                         "errorText": "https:// ile başlamalı ve sonunda eğik çizgi olmamalı"
                      }
-                  }
+                  },
+                  "emptyText": "https://nas.example.com"
                }
             ]
          },
          {
-            "desc": "Telegram, Mini App'i yalnızca geçerli sertifikalı HTTPS üzerinden açar. DSM'de bu adresten localhost'a ve aşağıdaki porta ters proxy kurun."
+            "desc": "Telegram bir Mini App'i yalnızca gerçek sertifikalı https üzerinden açar: yerel bir adres ya da kendinden imzalı bir sertifika açılmaz. Bu adı NAS'a yönlendirin, sonra Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy ile buradan localhost'a ve aşağıdaki bağlantı noktasına aktarın. Sonunda eğik çizgi olmasın."
          },
          {
             "type": "textfield",
             "subitems": [
                {
                   "key": "wizard_port",
-                  "desc": "Yerel port",
+                  "desc": "NAS üzerindeki yerel bağlantı noktası",
                   "defaultValue": "8080",
                   "validator": {
                      "allowBlank": false,
                      "errorText": "Bu alan zorunlu",
                      "regex": {
                         "expr": "/^[0-9]{2,5}$/",
-                        "errorText": "Yalnızca port numarası"
+                        "errorText": "Yalnızca bağlantı noktası numarası"
                      }
                   }
                }
             ]
+         },
+         {
+            "desc": "Servis bu bağlantı noktasını dışarıya değil, NAS'ın kendisine dinler. Yalnızca burada 8080'i tutan başka bir şey varsa değiştirin."
          }
       ]
    }
