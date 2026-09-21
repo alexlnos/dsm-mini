@@ -41,10 +41,24 @@ type Station interface {
 	// Generation — какое поколение API используется: "v2" или "legacy".
 	// Нужно для диагностики в логе и в /healthz.
 	Generation() string
+
+	// Files перечисляет файлы внутри раздачи. Работает только у активной
+	// задачи — иначе ErrNotActive.
+	Files(ctx context.Context, taskID string) ([]File, error)
+	// SetFile меняет приоритет файла и признак «качать ли его».
+	SetFile(ctx context.Context, taskID string, indexes []int, priority FilePriority, wanted *bool) error
+	// Trackers перечисляет трекеры раздачи.
+	Trackers(ctx context.Context, taskID string) ([]Tracker, error)
+	// SetDestination переносит задачи в другую папку.
+	SetDestination(ctx context.Context, taskIDs []string, destination string) error
+	// SetPriority меняет приоритет задач в очереди.
+	SetPriority(ctx context.Context, taskIDs []string, priority FilePriority) error
 }
 
 const (
 	apiTaskV2      = "SYNO.DownloadStation2.Task"
+	apiFileV2      = "SYNO.DownloadStation2.Task.BT.File"
+	apiTrackerV2   = "SYNO.DownloadStation2.Task.BT.Tracker"
 	apiSettingsV2  = "SYNO.DownloadStation2.Settings.Global"
 	apiLocationV2  = "SYNO.DownloadStation2.Settings.Location"
 	apiStatisticV2 = "SYNO.DownloadStation2.Task.Statistic"

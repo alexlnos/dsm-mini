@@ -18,6 +18,8 @@ type Screen =
   | { name: 'pickFolder' }
   // Обзор NAS для выбора папки текущей загрузки, начиная с указанной.
   | { name: 'pickDestination'; from: string }
+  // Обзор NAS для переноса уже созданной задачи.
+  | { name: 'pickTaskFolder'; from: string; taskId: string }
 
 /** Как часто обновлять список, когда что-то качается. */
 const ACTIVE_POLL = 2500
@@ -107,6 +109,20 @@ export function App() {
     }
   }, [addDraft, refresh])
 
+  // Перенос задачи в папку, выбранную в обзоре NAS.
+  const moveTask = useCallback(async (taskId: string, path: string) => {
+    setScreen({ name: 'task', id: taskId })
+    if (!path) return
+    try {
+      await api.setDestination([taskId], path)
+      haptic('success')
+      void refresh()
+    } catch (e) {
+      haptic('error')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не сменить папку')
+    }
+  }, [refresh])
+
   const openTask = (task: Task) => setScreen({ name: 'task', id: task.id })
   const current = screen.name === 'task'
     ? data?.tasks.find((t) => t.id === screen.id)
@@ -170,8 +186,18 @@ export function App() {
         {screen.name === 'task' && current && (
           <TaskDetail
             task={current}
+            folders={data?.folders ?? []}
             onBack={() => setScreen({ name: 'downloads' })}
             onChanged={() => void refresh()}
+            onBrowse={(from) => setScreen({ name: 'pickTaskFolder', from, taskId: current.id })}
+          />
+        )}
+        {screen.name === 'pickTaskFolder' && (
+          <Files
+            pickMode
+            initialPath={screen.from}
+            onPick={(path) => { void moveTask(screen.taskId, path) }}
+            onCancelPick={() => setScreen({ name: 'task', id: screen.taskId })}
           />
         )}
       </main>

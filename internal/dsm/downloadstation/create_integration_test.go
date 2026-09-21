@@ -355,3 +355,137 @@ func TestCreateFromMagnet(t *testing.T) {
 		t.Errorf("папка %q, ожидалась %q", task.Destination, dest)
 	}
 }
+
+// TestActiveTaskDetails проверяет всё, что доступно только у работающей
+// задачи: список файлов, приоритеты, трекеры и смену папки.
+//
+// Задача создаётся, проверяется и удаляется. Требует DSM_TEST_MUTATIONS=1.
+func TestActiveTaskDetails(t *testing.T) {
+	if os.Getenv("DSM_TEST_MUTATIONS") != "1" {
+		t.Skip("тест меняет состояние NAS; запуск только с DSM_TEST_MUTATIONS=1")
+	}
+
+	ctx := context.Background()
+	c := newClient(t)
+	if err := c.Login(ctx); err != nil {
+		t.Fatalf("вход в DSM: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Logout(context.Background()) })
+
+	st, err := New(ctx, c)
+	if err != nil {
+		t.Fatalf("создание: %v", err)
+	}
+	if st.Generation() != "v2" {
+		t.Skip("файлы и приоритеты доступны только через DownloadStation2")
+	}
+
+	dest, err := st.DefaultDestination(ctx)
+	if err != nil {
+		t.Fatalf("папка по умолчанию: %v", err)
+	}
+	before, err := taskIDs(ctx, st)
+	if err != nil {
+		t.Fatalf("список до: %v", err)
+	}
+	if err := st.Create(ctx, CreateRequest{
+		TorrentFile: fetchTorrent(t),
+		FileName:    "test.torrent",
+		Destination: dest,
+	}); err != nil {
+		t.Fatalf("создание задачи: %v", err)
+	}
+
+	task, err := waitForNewTask(ctx, t, st, before)
+	if err != nil {
+		t.Fatalf("задача не появилась: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := st.Delete(context.Background(), []string{task.ID}, false); err != nil {
+			t.Errorf("УБОРКА НЕ УДАЛАСЬ, удалите %s вручную: %v", task.ID, err)
+		}
+	})
+
+	// Файлы появляются не сразу: сначала NAS проверяет хеши.
+	var files []File
+	deadline := time.Now().Add(40 * time.Second)
+	for time.Now().Before(deadline) {
+		files, err = st.Files(ctx, task.ID)
+		if err == nil && len(files) > 0 {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+	if err != nil {
+		t.Fatalf("файлы задачи: %v", err)
+	}
+	if len(files) == 0 {
+		t.Fatal("список файлов пуст")
+	}
+	t.Logf("файлов: %d", len(files))
+	for _, f := range files {
+		t.Logf("  [%d] %s — %d Б, приоритет %s, качать=%v",
+			f.Index, f.Name, f.Size, f.Priority, f.Wanted)
+	}
+
+	// Приоритет и признак «качать».
+	if err := st.SetFile(ctx, task.ID, []int{files[0].Index}, PriorityLow, nil); err != nil {
+		t.Fatalf("смена приоритета файла: %v", err)
+	}
+	no := false
+	if err := st.SetFile(ctx, task.ID, []int{files[0].Index}, "", &no); err != nil {
+		t.Fatalf("снятие признака wanted: %v", err)
+	}
+
+	updated, err := st.Files(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("файлы после изменения: %v", err)
+	}
+	if updated[0].Priority != PriorityLow {
+		t.Errorf("приоритет %q, ожидался low", updated[0].Priority)
+	}
+	if updated[0].Wanted {
+		t.Error("файл остался в списке на загрузку")
+	}
+	t.Logf("после изменения: приоритет %s, качать=%v", updated[0].Priority, updated[0].Wanted)
+
+	if trackers, err := st.Trackers(ctx, task.ID); err != nil {
+		t.Errorf("трекеры: %v", err)
+	} else {
+		t.Logf("трекеров: %d", len(trackers))
+	}
+
+	// Приоритет задачи в очереди.
+	if err := st.SetPriority(ctx, []string{task.ID}, PriorityHigh); err != nil {
+		t.Errorf("приоритет задачи: %v", err)
+	}
+
+	// Смена папки: берём общую папку, отличную от текущей.
+	target := os.Getenv("DSM_TEST_FOLDER_DS")
+	if target == "" {
+		target = "Download"
+	}
+	if err := st.SetDestination(ctx, []string{task.ID}, target); err != nil {
+		t.Fatalf("смена папки на %q: %v", target, err)
+	}
+	tasks, err := st.List(ctx)
+	if err != nil {
+		t.Fatalf("список после смены папки: %v", err)
+	}
+	for _, tk := range tasks {
+		if tk.ID == task.ID {
+			if tk.Destination != target {
+				t.Errorf("папка %q, ожидалась %q", tk.Destination, target)
+			} else {
+				t.Logf("папка сменилась на %s", tk.Destination)
+			}
+		}
+	}
+
+	// Несуществующая папка должна отвергаться понятной ошибкой.
+	if err := st.SetDestination(ctx, []string{task.ID}, "ПапкиТакойНет"); err == nil {
+		t.Error("смена на несуществующую папку прошла успешно")
+	} else {
+		t.Logf("несуществующая папка → %v", err)
+	}
+}

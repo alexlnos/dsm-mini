@@ -36,8 +36,29 @@ func (s *stubStation) Stats(context.Context) (downloadstation.Stats, error) {
 	return downloadstation.Stats{}, nil
 }
 func (s *stubStation) Volumes(context.Context) ([]downloadstation.Volume, error) { return nil, nil }
-func (s *stubStation) DefaultDestination(context.Context) (string, error)        { return "Downloads", nil }
+func (s *stubStation) DefaultDestination(context.Context) (string, error)        { return "Download", nil }
 func (s *stubStation) Generation() string                                        { return "stub" }
+
+func (s *stubStation) Files(context.Context, string) ([]downloadstation.File, error) {
+	s.called = true
+	return nil, nil
+}
+func (s *stubStation) SetFile(context.Context, string, []int, downloadstation.FilePriority, *bool) error {
+	s.called = true
+	return nil
+}
+func (s *stubStation) Trackers(context.Context, string) ([]downloadstation.Tracker, error) {
+	s.called = true
+	return nil, nil
+}
+func (s *stubStation) SetDestination(context.Context, []string, string) error {
+	s.called = true
+	return nil
+}
+func (s *stubStation) SetPriority(context.Context, []string, downloadstation.FilePriority) error {
+	s.called = true
+	return nil
+}
 
 func newTestServer(t *testing.T, allowed []int64) (*Server, *stubStation) {
 	t.Helper()

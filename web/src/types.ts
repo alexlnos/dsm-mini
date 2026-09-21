@@ -49,6 +49,32 @@ export interface Overview {
   settings: Settings
 }
 
+export type FilePriority = 'low' | 'normal' | 'high'
+
+export interface TaskFile {
+  index: number
+  name: string
+  size: number
+  downloaded: number
+  priority: FilePriority
+  wanted: boolean
+  progress: number
+}
+
+export interface Tracker {
+  url: string
+  status: string
+  seeds: number
+  peers: number
+}
+
+export interface TaskDetails {
+  files: TaskFile[] | null
+  trackers: Tracker[] | null
+  /** NAS отдаёт файлы только у работающей задачи. */
+  not_active?: boolean
+}
+
 export interface Entry {
   name: string
   path: string

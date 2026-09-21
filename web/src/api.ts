@@ -1,4 +1,6 @@
-import type { Entry, Overview, Settings, SettingsView, Task } from './types'
+import type {
+  Entry, FilePriority, Overview, Settings, SettingsView, Task, TaskDetails,
+} from './types'
 
 /**
  * initData — подписанная Telegram строка, доказывающая, кто открыл приложение.
@@ -66,6 +68,27 @@ export const api = {
     request<{ ok: boolean }>('/api/downloads/action', {
       method: 'POST',
       body: JSON.stringify({ action, ids, force_complete: forceComplete }),
+    }),
+
+  taskDetails: (id: string) =>
+    request<TaskDetails>(`/api/downloads/files?id=${encodeURIComponent(id)}`),
+
+  setFile: (taskId: string, indexes: number[], change: { priority?: FilePriority; wanted?: boolean }) =>
+    request<{ ok: boolean }>('/api/downloads/files', {
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId, indexes, ...change }),
+    }),
+
+  setDestination: (ids: string[], destination: string) =>
+    request<{ ok: boolean }>('/api/downloads/destination', {
+      method: 'POST',
+      body: JSON.stringify({ ids, destination }),
+    }),
+
+  setPriority: (ids: string[], priority: FilePriority) =>
+    request<{ ok: boolean }>('/api/downloads/priority', {
+      method: 'POST',
+      body: JSON.stringify({ ids, priority }),
     }),
 
   settings: () => request<SettingsView>('/api/settings'),
