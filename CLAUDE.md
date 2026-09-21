@@ -103,6 +103,16 @@ The service is exposed to the internet and can delete files on the NAS.
 - For the NAS a **separate user** is created, with access only to the packages
   needed and without two-factor, not an administrator.
 
+- **The project never holds anyone's bot token**, and that rules out one idea
+  that keeps looking attractive: a "helper bot" that creates the user's bot for
+  them. Telegram does support it — managed bots, `bots.createBot` over MTProto
+  — but the manager bot can call `bots.exportBotToken` at any time afterwards,
+  with a `revoke` flag that reissues the token and takes the bot away from its
+  owner, and the documented methods offer **no way to detach a manager** once
+  it is set. So the price of saving one trip to @BotFather is a service that
+  permanently holds the keys to every user's bot. Considered and declined in
+  September 2026; the installation wizard explains the BotFather step instead.
+
 Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 
 ## Frontend
