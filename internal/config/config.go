@@ -40,13 +40,13 @@ type Config struct {
 // someone bringing the service up the first time should not fix them one by one.
 func Load() (*Config, error) {
 	c := &Config{
-		DSMURL:        env("DSM_URL", ""),
-		DSMUser:       env("DSM_USER", ""),
-		DSMPassword:   env("DSM_PASSWORD", ""),
-		DSMOTP:        env("DSM_OTP", ""),
-		DSMInsecure:   envBool("DSM_INSECURE_TLS", false),
-		BotToken:      env("TELEGRAM_BOT_TOKEN", ""),
-		PublicURL:     strings.TrimRight(env("PUBLIC_URL", ""), "/"),
+		DSMURL:      env("DSM_URL", ""),
+		DSMUser:     env("DSM_USER", ""),
+		DSMPassword: env("DSM_PASSWORD", ""),
+		DSMOTP:      env("DSM_OTP", ""),
+		DSMInsecure: envBool("DSM_INSECURE_TLS", false),
+		BotToken:    env("TELEGRAM_BOT_TOKEN", ""),
+		PublicURL:   strings.TrimRight(env("PUBLIC_URL", ""), "/"),
 		// Loopback, not ":8080": the DSM reverse proxy connects through
 		// localhost, and binding every interface would put the app on the
 		// LAN as well, next to the one address that is supposed to reach it.
