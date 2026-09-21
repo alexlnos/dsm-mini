@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TaskCard } from '../components/TaskCard'
 import { SkeletonTasks } from '../components/Skeleton'
 import { api, ApiError } from '../api'
@@ -6,18 +6,22 @@ import { size, speed } from '../format'
 import { alertMessage, haptic } from '../telegram'
 import type { Overview, Task } from '../types'
 
-type Filter = 'active' | 'done' | 'all'
+export type DownloadsFilter = 'active' | 'done' | 'all'
 
 interface Props {
   data: Overview | null
   error: string | null
+  /** Выбранная вкладка; null — человек ещё не выбирал. */
+  filter: DownloadsFilter | null
+  onFilterChange: (filter: DownloadsFilter) => void
   onRefresh: () => void
   onOpen: (task: Task) => void
   onAdd: () => void
 }
 
-export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
-  const [filter, setFilter] = useState<Filter>('active')
+export function Downloads({
+  data, error, filter, onFilterChange, onRefresh, onOpen, onAdd,
+}: Props) {
   const [busy, setBusy] = useState<string | null>(null)
 
   const tasks = data?.tasks ?? []
@@ -27,17 +31,17 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
     return { active, done: tasks.filter((t) => !active.includes(t)), all: tasks }
   }, [tasks])
 
-  const shown = groups[filter]
+  const shownFilter = filter ?? 'active'
+  const shown = groups[shownFilter]
   const activeCount = tasks.filter((t) => t.active).length
 
-  // Если активных задач нет, а завершённые есть, при первом открытии
-  // показываем «Все»: пустой экран при непустом списке сбивает с толку.
-  const picked = useRef(false)
+  // Если активных задач нет, а завершённые есть, подставляем «Все»: пустой
+  // экран при непустом списке сбивает с толку. Только пока человек не выбрал
+  // вкладку сам — его выбор важнее нашей догадки.
   useEffect(() => {
-    if (picked.current || !data) return
-    picked.current = true
-    if (groups.active.length === 0 && groups.all.length > 0) setFilter('all')
-  }, [data, groups])
+    if (filter !== null || !data) return
+    onFilterChange(groups.active.length === 0 && groups.all.length > 0 ? 'all' : 'active')
+  }, [data, groups, filter, onFilterChange])
   const volume = data?.volumes?.[0]
 
   async function toggle(task: Task) {
@@ -100,9 +104,9 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
             key={id}
             type="button"
             role="tab"
-            aria-selected={filter === id}
-            className={filter === id ? 'segment active' : 'segment'}
-            onClick={() => setFilter(id)}
+            aria-selected={shownFilter === id}
+            className={shownFilter === id ? 'segment active' : 'segment'}
+            onClick={() => onFilterChange(id)}
           >
             {label}
             {groups[id].length > 0 && (
@@ -137,7 +141,7 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
             </div>
             <div className="empty-title">Здесь пусто</div>
             <div className="empty-text">
-              {filter === 'done'
+              {shownFilter === 'done'
                 ? 'Завершённые задачи появятся тут, когда что-нибудь докачается.'
                 : 'Пришлите ссылку боту или добавьте её кнопкой ниже.'}
             </div>

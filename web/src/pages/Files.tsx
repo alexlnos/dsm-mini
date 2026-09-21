@@ -14,6 +14,12 @@ const ICONS: Record<string, { glyph: string; className: string }> = {
   doc: { glyph: '≡', className: 'icon doc' },
 }
 
+/** Родительская папка; у корня родитель — он сам. */
+function parentOf(path: string): string {
+  const parent = path.replace(/\/+$/, '').split('/').slice(0, -1).join('/')
+  return parent || '/'
+}
+
 function kindOf(entry: Entry): keyof typeof ICONS {
   if (entry.is_dir) return 'dir'
   const ext = entry.name.split('.').pop()?.toLowerCase() ?? ''
@@ -199,7 +205,27 @@ export function Files({
             )
           })}
         </div>
-        <h1>{segments.at(-1) ?? 'Общие папки'}</h1>
+        <div className="home-head">
+          {/*
+            Стрелка ведёт в родительскую папку, а не из раздела: системная
+            кнопка Telegram этого не умеет, поэтому показываем свою везде,
+            где есть куда подняться.
+          */}
+          {path !== '/' && (
+            <button
+              type="button"
+              className="back-button"
+              onClick={() => void load(parentOf(path))}
+              aria-label="На уровень выше"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
+          <h1>{segments.at(-1) ?? 'Общие папки'}</h1>
+        </div>
         {loading && entries.length === 0 ? (
           <Bar width="38%" height={13} />
         ) : (

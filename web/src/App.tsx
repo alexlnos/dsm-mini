@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Downloads } from './pages/Downloads'
+import { Downloads, type DownloadsFilter } from './pages/Downloads'
 import { Home, type Section } from './pages/Home'
 import { VMs } from './pages/VMs'
 import { Containers } from './pages/Containers'
@@ -49,6 +49,12 @@ export function App() {
   // Открытая папка переживает переход на другую вкладку: возвращать человека
   // в корень каждый раз — заставлять его заново идти тем же путём.
   const [filesPath, setFilesPath] = useState('/')
+  // Счётчик пересобирает обзор: повторное нажатие на активную вкладку
+  // открывает раздел заново, с корня.
+  const [filesRun, setFilesRun] = useState(0)
+  // Выбранная вкладка загрузок тоже переживает переход. null — человек ещё
+  // не выбирал сам, и можно подставить разумную.
+  const [downloadsFilter, setDownloadsFilter] = useState<DownloadsFilter | null>(null)
 
 
   const refresh = useCallback(async () => {
@@ -185,6 +191,8 @@ export function App() {
           <Downloads
             data={data}
             error={error}
+            filter={downloadsFilter}
+            onFilterChange={setDownloadsFilter}
             onRefresh={() => void refresh()}
             onOpen={openTask}
             onAdd={() => setScreen({ name: 'add' })}
@@ -192,6 +200,7 @@ export function App() {
         )}
         {screen.name === 'files' && (
           <Files
+            key={filesRun}
             initialPath={filesPath}
             onPathChange={setFilesPath}
             onTransfer={(paths, move) => setScreen({ name: 'transferTarget', paths, move })}
@@ -288,7 +297,16 @@ export function App() {
           <button
             type="button"
             className={screen.name === 'files' ? 'tab active' : 'tab'}
-            onClick={() => setScreen({ name: 'files' })}
+            onClick={() => {
+              // Нажатие на вкладку, где уже находишься, возвращает к началу
+              // раздела — привычное поведение мобильных приложений.
+              if (screen.name === 'files') {
+                setFilesPath('/')
+                setFilesRun((run) => run + 1)
+                return
+              }
+              setScreen({ name: 'files' })
+            }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
