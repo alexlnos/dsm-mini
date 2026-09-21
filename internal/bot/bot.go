@@ -1,0 +1,407 @@
+// Package bot — телеграм-бот: быстрый путь без открытия Mini App.
+//
+// Самый частый сценарий на практике: пользователь пересылает magnet-ссылку
+// или файл .torrent прямо в чат, бот предлагает папку кнопками и ставит
+// задачу. Mini App нужен, когда хочется посмотреть на ход загрузки.
+package bot
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
+	tg "github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
+)
+
+// maxTorrentSize — предел размера .torrent, который примем из чата.
+// Настоящие торрент-файлы на порядки меньше.
+const maxTorrentSize = 10 << 20
+
+// Bot обслуживает чат.
+type Bot struct {
+	api       *tg.Bot
+	ds        downloadstation.Station
+	allowed   []int64
+	publicURL string
+	token     string
+	pending   *pendingStore
+	log       *slog.Logger
+}
+
+// Options — зависимости бота.
+type Options struct {
+	Token          string
+	AllowedUserIDs []int64
+	Downloads      downloadstation.Station
+	// PublicURL — адрес Mini App для кнопки «Открыть».
+	PublicURL string
+	Logger    *slog.Logger
+}
+
+// New создаёт бота.
+func New(o Options) (*Bot, error) {
+	if o.Logger == nil {
+		o.Logger = slog.Default()
+	}
+	b := &Bot{
+		ds:        o.Downloads,
+		allowed:   o.AllowedUserIDs,
+		publicURL: o.PublicURL,
+		token:     o.Token,
+		pending:   newPendingStore(),
+		log:       o.Logger,
+	}
+
+	api, err := tg.New(o.Token,
+		tg.WithDefaultHandler(b.handleMessage),
+		tg.WithCallbackQueryDataHandler("dest:", tg.MatchTypePrefix, b.handleDestination),
+	)
+	if err != nil {
+		// Библиотека проверяет токен запросом getMe прямо при создании,
+		// поэтому неверный токен виден сразу при запуске, а не при первом
+		// сообщении. Подсказываем, где его взять.
+		if strings.Contains(err.Error(), "unauthorized") {
+			return nil, fmt.Errorf("Telegram отклонил токен бота — проверьте TELEGRAM_BOT_TOKEN, его выдаёт @BotFather: %w", err)
+		}
+		return nil, fmt.Errorf("не создать бота: %w", err)
+	}
+	b.api = api
+	return b, nil
+}
+
+// Start запускает получение обновлений и работает, пока жив контекст.
+//
+// Используется long polling, а не webhook: DSM перезапускает nginx при каждом
+// продлении сертификата, и на webhook это означало бы потерянные сообщения.
+func (b *Bot) Start(ctx context.Context) {
+	b.log.Info("бот запущен")
+	b.api.Start(ctx)
+}
+
+// API даёт доступ к клиенту Telegram для отправки уведомлений.
+func (b *Bot) API() *tg.Bot { return b.api }
+
+func (b *Bot) isAllowed(id int64) bool {
+	for _, a := range b.allowed {
+		if a == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Bot) handleMessage(ctx context.Context, api *tg.Bot, update *models.Update) {
+	if update.Message == nil || update.Message.From == nil {
+		return
+	}
+	msg := update.Message
+	from := msg.From.ID
+
+	if !b.isAllowed(from) {
+		b.log.Warn("сообщение от постороннего", "user", from, "username", msg.From.Username)
+		b.reply(ctx, msg.Chat.ID, "Доступ к этому боту закрыт.")
+		return
+	}
+
+	switch {
+	case strings.HasPrefix(msg.Text, "/start"):
+		b.sendWelcome(ctx, msg.Chat.ID)
+	case strings.HasPrefix(msg.Text, "/status"):
+		b.sendStatus(ctx, msg.Chat.ID)
+	case msg.Document != nil:
+		b.handleDocument(ctx, msg)
+	case msg.Text != "":
+		b.handleText(ctx, msg)
+	}
+}
+
+func (b *Bot) sendWelcome(ctx context.Context, chatID int64) {
+	text := "Управление загрузками на NAS.\n\n" +
+		"Пришлите magnet-ссылку, прямую ссылку или файл .torrent — предложу папку и поставлю в очередь.\n" +
+		"/status — что качается прямо сейчас."
+
+	params := &tg.SendMessageParams{ChatID: chatID, Text: text}
+	if b.publicURL != "" {
+		params.ReplyMarkup = &models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{{
+				{Text: "Открыть загрузки", WebApp: &models.WebAppInfo{URL: b.publicURL}},
+			}},
+		}
+	}
+	if _, err := b.api.SendMessage(ctx, params); err != nil {
+		b.log.Error("не отправить приветствие", "err", err)
+	}
+}
+
+func (b *Bot) sendStatus(ctx context.Context, chatID int64) {
+	tasks, err := b.ds.List(ctx)
+	if err != nil {
+		b.reply(ctx, chatID, "Не получилось связаться с NAS: "+err.Error())
+		return
+	}
+
+	var active []downloadstation.Task
+	for _, t := range tasks {
+		if t.Status.Active() {
+			active = append(active, t)
+		}
+	}
+	if len(active) == 0 {
+		b.reply(ctx, chatID, fmt.Sprintf("Ничего не качается. Всего задач: %d.", len(tasks)))
+		return
+	}
+
+	var sb strings.Builder
+	var down int64
+	fmt.Fprintf(&sb, "Активных задач: %d\n", len(active))
+	for i, t := range active {
+		if i == 10 {
+			fmt.Fprintf(&sb, "\n…и ещё %d", len(active)-10)
+			break
+		}
+		down += t.SpeedDown
+		fmt.Fprintf(&sb, "\n%s\n  %.0f%% · %s", t.Title, t.Progress()*100, speed(t.SpeedDown))
+		if eta, ok := t.ETA(); ok {
+			fmt.Fprintf(&sb, " · осталось %s", duration(eta))
+		}
+	}
+	fmt.Fprintf(&sb, "\n\nОбщая скорость: %s", speed(down))
+	b.reply(ctx, chatID, sb.String())
+}
+
+func (b *Bot) handleText(ctx context.Context, msg *models.Message) {
+	link := strings.TrimSpace(msg.Text)
+	if !isDownloadLink(link) {
+		b.reply(ctx, msg.Chat.ID,
+			"Это не похоже на ссылку для загрузки. Пришлите magnet:, http(s):// или файл .torrent.")
+		return
+	}
+	b.askDestination(ctx, msg.Chat.ID, pending{URL: link, Title: titleFromLink(link)})
+}
+
+func (b *Bot) handleDocument(ctx context.Context, msg *models.Message) {
+	doc := msg.Document
+	name := doc.FileName
+	if !strings.HasSuffix(strings.ToLower(name), ".torrent") {
+		b.reply(ctx, msg.Chat.ID, "Нужен файл .torrent — этот не подходит.")
+		return
+	}
+	if doc.FileSize > maxTorrentSize {
+		b.reply(ctx, msg.Chat.ID, "Файл слишком большой для торрента.")
+		return
+	}
+
+	data, err := b.download(ctx, doc.FileID)
+	if err != nil {
+		b.log.Error("не скачать файл из Telegram", "err", err)
+		b.reply(ctx, msg.Chat.ID, "Не получилось забрать файл из Telegram.")
+		return
+	}
+	b.askDestination(ctx, msg.Chat.ID, pending{File: data, FileName: name, Title: name})
+}
+
+// download забирает файл, присланный в чат, с серверов Telegram.
+func (b *Bot) download(ctx context.Context, fileID string) ([]byte, error) {
+	f, err := b.api.GetFile(ctx, &tg.GetFileParams{FileID: fileID})
+	if err != nil {
+		return nil, err
+	}
+	url := b.api.FileDownloadLink(f)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Telegram ответил HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, maxTorrentSize+1))
+}
+
+// askDestination предлагает папки кнопками.
+func (b *Bot) askDestination(ctx context.Context, chatID int64, p pending) {
+	key := b.pending.put(p)
+
+	folders := b.folders(ctx)
+	rows := make([][]models.InlineKeyboardButton, 0, len(folders))
+	for i, f := range folders {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text: f,
+			// В callback_data влезает 64 байта, поэтому здесь только ключ
+			// запроса и номер папки, а не сам путь.
+			CallbackData: fmt.Sprintf("dest:%s:%d", key, i),
+		}})
+	}
+
+	text := "Куда положить?"
+	if p.Title != "" {
+		text = p.Title + "\n\nКуда положить?"
+	}
+	_, err := b.api.SendMessage(ctx, &tg.SendMessageParams{
+		ChatID:      chatID,
+		Text:        text,
+		ReplyMarkup: &models.InlineKeyboardMarkup{InlineKeyboard: rows},
+	})
+	if err != nil {
+		b.log.Error("не отправить выбор папки", "err", err)
+	}
+}
+
+// folders собирает список папок для кнопок: папка по умолчанию и те, куда
+// недавно уже качали.
+func (b *Bot) folders(ctx context.Context) []string {
+	seen := map[string]bool{}
+	var out []string
+
+	if def, err := b.ds.DefaultDestination(ctx); err == nil && def != "" {
+		seen[def] = true
+		out = append(out, def)
+	}
+	tasks, err := b.ds.List(ctx)
+	if err != nil {
+		b.log.Warn("не получить список задач для папок", "err", err)
+	}
+	for i := len(tasks) - 1; i >= 0 && len(out) < 5; i-- {
+		d := tasks[i].Destination
+		if d != "" && !seen[d] {
+			seen[d] = true
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models.Update) {
+	q := update.CallbackQuery
+	if q == nil || q.From.ID == 0 {
+		return
+	}
+	if !b.isAllowed(q.From.ID) {
+		b.answer(ctx, q.ID, "Доступ закрыт")
+		return
+	}
+
+	parts := strings.SplitN(strings.TrimPrefix(q.Data, "dest:"), ":", 2)
+	if len(parts) != 2 {
+		b.answer(ctx, q.ID, "Непонятный выбор")
+		return
+	}
+
+	p, ok := b.pending.take(parts[0])
+	if !ok {
+		b.answer(ctx, q.ID, "Запрос устарел — пришлите ссылку заново")
+		return
+	}
+
+	var index int
+	if _, err := fmt.Sscanf(parts[1], "%d", &index); err != nil {
+		b.answer(ctx, q.ID, "Непонятный выбор")
+		return
+	}
+	folders := b.folders(ctx)
+	if index < 0 || index >= len(folders) {
+		b.answer(ctx, q.ID, "Папка больше недоступна")
+		return
+	}
+	dest := folders[index]
+
+	req := downloadstation.CreateRequest{Destination: dest}
+	if len(p.File) > 0 {
+		req.TorrentFile = p.File
+		req.FileName = p.FileName
+	} else {
+		req.URLs = []string{p.URL}
+	}
+
+	if err := b.ds.Create(ctx, req); err != nil {
+		b.log.Error("не поставить задачу из чата", "user", q.From.ID, "err", err)
+		b.answer(ctx, q.ID, "Не получилось")
+		b.reply(ctx, chatOf(q), "NAS отказал: "+err.Error())
+		return
+	}
+
+	b.log.Info("задача из чата поставлена", "user", q.From.ID, "dest", dest)
+	b.answer(ctx, q.ID, "Поставлено")
+	b.reply(ctx, chatOf(q), "Поставил в очередь → "+dest)
+}
+
+func chatOf(q *models.CallbackQuery) int64 {
+	if q.Message.Message != nil {
+		return q.Message.Message.Chat.ID
+	}
+	return q.From.ID
+}
+
+func (b *Bot) answer(ctx context.Context, id, text string) {
+	if _, err := b.api.AnswerCallbackQuery(ctx, &tg.AnswerCallbackQueryParams{
+		CallbackQueryID: id, Text: text,
+	}); err != nil {
+		b.log.Error("не ответить на нажатие", "err", err)
+	}
+}
+
+func (b *Bot) reply(ctx context.Context, chatID int64, text string) {
+	if _, err := b.api.SendMessage(ctx, &tg.SendMessageParams{ChatID: chatID, Text: text}); err != nil {
+		b.log.Error("не отправить сообщение", "err", err)
+	}
+}
+
+func isDownloadLink(s string) bool {
+	lower := strings.ToLower(s)
+	for _, p := range []string{"magnet:", "http://", "https://", "ftp://", "ftps://", "ed2k://"} {
+		if strings.HasPrefix(lower, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// titleFromLink достаёт из magnet-ссылки человекочитаемое имя, если оно там есть.
+func titleFromLink(link string) string {
+	if i := strings.Index(link, "dn="); i >= 0 {
+		name := link[i+3:]
+		if j := strings.IndexByte(name, '&'); j >= 0 {
+			name = name[:j]
+		}
+		if decoded, err := decodeQuery(name); err == nil && decoded != "" {
+			return decoded
+		}
+	}
+	if len(link) > 80 {
+		return link[:80] + "…"
+	}
+	return link
+}
+
+func speed(bps int64) string {
+	switch {
+	case bps >= 1<<20:
+		return fmt.Sprintf("%.1f МБ/с", float64(bps)/(1<<20))
+	case bps >= 1<<10:
+		return fmt.Sprintf("%.0f КБ/с", float64(bps)/(1<<10))
+	default:
+		return fmt.Sprintf("%d Б/с", bps)
+	}
+}
+
+func duration(d time.Duration) string {
+	switch {
+	case d >= time.Hour:
+		return fmt.Sprintf("%d ч %d мин", int(d.Hours()), int(d.Minutes())%60)
+	case d >= time.Minute:
+		return fmt.Sprintf("%d мин", int(d.Minutes()))
+	default:
+		return fmt.Sprintf("%d с", int(d.Seconds()))
+	}
+}

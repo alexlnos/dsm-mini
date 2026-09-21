@@ -13,6 +13,8 @@ import (
 // без живого NAS.
 type apiClient interface {
 	Call(ctx context.Context, api, method string, version int, params map[string]any, out any) error
+	CallUpload(ctx context.Context, api, method string, version int,
+		fields map[string]string, file dsm.UploadFile, out any) error
 	HasAPI(ctx context.Context, api string) bool
 	APIMaxVersion(ctx context.Context, api string) int
 }

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
 // stationV2 — реализация поверх SYNO.DownloadStation2.* (DSM 7).
@@ -117,11 +119,8 @@ func (s *stationV2) action(ctx context.Context, method string, ids []string, ext
 }
 
 func (s *stationV2) Create(ctx context.Context, req CreateRequest) error {
-	if len(req.TorrentFile) > 0 {
-		return fmt.Errorf("постановка задачи файлом .torrent пока не реализована для API v2")
-	}
-	if len(req.URLs) == 0 {
-		return fmt.Errorf("не указано ни одной ссылки")
+	if len(req.TorrentFile) == 0 && len(req.URLs) == 0 {
+		return fmt.Errorf("не указано ни ссылки, ни файла")
 	}
 
 	// В отличие от легаси-API, здесь destination обязателен: без него NAS
@@ -144,13 +143,40 @@ func (s *stationV2) Create(ctx context.Context, req CreateRequest) error {
 	// Ведущий слеш ("/Media/TV Shows") NAS отвергает кодом 403.
 	// create_list=false обязателен: с true задача не создаётся, а уходит
 	// в режим предварительного выбора файлов.
+	dest = strings.TrimPrefix(dest, "/")
+
+	if len(req.TorrentFile) > 0 {
+		return s.createFromFile(ctx, req, dest)
+	}
+
 	params := map[string]any{
 		"type":        "url",
 		"url":         req.URLs,
 		"create_list": false,
-		"destination": strings.TrimPrefix(dest, "/"),
+		"destination": dest,
 	}
 	return s.c.Call(ctx, apiTaskV2, "create", 2, params, nil)
+}
+
+// createFromFile ставит задачу из содержимого .torrent.
+//
+// Здесь своя кодировка параметров, не совпадающая ни с обычными вызовами, ни
+// с загрузкой в File Station: значения полей формы идут КАК JSON — строки в
+// кавычках, списки в скобках, — тогда как File Station в том же multipart ждёт
+// их без кавычек. Имя части с файлом должно совпадать с элементом "file".
+func (s *stationV2) createFromFile(ctx context.Context, req CreateRequest, dest string) error {
+	name := req.FileName
+	if name == "" {
+		name = "upload.torrent"
+	}
+	const part = "torrent"
+
+	return s.c.CallUpload(ctx, apiTaskV2, "create", 2, map[string]string{
+		"type":        strconv.Quote("file"),
+		"file":        `["` + part + `"]`,
+		"create_list": "false",
+		"destination": strconv.Quote(dest),
+	}, dsm.UploadFile{Field: part, Name: name, Data: req.TorrentFile}, nil)
 }
 
 func (s *stationV2) Stats(ctx context.Context) (Stats, error) {

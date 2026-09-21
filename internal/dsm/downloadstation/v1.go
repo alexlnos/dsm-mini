@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/alexlnos/dsm-mini/internal/dsm"
 )
 
 // stationLegacy — реализация поверх SYNO.DownloadStation.* .
@@ -117,11 +119,23 @@ func (s *stationLegacy) action(ctx context.Context, method string, ids []string,
 }
 
 func (s *stationLegacy) Create(ctx context.Context, req CreateRequest) error {
-	if len(req.TorrentFile) > 0 {
-		return fmt.Errorf("постановка задачи файлом .torrent пока не реализована для легаси-API")
+	if len(req.TorrentFile) == 0 && len(req.URLs) == 0 {
+		return fmt.Errorf("не указано ни ссылки, ни файла")
 	}
-	if len(req.URLs) == 0 {
-		return fmt.Errorf("не указано ни одной ссылки")
+
+	if len(req.TorrentFile) > 0 {
+		name := req.FileName
+		if name == "" {
+			name = "upload.torrent"
+		}
+		fields := map[string]string{}
+		if req.Destination != "" {
+			fields["destination"] = req.Destination
+		}
+		// Легаси-API принимает файл в части с именем "file" — так он назван
+		// в документации Synology.
+		return s.c.CallUpload(ctx, apiTaskLegacy, "create", 1, fields,
+			dsm.UploadFile{Field: "file", Name: name, Data: req.TorrentFile}, nil)
 	}
 
 	params := map[string]any{"uri": strings.Join(req.URLs, ",")}
