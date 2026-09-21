@@ -11,10 +11,18 @@
  */
 import { ru, type Key, type Phrase } from './ru'
 import { en } from './en'
+import { es } from './es'
+import { pt } from './pt'
+import { de } from './de'
+import { fr } from './fr'
+import { it } from './it'
+import { tr } from './tr'
+import { uk } from './uk'
+import { pl } from './pl'
 
 export type { Key } from './ru'
 
-const DICTS = { en, ru }
+const DICTS = { en, ru, es, pt, de, fr, it, tr, uk, pl }
 
 export type Locale = keyof typeof DICTS
 
@@ -22,7 +30,10 @@ export type Locale = keyof typeof DICTS
  * Метки для `Intl`: числа и даты форматируются по правилам языка, а не по
  * нашим. Португальский ведём в бразильском варианте — он массовее.
  */
-const TAGS: Record<Locale, string> = { en: 'en', ru: 'ru' }
+const TAGS: Record<Locale, string> = {
+  en: 'en', ru: 'ru', es: 'es', pt: 'pt-BR', de: 'de',
+  fr: 'fr', it: 'it', tr: 'tr', uk: 'uk', pl: 'pl',
+}
 
 const FALLBACK: Locale = 'en'
 
