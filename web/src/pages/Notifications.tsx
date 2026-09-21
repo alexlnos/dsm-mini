@@ -108,7 +108,8 @@ export function Notifications({ onBack }: Props) {
                   <div className="event-text">
                     <span className="event-message">{entry.message}</span>
                     <span className="event-meta tnum">
-                      {logTime(entry.time)} · {entry.type}
+                      {logTime(entry.time)}
+                      {entry.type ? ` · ${entry.type}` : ''}
                       {entry.who ? ` · ${entry.who}` : ''}
                     </span>
                   </div>

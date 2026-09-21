@@ -84,14 +84,38 @@ module.exports = {
   },
   '/api/system/log': {
     entries: [
-      { level: 'info', message: 'System started up.', time: iso(1800e3) },
-      { level: 'info', message: 'User [admin] logged in via [DSM].', time: iso(5400e3) },
-      { level: 'warning', message: 'Volume 2 usage is above 70%.', time: iso(9000e3) },
-      { level: 'info', message: 'Package [Download Station] was updated.', time: iso(90000e3) },
-      { level: 'error', message: 'Failed to connect to external storage.', time: iso(176400e3) },
-      { level: 'info', message: 'Scheduled S.M.A.R.T. test finished.', time: iso(180000e3) },
+      { level: 'info', type: 'System', message: 'System started up.', time: iso(1800e3) },
+      { level: 'info', type: 'System', message: 'User [admin] logged in via [DSM].', time: iso(5400e3) },
+      { level: 'warning', type: 'System', message: 'Volume 2 usage is above 70%.', time: iso(9000e3) },
+      { level: 'info', type: 'System', message: 'Package [Download Station] was updated.', time: iso(90000e3) },
+      { level: 'error', type: 'System', message: 'Failed to connect to external storage.', time: iso(176400e3) },
+      { level: 'info', type: 'System', message: 'Scheduled S.M.A.R.T. test finished.', time: iso(180000e3) },
     ],
   },
+  // Files, trackers and peers of a task: Download Station gives them only
+  // while the task is alive, so the screenshots need their own copy.
+  '/api/downloads/files': {
+    files: [
+      { index: 0, name: 'ubuntu-24.04.1-desktop-amd64.iso', size: 6203355136,
+        downloaded: 4160749568, priority: 'normal', wanted: true },
+      { index: 1, name: 'SHA256SUMS', size: 1024, downloaded: 1024,
+        priority: 'high', wanted: true },
+      { index: 2, name: 'SHA256SUMS.gpg', size: 833, downloaded: 833,
+        priority: 'high', wanted: true },
+      { index: 3, name: 'README.diskdefines', size: 2048, downloaded: 0,
+        priority: 'skip', wanted: false },
+    ],
+    trackers: [
+      { url: 'https://torrent.ubuntu.com/announce', status: 'Success', seeds: 42, peers: 7 },
+      { url: 'https://ipv6.torrent.ubuntu.com/announce', status: 'Success', seeds: 11, peers: 2 },
+    ],
+    peers: [
+      { address: '203.0.113.17', agent: 'qBittorrent 4.6.4', progress: 1, speed_down: 6291456 },
+      { address: '198.51.100.42', agent: 'Transmission 4.0.5', progress: 0.82, speed_down: 3145728 },
+      { address: '192.0.2.88', agent: 'libtorrent 2.0.9', progress: 0.41, speed_down: 2097152 },
+    ],
+  },
+
   '/api/files': {
     entries: [
       { name: 'Downloads', path: '/Downloads', is_dir: true, size: 0, modified: iso(3600e3) },
