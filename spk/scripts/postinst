@@ -8,8 +8,17 @@ VAR="${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}"
 ENV_FILE="$VAR/config.env"
 
 # On an upgrade the settings are left alone: the wizard was not shown there,
-# and the file may have been edited by hand.
+# and the file may have been edited by hand. (postinst does run on an upgrade —
+# step 8 of the twelve in the developer guide — so this guard is what keeps the
+# settings, not luck.)
 if [ "$SYNOPKG_PKG_STATUS" = "UPGRADE" ] && [ -f "$ENV_FILE" ]; then
+    # One exception, and only one. Up to 1.0.0 the service was told to listen
+    # on ":port" — every interface — so the app answered anyone on the local
+    # network, around the reverse proxy it is meant to sit behind. That was a
+    # mistake rather than a choice, so an upgrade corrects it. The pattern
+    # matches only the bare ":port" form: an address someone set deliberately,
+    # like 0.0.0.0:8080 or a specific interface, is left as it is.
+    sed -i "s|^LISTEN_ADDR='\{0,1\}:\([0-9]*\)'\{0,1\}$|LISTEN_ADDR='127.0.0.1:\1'|" "$ENV_FILE"
     exit 0
 fi
 
