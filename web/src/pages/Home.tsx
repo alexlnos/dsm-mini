@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { SkeletonMeters } from '../components/Skeleton'
 import { api, ApiError } from '../api'
+import { readCache, writeCache } from '../cache'
 import { size, speed, uptime } from '../format'
 import type { Overview, StorageOverview, SystemOverview } from '../types'
 
@@ -25,15 +27,21 @@ function Meter({ label, percent }: { label: string; percent: number }) {
 }
 
 export function Home({ downloads, onOpen }: Props) {
-  const [system, setSystem] = useState<SystemOverview | null>(null)
-  const [storage, setStorage] = useState<StorageOverview | null>(null)
+  // Начинаем с сохранённых значений: экран заполнен с первого кадра, а
+  // свежие данные подменяют их, когда придут.
+  const [system, setSystem] = useState<SystemOverview | null>(() => readCache('system'))
+  const [storage, setStorage] = useState<StorageOverview | null>(() => readCache('storage'))
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
       const [sys, st] = await Promise.all([api.system(), api.storage().catch(() => null)])
       setSystem(sys)
-      setStorage(st)
+      writeCache('system', sys)
+      if (st) {
+        setStorage(st)
+        writeCache('storage', st)
+      }
       setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? (e.detail ?? e.message) : 'NAS недоступен')
@@ -97,6 +105,8 @@ export function Home({ downloads, onOpen }: Props) {
         </div>
 
         {error && <div className="home-error">{error}</div>}
+
+        {!usage && !error && <SkeletonMeters />}
 
         {usage && (
           <>

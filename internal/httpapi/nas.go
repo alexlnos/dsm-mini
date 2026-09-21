@@ -1,9 +1,14 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/alexlnos/dsm-mini/internal/dsm/system"
 )
 
 // handleSystem отдаёт всё для главного экрана одним запросом: устройство,
@@ -11,20 +16,52 @@ import (
 func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	info, err := s.system.Info(ctx)
-	if err != nil {
-		s.fail(w, r, err, "не получить сведения о NAS")
-		return
+	// Три независимых запроса к NAS идут разом: последовательно они
+	// складывались в две с лишним секунды ожидания на главном экране.
+	var (
+		info     system.Info
+		infoErr  error
+		usage    system.Usage
+		packages []system.Package
+	)
+
+	tasks := []struct {
+		what string
+		run  func()
+	}{
+		{"сведения о NAS", func() {
+			info, infoErr = s.infoCache.GetStale(ctx, s.system.Info)
+		}},
+		{"загрузка NAS", func() {
+			value, err := s.usageCache.GetStale(ctx, s.system.Usage)
+			if err != nil {
+				s.log.Warn("не получить загрузку", "err", err)
+				return
+			}
+			usage = value
+		}},
+		{"список пакетов", func() {
+			value, err := s.packagesCache.GetStale(ctx, s.system.Packages)
+			if err != nil {
+				s.log.Warn("не получить список пакетов", "err", err)
+				return
+			}
+			packages = value
+		}},
 	}
 
-	// Загрузка и пакеты не критичны: экран полезен и без них.
-	usage, err := s.system.Usage(ctx)
-	if err != nil {
-		s.log.Warn("не получить загрузку", "err", err)
+	// Счётчик берётся из самого списка: разойдись он с числом запущенных
+	// горутин — и обработчик завис бы навсегда, что уже случалось.
+	var wg sync.WaitGroup
+	wg.Add(len(tasks))
+	for _, task := range tasks {
+		go s.inBackground(&wg, task.what, task.run)
 	}
-	packages, err := s.system.Packages(ctx)
-	if err != nil {
-		s.log.Warn("не получить список пакетов", "err", err)
+	wg.Wait()
+
+	if infoErr != nil {
+		s.fail(w, r, infoErr, "не получить сведения о NAS")
+		return
 	}
 
 	// Интерфейсу важно только то, доступен ли раздел приложения.
@@ -69,7 +106,7 @@ func (s *Server) handleSystemLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStorage(w http.ResponseWriter, r *http.Request) {
-	overview, err := s.storage.Load(r.Context())
+	overview, err := s.storageCache.GetStale(r.Context(), s.storage.Load)
 	if err != nil {
 		s.fail(w, r, err, "не получить состояние хранилища")
 		return
@@ -79,15 +116,18 @@ func (s *Server) handleStorage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleVMs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	guests, err := s.vms.List(ctx)
+	guests, err := s.vmsCache.GetStale(ctx, s.vms.List)
 	if err != nil {
 		s.fail(w, r, err, "не получить список машин")
 		return
 	}
-	host, err := s.vms.Host(ctx)
+	// Сводка считается по готовым данным: иначе список и сведения о хосте
+	// запрашивались бы у NAS заново, и экран снова ждал бы секунду.
+	res, err := s.vmHostCache.GetStale(ctx, s.vms.Resources)
 	if err != nil {
-		s.log.Warn("не получить сводку виртуализации", "err", err)
+		s.log.Warn("не получить сведения о хосте виртуализации", "err", err)
 	}
+	host := s.vms.HostFor(guests, res)
 	writeJSON(w, http.StatusOK, map[string]any{"guests": guests, "host": host})
 }
 
@@ -117,6 +157,9 @@ func (s *Server) handleVMAction(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err, "не выполнить действие над машиной")
 		return
 	}
+
+	// Машина меняет состояние не мгновенно, но список надо перечитать.
+	s.vmsCache.Invalidate()
 
 	u, _ := userFrom(ctx)
 	s.log.Info("действие над машиной", "user", u.ID, "vm", req.ID, "action", req.Action)
@@ -164,4 +207,89 @@ func (s *Server) handleContainerAction(w http.ResponseWriter, r *http.Request) {
 	u, _ := userFrom(ctx)
 	s.log.Info("действие над контейнером", "user", u.ID, "name", req.Name, "action", req.Action)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// inBackground запускает часть работы запроса в отдельной горутине.
+//
+// Восстановление здесь обязательно: recover в middleware ловит панику только
+// в своей горутине, а паника в соседней роняет процесс целиком — так уже
+// падал весь сервис из-за одного неинициализированного кэша.
+func (s *Server) inBackground(wg *sync.WaitGroup, what string, run func()) {
+	defer wg.Done()
+	defer func() {
+		if v := recover(); v != nil {
+			s.log.Error("паника в фоновой части запроса", "что", what, "panic", v)
+		}
+	}()
+	run()
+}
+
+// Warmup заранее наполняет кэши состояния NAS.
+//
+// Без него первый, кто откроет приложение, ждёт полный обход DSM. Прогрев в
+// фоне превращает это ожидание в чтение готовых значений.
+func (s *Server) Warmup(ctx context.Context) {
+	if s.system == nil {
+		return
+	}
+
+	tasks := []struct {
+		what string
+		run  func()
+	}{
+		{"сведения о NAS", func() { _, _ = s.infoCache.Get(ctx, s.system.Info) }},
+		{"загрузка NAS", func() { _, _ = s.usageCache.Get(ctx, s.system.Usage) }},
+		{"список пакетов", func() { _, _ = s.packagesCache.Get(ctx, s.system.Packages) }},
+	}
+	if s.ds != nil {
+		tasks = append(tasks, struct {
+			what string
+			run  func()
+		}{"задачи", func() { _, _ = s.tasksCache.Get(ctx, s.ds.List) }})
+	}
+	if s.vms != nil {
+		tasks = append(tasks, struct {
+			what string
+			run  func()
+		}{"машины", func() { _, _ = s.vmsCache.Get(ctx, s.vms.List) }})
+		tasks = append(tasks, struct {
+			what string
+			run  func()
+		}{"ресурсы виртуализации", func() { _, _ = s.vmHostCache.Get(ctx, s.vms.Resources) }})
+	}
+	if s.storage != nil {
+		tasks = append(tasks, struct {
+			what string
+			run  func()
+		}{"хранилище", func() { _, _ = s.storageCache.Get(ctx, s.storage.Load) }})
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(tasks))
+	for _, task := range tasks {
+		go s.inBackground(&wg, task.what, task.run)
+	}
+	wg.Wait()
+}
+
+// KeepWarm обновляет кэши, пока жив контекст.
+//
+// Интервал меньше самого короткого срока жизни не нужен: чаще, чем меняются
+// данные, их всё равно не прочитать, а NAS не стоит дёргать зря.
+func (s *Server) KeepWarm(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = 20 * time.Second
+	}
+	s.Warmup(ctx)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.Warmup(ctx)
+		}
+	}
 }

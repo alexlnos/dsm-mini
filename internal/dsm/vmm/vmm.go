@@ -107,16 +107,26 @@ func (s *Service) Host(ctx context.Context) (Host, error) {
 	if err != nil {
 		return Host{}, err
 	}
-
-	host := Host{TotalVMs: len(guests)}
-	for _, g := range guests {
-		if g.Running {
-			host.RunningVMs++
-			host.UsedVCPU += g.VCPU
-		}
+	res, err := s.Resources(ctx)
+	if err != nil {
+		// Сводка полезна и без сведений о памяти хоста.
+		res = Resources{}
 	}
+	return s.HostFor(guests, res), nil
+}
 
-	// Сведения о хосте не критичны: если их нет, отдаём хотя бы счётчики.
+// Resources — то, что известно только самому NAS: свободная память хоста.
+type Resources struct {
+	Name       string `json:"name"`
+	FreeRAMMB  int64  `json:"free_ram_mb"`
+	TotalRAMMB int64  `json:"total_ram_mb"`
+}
+
+// Resources запрашивает у NAS сведения о хосте виртуализации.
+//
+// Вызов небыстрый (около полусекунды), а меняется в нём только свободная
+// память — поэтому снаружи его держат в кэше.
+func (s *Service) Resources(ctx context.Context) (Resources, error) {
 	var out struct {
 		Hosts []struct {
 			HostName    string `json:"host_name"`
@@ -124,12 +134,38 @@ func (s *Service) Host(ctx context.Context) (Host, error) {
 			RAMSize     int64  `json:"ram_size"`
 		} `json:"hosts"`
 	}
-	if err := s.c.Call(ctx, apiHost, "list", 1, nil, &out); err == nil && len(out.Hosts) > 0 {
-		host.Name = out.Hosts[0].HostName
-		host.FreeRAMMB = out.Hosts[0].FreeRAMSize
-		host.TotalRAMMB = out.Hosts[0].RAMSize
+	if err := s.c.Call(ctx, apiHost, "list", 1, nil, &out); err != nil {
+		return Resources{}, err
 	}
-	return host, nil
+	if len(out.Hosts) == 0 {
+		return Resources{}, nil
+	}
+	return Resources{
+		Name:       out.Hosts[0].HostName,
+		FreeRAMMB:  out.Hosts[0].FreeRAMSize,
+		TotalRAMMB: out.Hosts[0].RAMSize,
+	}, nil
+}
+
+// HostFor считает сводку по уже полученному списку машин и сведениям о хосте.
+//
+// Список и ресурсы передаются готовыми, чтобы не запрашивать их повторно:
+// обработчик берёт и то, и другое из кэша.
+func (s *Service) HostFor(guests []Guest, res Resources) Host {
+	host := Host{
+		TotalVMs:   len(guests),
+		Name:       res.Name,
+		FreeRAMMB:  res.FreeRAMMB,
+		TotalRAMMB: res.TotalRAMMB,
+	}
+	for _, g := range guests {
+		if g.Running {
+			host.RunningVMs++
+			host.UsedVCPU += g.VCPU
+		}
+	}
+
+	return host
 }
 
 // PowerOn запускает машину.

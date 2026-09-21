@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexlnos/dsm-mini/internal/cache"
 	"github.com/alexlnos/dsm-mini/internal/dsm/containers"
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
 	"github.com/alexlnos/dsm-mini/internal/dsm/filestation"
@@ -30,6 +31,17 @@ type Server struct {
 	settings   *store.Store
 	static     fs.FS
 	log        *slog.Logger
+
+	// Кэши с разным сроком жизни: сведения об устройстве почти не меняются,
+	// загрузка — постоянно. Без них каждое обновление экрана превращалось
+	// в несколько запросов к NAS и занимало больше двух секунд.
+	infoCache     *cache.Cache[system.Info]
+	usageCache    *cache.Cache[system.Usage]
+	packagesCache *cache.Cache[[]system.Package]
+	storageCache  *cache.Cache[storage.Overview]
+	tasksCache    *cache.Cache[[]downloadstation.Task]
+	vmsCache      *cache.Cache[[]vmm.Guest]
+	vmHostCache   *cache.Cache[vmm.Resources]
 }
 
 // Options — зависимости сервера.
@@ -57,6 +69,19 @@ func New(o Options) *Server {
 		o.Logger = slog.Default()
 	}
 	return &Server{
+		// Сроки подобраны по тому, как часто меняются данные: модель и
+		// прошивка — почти никогда, загрузка — ежесекундно.
+		infoCache:     cache.New[system.Info](10 * time.Minute),
+		usageCache:    cache.New[system.Usage](2 * time.Second),
+		packagesCache: cache.New[[]system.Package](time.Minute),
+		storageCache:  cache.New[storage.Overview](30 * time.Second),
+		// Задачи и машины меняются на глазах, поэтому сроки короткие: кэш
+		// здесь гасит шквал одинаковых запросов, а не хранит данные.
+		tasksCache: cache.New[[]downloadstation.Task](2 * time.Second),
+		vmsCache:   cache.New[[]vmm.Guest](5 * time.Second),
+		// Свободная память хоста меняется медленно, а запрос за ней долгий.
+		vmHostCache: cache.New[vmm.Resources](15 * time.Second),
+
 		botToken:   o.BotToken,
 		allowed:    o.AllowedUserIDs,
 		ds:         o.Downloads,

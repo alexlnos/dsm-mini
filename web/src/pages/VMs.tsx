@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
+import { SkeletonRows, SkeletonTiles } from '../components/Skeleton'
 import { api, ApiError } from '../api'
+import { readCache, writeCache } from '../cache'
 import type { Guest, VMHost } from '../types'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
 
@@ -17,8 +19,11 @@ function ram(mb: number): string {
 }
 
 export function VMs({ onBack }: Props) {
-  const [guests, setGuests] = useState<Guest[]>([])
-  const [host, setHost] = useState<VMHost | null>(null)
+  // Начинаем с сохранённого ответа: экран заполнен с первого кадра, а
+  // свежий список подменяет его, когда придёт.
+  const [guests, setGuests] = useState<Guest[]>(() => readCache<Guest[]>('vms') ?? [])
+  const [host, setHost] = useState<VMHost | null>(() => readCache<VMHost>('vm-host'))
+  const [loaded, setLoaded] = useState(() => readCache<Guest[]>('vms') !== null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -29,9 +34,13 @@ export function VMs({ onBack }: Props) {
       const data = await api.vms()
       setGuests(data.guests ?? [])
       setHost(data.host)
+      writeCache('vms', data.guests ?? [])
+      writeCache('vm-host', data.host)
       setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить список машин')
+    } finally {
+      setLoaded(true)
     }
   }, [])
 
@@ -70,6 +79,7 @@ export function VMs({ onBack }: Props) {
         <ScreenTitle title="Машины" onBack={onBack}>
           {host && <span className="badge">{host.running_vms} из {host.total_vms}</span>}
         </ScreenTitle>
+        {!host && !loaded && <SkeletonTiles />}
         {host && (
           <div className="tiles">
             <div className="tile">
@@ -85,6 +95,8 @@ export function VMs({ onBack }: Props) {
       </div>
 
       {error && <div className="card error-card">{error}</div>}
+
+      {!loaded && guests.length === 0 && <SkeletonRows count={3} dot action />}
 
       <div className="list">
         {guests.map((g) => (
@@ -124,7 +136,7 @@ export function VMs({ onBack }: Props) {
           </div>
         ))}
 
-        {!error && guests.length === 0 && (
+        {loaded && !error && guests.length === 0 && (
           <div className="card empty-text">Машин нет.</div>
         )}
       </div>

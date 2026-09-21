@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskCard } from '../components/TaskCard'
+import { SkeletonTasks } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { size, speed } from '../format'
 import { alertMessage, haptic } from '../telegram'
@@ -113,6 +114,8 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
 
       {error && <div className="card error-card">{error}</div>}
 
+      {!error && !data && <SkeletonTasks count={3} />}
+
       <div className="list">
         {shown.map((task) => (
           <TaskCard
@@ -124,7 +127,7 @@ export function Downloads({ data, error, onRefresh, onOpen, onAdd }: Props) {
           />
         ))}
 
-        {!error && shown.length === 0 && (
+        {!error && data && shown.length === 0 && (
           <div className="card empty">
             <div className="empty-icon" aria-hidden="true">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"

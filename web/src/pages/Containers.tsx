@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
+import { SkeletonRows } from '../components/Skeleton'
 import { api, ApiError } from '../api'
+import { readCache, writeCache } from '../cache'
 import { size } from '../format'
 import { alertMessage, backButton, haptic } from '../telegram'
 import type { Container } from '../types'
@@ -10,7 +12,9 @@ interface Props {
 }
 
 export function Containers({ onBack }: Props) {
-  const [list, setList] = useState<Container[]>([])
+  // Начинаем с сохранённого списка: экран заполнен с первого кадра.
+  const [list, setList] = useState<Container[]>(() => readCache<Container[]>('containers') ?? [])
+  const [loaded, setLoaded] = useState(() => readCache<Container[]>('containers') !== null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -20,9 +24,12 @@ export function Containers({ onBack }: Props) {
     try {
       const data = await api.containers()
       setList(data.containers ?? [])
+      writeCache('containers', data.containers ?? [])
       setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить список контейнеров')
+    } finally {
+      setLoaded(true)
     }
   }, [])
 
@@ -54,7 +61,9 @@ export function Containers({ onBack }: Props) {
 
       {error && <div className="card error-card">{error}</div>}
 
-      {!error && list.length === 0 && (
+      {!loaded && list.length === 0 && <SkeletonRows count={3} dot action />}
+
+      {loaded && !error && list.length === 0 && (
         <div className="card empty">
           <div className="empty-icon" aria-hidden="true">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"

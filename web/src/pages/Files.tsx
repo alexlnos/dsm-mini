@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Preview } from '../components/Preview'
+import { Bar, SkeletonEntries } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { size } from '../format'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
@@ -50,9 +51,12 @@ export function Files({
   const [busy, setBusy] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const load = useCallback(async (target: string) => {
+  // stay = обновление той же папки после действия: список не сбрасываем,
+  // иначе он мигнул бы заглушками на каждое переименование.
+  const load = useCallback(async (target: string, stay = false) => {
     setLoading(true)
     setError(null)
+    if (!stay) setEntries([])
     try {
       const { entries } = await api.files(target)
       setEntries(entries ?? [])
@@ -96,7 +100,7 @@ export function Files({
     try {
       await run()
       haptic('success')
-      await load(path)
+      await load(path, true)
     } catch (e) {
       haptic('error')
       alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось')
@@ -181,7 +185,11 @@ export function Files({
           })}
         </div>
         <h1>{segments.at(-1) ?? 'Общие папки'}</h1>
-        <div className="muted tnum">{entries.length} объектов</div>
+        {loading && entries.length === 0 ? (
+          <Bar width="38%" height={13} />
+        ) : (
+          <div className="muted tnum">{entries.length} объектов</div>
+        )}
 
         {pending && (
           <div className="row">
@@ -236,7 +244,7 @@ export function Files({
       </div>
 
       {error && <div className="card error-card">{error}</div>}
-      {loading && <div className="card empty-text">Загружаю…</div>}
+      {loading && entries.length === 0 && <SkeletonEntries count={6} />}
 
       <div className="list">
         {entries.map((entry) => {

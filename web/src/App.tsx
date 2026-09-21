@@ -10,6 +10,7 @@ import { Files } from './pages/Files'
 import { Folders } from './pages/Folders'
 import { TaskDetail } from './pages/TaskDetail'
 import { api, ApiError } from './api'
+import { readCache, writeCache } from './cache'
 import { alertMessage, haptic } from './telegram'
 import type { Overview, Task } from './types'
 
@@ -39,7 +40,7 @@ const IDLE_POLL = 15000
 
 export function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
-  const [data, setData] = useState<Overview | null>(null)
+  const [data, setData] = useState<Overview | null>(() => readCache('overview'))
   const [error, setError] = useState<string | null>(null)
   // Содержимое экрана добавления: переход в обзор NAS размонтирует его, и без
   // этого введённая ссылка пропадала бы.
@@ -49,7 +50,9 @@ export function App() {
 
   const refresh = useCallback(async () => {
     try {
-      setData(await api.overview())
+      const fresh = await api.overview()
+      setData(fresh)
+      writeCache('overview', fresh)
       setError(null)
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
+import { Bar, SkeletonDisks } from '../components/Skeleton'
 import { api, ApiError } from '../api'
+import { readCache, writeCache } from '../cache'
 import { size } from '../format'
 import { backButton } from '../telegram'
 import type { Disk, StorageOverview } from '../types'
@@ -17,14 +19,18 @@ function tempClass(temp: number): string {
 }
 
 export function Storage({ onBack }: Props) {
-  const [data, setData] = useState<StorageOverview | null>(null)
+  // Тот же ключ, что и на главном экране: если она открывалась, состояние
+  // хранилища уже сохранено и рисуется сразу.
+  const [data, setData] = useState<StorageOverview | null>(() => readCache('storage'))
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => backButton(onBack), [onBack])
 
   const load = useCallback(async () => {
     try {
-      setData(await api.storage())
+      const fresh = await api.storage()
+      setData(fresh)
+      writeCache('storage', fresh)
       setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получить состояние хранилища')
@@ -49,20 +55,26 @@ export function Storage({ onBack }: Props) {
     <div className="page">
       <div className="card summary">
         <ScreenTitle title="Хранилище" onBack={onBack}>
-          <span className={data?.healthy ? 'badge ok' : 'badge bad'}>
-            {data?.healthy ? 'исправно' : 'внимание'}
-          </span>
+          {data && (
+            <span className={data.healthy ? 'badge ok' : 'badge bad'}>
+              {data.healthy ? 'исправно' : 'внимание'}
+            </span>
+          )}
         </ScreenTitle>
-        <div className="muted tnum">
-          {disks.length} дисков · {pools.length} пула · {volumes.length} тома
-        </div>
+        {data ? (
+          <div className="muted tnum">
+            {disks.length} дисков · {pools.length} пула · {volumes.length} тома
+          </div>
+        ) : (
+          <Bar width="52%" height={13} />
+        )}
 
         <div className="bays">
           <div className="bays-label">Отсеки SATA</div>
           <div className="bays-grid">
             {bays.map((disk, i) => (
-              <div key={i} className={disk ? 'bay' : 'bay empty'}>
-                <span className="bay-num">{i + 1}</span>
+              <div key={i} className={disk ? 'bay' : data ? 'bay empty' : 'bay sk'}>
+                {(disk || data) && <span className="bay-num">{i + 1}</span>}
                 {disk && <span className="bay-temp tnum">{disk.temp}°</span>}
               </div>
             ))}
@@ -142,6 +154,8 @@ export function Storage({ onBack }: Props) {
       )}
 
       <div className="section-head"><span className="section-title">Диски</span></div>
+      {!data && !error && <SkeletonDisks count={4} />}
+      {data && (
       <div className="card">
         {disks.map((d, i) => (
           <div key={d.id}>
@@ -157,6 +171,7 @@ export function Storage({ onBack }: Props) {
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }

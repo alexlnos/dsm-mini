@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ScreenTitle } from '../components/ScreenTitle'
+import { SkeletonEvents, SkeletonTiles } from '../components/Skeleton'
 import { api, ApiError } from '../api'
 import { logDay, logTime } from '../format'
 import { backButton } from '../telegram'
@@ -54,6 +55,7 @@ export function Notifications({ onBack }: Props) {
         <ScreenTitle title="События" onBack={onBack}>
           <span className="muted tnum">журнал NAS</span>
         </ScreenTitle>
+        {loading && entries.length === 0 ? <SkeletonTiles /> : (
         <div className="tiles">
           <div className="tile">
             <span className="tile-label">Записей</span>
@@ -66,6 +68,7 @@ export function Notifications({ onBack }: Props) {
             </span>
           </div>
         </div>
+        )}
       </div>
 
       <div className="segments" role="tablist">
@@ -84,7 +87,7 @@ export function Notifications({ onBack }: Props) {
       </div>
 
       {error && <div className="card error-card">{error}</div>}
-      {loading && <div className="card empty-text">Загружаю…</div>}
+      {loading && entries.length === 0 && <SkeletonEvents count={5} />}
 
       {!loading && !error && entries.length === 0 && (
         <div className="card empty-text">

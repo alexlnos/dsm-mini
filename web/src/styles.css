@@ -19,6 +19,8 @@
   --tile: #f5f7fa;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 18px rgba(0, 0, 0, 0.05);
   --radius: 16px;
+  --skeleton: #e7e7ec;
+  --skeleton-shine: rgba(255, 255, 255, 0.75);
 }
 
 :root[data-theme='dark'] {
@@ -36,6 +38,8 @@
   --ring-track: #2c2c2e;
   --tile: #2c2c2e;
   --shadow: none;
+  --skeleton: #2f2f33;
+  --skeleton-shine: rgba(255, 255, 255, 0.07);
 }
 
 * { box-sizing: border-box; }
@@ -939,3 +943,47 @@ h1 {
 .event-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .event-message { font-size: 14px; line-height: 1.35; word-break: break-word; }
 .event-meta { font-size: 12px; color: var(--muted); }
+
+/* ── Заглушки загрузки ───────────────────────────────────────────────────── */
+
+/*
+ * Идут последними: .sk перекрывает фон классов, поверх которых рисуется
+ * заглушка (например .meter-track), а не наоборот.
+ */
+.sk {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--skeleton);
+}
+
+.sk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--skeleton-shine), transparent);
+  animation: sk-shine 1.3s ease-in-out infinite;
+}
+
+@keyframes sk-shine { to { transform: translateX(100%); } }
+
+/* Колонке с полосками нужна своя ширина: проценты внутри неё считаются от неё. */
+.sk-grow { flex-grow: 1; min-width: 0; }
+
+.sk-dot { width: 10px; height: 10px; border-radius: 5px; flex-shrink: 0; }
+.sk-button { width: 38px; height: 38px; border-radius: 19px; flex-shrink: 0; }
+.sk-icon { width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0; }
+.sk-ring { width: 44px; height: 44px; border-radius: 22px; flex-shrink: 0; }
+
+/* Полоски выстроены в столбик — им нужен зазор, как у настоящих строк. */
+.vm-text .sk + .sk, .event-text .sk + .sk,
+.tile .sk + .sk, .entry-text .sk + .sk, .disk-text .sk + .sk { margin-top: 6px; }
+
+/* Пустой отсек, пока состояние дисков неизвестно. */
+.bay.sk { border-style: solid; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sk::after { animation: none; }
+}

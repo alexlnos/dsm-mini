@@ -37,7 +37,7 @@ func view(t downloadstation.Task) taskView {
 func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	tasks, err := s.ds.List(ctx)
+	tasks, err := s.tasksCache.GetStale(ctx, s.ds.List)
 	if err != nil {
 		s.fail(w, r, err, "не получить список задач")
 		return
@@ -80,7 +80,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := s.ds.List(r.Context())
+	tasks, err := s.tasksCache.GetStale(r.Context(), s.ds.List)
 	if err != nil {
 		s.fail(w, r, err, "не получить список задач")
 		return
@@ -122,6 +122,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err, "не поставить задачу")
 		return
 	}
+	// Список только что изменился — кэш обязан это заметить.
+	s.tasksCache.Invalidate()
+
 	u, _ := userFrom(r.Context())
 	if s.settings != nil && req.Destination != "" {
 		if err := s.settings.RememberLastUsed(r.Context(), u.ID, req.Destination); err != nil {
@@ -166,6 +169,8 @@ func (s *Server) handleTaskAction(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err, "действие не выполнено")
 		return
 	}
+	s.tasksCache.Invalidate()
+
 	u, _ := userFrom(ctx)
 	s.log.Info("действие над задачами", "user", u.ID, "action", req.Action, "count", len(ids))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
