@@ -62,3 +62,34 @@ export function statusLabel(status: string): string {
     default: return 'Неизвестно'
   }
 }
+
+/** Аптайм человеческим языком. */
+export function uptime(seconds: number): string {
+  if (!seconds) return '—'
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  if (days > 0) return `${days} дн ${hours} ч`
+  const minutes = Math.floor((seconds % 3600) / 60)
+  return hours > 0 ? `${hours} ч ${minutes} мин` : `${minutes} мин`
+}
+
+/** Дата и время записи журнала. */
+export function logTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** День для группировки записей журнала. */
+export function logDay(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'Ранее'
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  const same = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (same(d, today)) return 'Сегодня'
+  if (same(d, yesterday)) return 'Вчера'
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+}

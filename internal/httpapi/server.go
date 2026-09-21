@@ -8,20 +8,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexlnos/dsm-mini/internal/dsm/containers"
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
 	"github.com/alexlnos/dsm-mini/internal/dsm/filestation"
+	"github.com/alexlnos/dsm-mini/internal/dsm/storage"
+	"github.com/alexlnos/dsm-mini/internal/dsm/system"
+	"github.com/alexlnos/dsm-mini/internal/dsm/vmm"
 	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
 // Server обслуживает Mini App: отдаёт статику и REST поверх NAS.
 type Server struct {
-	botToken string
-	allowed  []int64
-	ds       downloadstation.Station
-	fs       *filestation.Station
-	settings *store.Store
-	static   fs.FS
-	log      *slog.Logger
+	botToken   string
+	allowed    []int64
+	ds         downloadstation.Station
+	fs         *filestation.Station
+	system     *system.Service
+	storage    *storage.Service
+	vms        *vmm.Service
+	containers *containers.Service
+	settings   *store.Store
+	static     fs.FS
+	log        *slog.Logger
 }
 
 // Options — зависимости сервера.
@@ -32,7 +40,11 @@ type Options struct {
 	Files          *filestation.Station
 	// Settings хранит пользовательские настройки. Может быть nil: тогда
 	// приложение работает с настройками по умолчанию и ничего не сохраняет.
-	Settings *store.Store
+	Settings   *store.Store
+	System     *system.Service
+	Storage    *storage.Service
+	VMs        *vmm.Service
+	Containers *containers.Service
 	// Static — собранное Mini App. Может быть nil: тогда отдаётся заглушка,
 	// что удобно при разработке бэкенда отдельно от фронтенда.
 	Static fs.FS
@@ -45,13 +57,17 @@ func New(o Options) *Server {
 		o.Logger = slog.Default()
 	}
 	return &Server{
-		botToken: o.BotToken,
-		allowed:  o.AllowedUserIDs,
-		ds:       o.Downloads,
-		fs:       o.Files,
-		settings: o.Settings,
-		static:   o.Static,
-		log:      o.Logger,
+		botToken:   o.BotToken,
+		allowed:    o.AllowedUserIDs,
+		ds:         o.Downloads,
+		fs:         o.Files,
+		system:     o.System,
+		storage:    o.Storage,
+		vms:        o.VMs,
+		containers: o.Containers,
+		settings:   o.Settings,
+		static:     o.Static,
+		log:        o.Logger,
 	}
 }
 
@@ -86,6 +102,13 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("POST /api/files/transfer/stop", s.handleTransferStop)
 	api.HandleFunc("GET /api/files/thumb", s.handleThumb)
 	api.HandleFunc("GET /api/files/preview", s.handlePreview)
+	api.HandleFunc("GET /api/system", s.handleSystem)
+	api.HandleFunc("GET /api/system/log", s.handleSystemLog)
+	api.HandleFunc("GET /api/storage", s.handleStorage)
+	api.HandleFunc("GET /api/vms", s.handleVMs)
+	api.HandleFunc("POST /api/vms/action", s.handleVMAction)
+	api.HandleFunc("GET /api/containers", s.handleContainers)
+	api.HandleFunc("POST /api/containers/action", s.handleContainerAction)
 	api.HandleFunc("GET /api/settings", s.handleGetSettings)
 	api.HandleFunc("PUT /api/settings", s.handleSaveSettings)
 

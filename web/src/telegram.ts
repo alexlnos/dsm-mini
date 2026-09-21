@@ -111,6 +111,16 @@ export function haptic(kind: 'light' | 'success' | 'error') {
   else h.notificationOccurred?.(kind)
 }
 
+/**
+ * Есть ли системная кнопка «назад».
+ *
+ * Внутри Telegram она всегда есть, а при открытии в браузере (разработка,
+ * клиент без поддержки) — нет, и без запасной кнопки из раздела не выйти.
+ */
+export function hasNativeBack(): boolean {
+  return Boolean(webApp()?.BackButton)
+}
+
 /** Системная кнопка «назад» в шапке Telegram. */
 export function backButton(onBack: (() => void) | null) {
   const button = webApp()?.BackButton

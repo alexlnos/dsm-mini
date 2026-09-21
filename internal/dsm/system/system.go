@@ -17,6 +17,7 @@ const (
 	apiSystem      = "SYNO.Core.System"
 	apiPackage     = "SYNO.Core.Package"
 	apiSyslog      = "SYNO.Core.SyslogClient.Log"
+	apiFileStation = "SYNO.FileStation.Info"
 )
 
 // Service читает состояние NAS.
@@ -81,10 +82,22 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 		return Info{}, err
 	}
 	cores, _ := strconv.Atoi(strings.TrimSpace(out.CPUCores))
+
+	hostname := out.Hostname
+	if hostname == "" {
+		// SYNO.Core.System имя хоста не возвращает; у File Station оно есть.
+		var fs struct {
+			Hostname string `json:"hostname"`
+		}
+		if err := s.c.Call(ctx, apiFileStation, "get", 2, nil, &fs); err == nil {
+			hostname = fs.Hostname
+		}
+	}
+
 	return Info{
-		Hostname:      out.Hostname,
+		Hostname:      hostname,
 		Model:         out.Model,
-		Firmware:      out.FirmwareVer,
+		Firmware:      strings.TrimSpace(strings.TrimPrefix(out.FirmwareVer, "DSM")),
 		CPUVendor:     out.CPUVendor,
 		CPUSeries:     out.CPUSeries,
 		CPUCores:      cores,

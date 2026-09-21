@@ -36,6 +36,8 @@ Web API Synology местами ведёт себя не так, как напи
   параметрами делает сам DSM.
 - В `Task.edit` параметр называется `id`, в `Task.BT.File` — `task_id`.
 - Завершающий слеш в пути назначения `CopyMove` даёт ошибку 418.
+- Имя хоста `SYNO.Core.System` не возвращает — оно есть у `FileStation.Info`.
+- Фильтр по уровню в системном журнале не работает: отбираем у себя.
 - `Thumb` и `Download` возвращают байты, а об ошибке сообщают, подменив
   Content-Type на JSON.
 
@@ -74,6 +76,10 @@ internal/dsm/        клиент DSM Web API: сессии, версии, multi
 internal/httpapi/    REST для Mini App, проверка подписи Telegram
 internal/bot/        бот: ссылки и .torrent из чата, вид бота из кода
 internal/watcher/    уведомления о завершении задач
+internal/dsm/system/     загрузка, сведения об устройстве, пакеты, журнал
+internal/dsm/storage/    диски, пулы и тома
+internal/dsm/vmm/        виртуальные машины
+internal/dsm/containers/ контейнеры Container Manager
 internal/store/      настройки пользователей поверх SQLite
 internal/db/         схема и миграции
 web/                 Mini App на React, собирается в internal/web/dist
@@ -106,6 +112,8 @@ docs/synology-api.md что выяснено про API на практике
   обновляется до ответа сервера и откатывается при ошибке.
 - Отступы внутри карточек — через `padding` самой карточки, не через `margin`
   потомков: такое правило ломается от первой же обёртки.
+- Имена классов проверять на совпадение с уже занятыми: карточка с классом
+  `app` унаследовала стили корневого контейнера и растянулась на весь экран.
 - Тема берётся из `themeParams` Telegram; подтверждения и отклик — нативные
   (`showConfirm`, `HapticFeedback`), а не браузерные.
 - `index.html` отдаётся с `Cache-Control: no-cache`, файлы с хешем в имени —

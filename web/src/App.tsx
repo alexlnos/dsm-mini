@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Downloads } from './pages/Downloads'
+import { Home, type Section } from './pages/Home'
+import { VMs } from './pages/VMs'
+import { Containers } from './pages/Containers'
+import { Storage } from './pages/Storage'
+import { Notifications } from './pages/Notifications'
 import { Add, describeError, type AddDraft } from './pages/Add'
 import { Files } from './pages/Files'
 import { Folders } from './pages/Folders'
@@ -9,6 +14,11 @@ import { alertMessage, haptic } from './telegram'
 import type { Overview, Task } from './types'
 
 type Screen =
+  | { name: 'home' }
+  | { name: 'vms' }
+  | { name: 'containers' }
+  | { name: 'storage' }
+  | { name: 'notifications' }
   | { name: 'downloads' }
   | { name: 'files' }
   | { name: 'add' }
@@ -28,7 +38,7 @@ const ACTIVE_POLL = 2500
 const IDLE_POLL = 15000
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>({ name: 'downloads' })
+  const [screen, setScreen] = useState<Screen>({ name: 'home' })
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Содержимое экрана добавления: переход в обзор NAS размонтирует его, и без
@@ -138,6 +148,28 @@ export function App() {
   return (
     <div className="app">
       <main className="content">
+        {screen.name === 'home' && (
+          <Home
+            downloads={data}
+            onOpen={(section: Section) => {
+              // Разбираем по одному: у каждого экрана свой тип в объединении.
+              switch (section) {
+                case 'downloads': setScreen({ name: 'downloads' }); break
+                case 'files': setScreen({ name: 'files' }); break
+                case 'vms': setScreen({ name: 'vms' }); break
+                case 'containers': setScreen({ name: 'containers' }); break
+                case 'storage': setScreen({ name: 'storage' }); break
+                case 'notifications': setScreen({ name: 'notifications' }); break
+              }
+            }}
+          />
+        )}
+        {screen.name === 'vms' && <VMs onBack={() => setScreen({ name: 'home' })} />}
+        {screen.name === 'containers' && <Containers onBack={() => setScreen({ name: 'home' })} />}
+        {screen.name === 'storage' && <Storage onBack={() => setScreen({ name: 'home' })} />}
+        {screen.name === 'notifications' && (
+          <Notifications onBack={() => setScreen({ name: 'home' })} />
+        )}
         {screen.name === 'downloads' && (
           <Downloads
             data={data}
@@ -216,8 +248,19 @@ export function App() {
         )}
       </main>
 
-      {(screen.name === 'downloads' || screen.name === 'files') && (
+      {(screen.name === 'home' || screen.name === 'downloads' || screen.name === 'files') && (
         <nav className="tabbar">
+          <button
+            type="button"
+            className={screen.name === 'home' ? 'tab active' : 'tab'}
+            onClick={() => setScreen({ name: 'home' })}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 10.5L12 4l8 6.5" /><path d="M6 10v9h12v-9" />
+            </svg>
+            <span>Главная</span>
+          </button>
           <button
             type="button"
             className={screen.name === 'downloads' ? 'tab active' : 'tab'}

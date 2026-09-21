@@ -1,5 +1,6 @@
 import type {
-  Entry, FilePriority, Overview, Settings, SettingsView, Task, TaskDetails,
+  Container, Entry, FilePriority, Guest, LogEntry, Overview, Settings, SettingsView,
+  StorageOverview, SystemOverview, Task, TaskDetails, VMHost,
 } from './types'
 
 /**
@@ -112,6 +113,31 @@ export const api = {
     request<{ ok: boolean }>('/api/downloads/priority', {
       method: 'POST',
       body: JSON.stringify({ ids, priority }),
+    }),
+
+  system: () => request<SystemOverview>('/api/system'),
+
+  systemLog: (limit = 60, problems = false) =>
+    request<{ entries: LogEntry[] | null }>(
+      `/api/system/log?limit=${limit}${problems ? '&problems=true' : ''}`,
+    ),
+
+  storage: () => request<StorageOverview>('/api/storage'),
+
+  vms: () => request<{ guests: Guest[] | null; host: VMHost }>('/api/vms'),
+
+  vmAction: (id: string, action: 'start' | 'shutdown') =>
+    request<{ ok: boolean }>('/api/vms/action', {
+      method: 'POST',
+      body: JSON.stringify({ id, action }),
+    }),
+
+  containers: () => request<{ containers: Container[] | null }>('/api/containers'),
+
+  containerAction: (name: string, action: 'start' | 'stop' | 'restart') =>
+    request<{ ok: boolean }>('/api/containers/action', {
+      method: 'POST',
+      body: JSON.stringify({ name, action }),
     }),
 
   settings: () => request<SettingsView>('/api/settings'),

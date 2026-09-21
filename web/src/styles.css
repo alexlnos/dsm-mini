@@ -747,3 +747,195 @@ h1 {
 .standalone { padding: 48px 24px; text-align: center; }
 .standalone h1 { font-size: 22px; }
 .standalone p { color: var(--muted); line-height: 1.5; margin-top: 12px; }
+
+/* ── Главный экран и разделы NAS ─────────────────────────────────────────── */
+
+.home-head { display: flex; align-items: center; gap: 12px; }
+
+.back-button {
+  width: 34px;
+  height: 34px;
+  margin-left: -6px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 17px;
+  background: var(--tile);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.home-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-title { flex-grow: 1; min-width: 0; }
+.home-name { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+.home-sub { font-size: 13px; margin-top: 1px; }
+
+.badge.ok { color: var(--ok); background: rgba(21, 128, 61, 0.12); }
+.badge.bad { color: var(--bad); background: var(--bad-soft); }
+
+.home-error { font-size: 13px; color: var(--bad); margin-top: 10px; line-height: 1.4; }
+
+.meter { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
+.meter-label { width: 42px; font-size: 13px; color: var(--muted); }
+.meter-track { flex-grow: 1; height: 7px; border-radius: 4px; background: var(--ring-track); overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 4px; }
+.meter-value { width: 42px; text-align: right; font-size: 13px; font-weight: 600; }
+
+.home-net {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--separator);
+  font-size: 13px;
+}
+
+.net-in { color: var(--ok); }
+.home-uptime { margin-left: auto; font-size: 12px; }
+
+.widget { padding: 14px 15px 15px; }
+.widget-head { display: flex; align-items: center; gap: 8px; }
+.widget-title { font-size: 14px; font-weight: 700; }
+.widget-state { margin-left: auto; font-size: 12px; font-weight: 600; }
+.widget-state.ok { color: var(--ok); }
+.widget-state.bad { color: var(--bad); }
+
+.volume-row { margin-top: 11px; }
+.volume-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.volume-name { font-size: 14px; font-weight: 500; }
+.volume { padding: 13px 14px; }
+.volume-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 12px; }
+
+/*
+ * Имя .app занято корневым контейнером приложения, поэтому карточка
+ * называется иначе — иначе она наследует height: 100dvh и колоночную
+ * раскладку, и весь список превращается в один растянутый элемент.
+ */
+.app-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-card.off { opacity: 0.55; cursor: default; }
+.app-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.app-name { font-size: 16px; font-weight: 600; }
+.app-note { font-size: 13px; color: var(--muted); }
+
+.app-off {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #B45309;
+  background: #FDF0E6;
+  border-radius: 9px;
+  padding: 4px 8px;
+}
+
+:root[data-theme='dark'] .app-off { background: #33230f; color: #f0a558; }
+
+.icon.vm { background: #F1E9FB; color: #6B3FA0; }
+.icon.docker { background: #E6F1F6; color: #0E6E8C; }
+.icon.disk { background: #FDF0E6; color: #B45309; }
+.icon.bell { background: var(--bad-soft); color: var(--bad); }
+
+:root[data-theme='dark'] .icon.vm { background: #2a2140; color: #a99bff; }
+:root[data-theme='dark'] .icon.docker { background: #12303a; color: #5fc4e0; }
+:root[data-theme='dark'] .icon.disk { background: #33230f; color: #f0a558; }
+
+/* ── Машины и контейнеры ─────────────────────────────────────────────────── */
+
+.vm { padding: 12px 12px 12px 14px; }
+.vm-head { display: flex; align-items: center; gap: 11px; }
+.vm-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vm-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vm-specs { font-size: 13px; color: var(--muted); }
+.vm-foot { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding-left: 21px; font-size: 12px; }
+.vm-status { color: var(--muted); font-weight: 600; }
+.vm-status.on { color: var(--ok); }
+
+.dot { width: 10px; height: 10px; border-radius: 5px; flex-shrink: 0; background: #C7C7CC; }
+.dot.on { background: var(--ok); }
+.dot.bad { background: var(--bad); }
+.dot.warn { background: #B45309; }
+.dot.info { background: var(--muted); }
+
+.icon-button.ok { background: rgba(21, 128, 61, 0.12); color: var(--ok); }
+.icon-button.danger { background: var(--bad-soft); color: var(--bad); }
+
+/* ── Хранилище ───────────────────────────────────────────────────────────── */
+
+.bays { margin-top: 14px; background: var(--tile); border-radius: 13px; padding: 13px; }
+
+.bays-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.bays-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 9px 0 0;
+}
+
+.bays-row { display: flex; gap: 7px; margin-top: 9px; }
+
+.bay {
+  height: 46px;
+  border-radius: 9px;
+  background: #2F6F4F;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bay.m2 { width: 52px; flex-shrink: 0; }
+.bay.empty { background: transparent; border: 1.5px dashed var(--separator); color: var(--muted); }
+.bay-num { font-size: 13px; font-weight: 700; }
+.bay-temp { font-size: 9px; margin-top: 2px; opacity: 0.85; }
+
+.disk { display: flex; align-items: center; gap: 11px; padding: 10px 14px; }
+.disk-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.disk-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.disk-meta { font-size: 12px; color: var(--muted); }
+.temp { font-size: 13px; flex-shrink: 0; color: var(--muted); }
+.temp.warm { color: #B45309; }
+.temp.hot { color: var(--bad); font-weight: 600; }
+
+.pool { padding: 11px 14px; }
+.pool-disks { font-size: 12px; margin-top: 4px; }
+
+/* ── Журнал событий ──────────────────────────────────────────────────────── */
+
+.event { display: flex; align-items: flex-start; gap: 11px; padding: 11px 14px; }
+.event .dot { margin-top: 5px; width: 8px; height: 8px; }
+.event-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.event-message { font-size: 14px; line-height: 1.35; word-break: break-word; }
+.event-meta { font-size: 12px; color: var(--muted); }
