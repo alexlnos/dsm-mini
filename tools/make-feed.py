@@ -64,8 +64,13 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
         "version": version,
         "dname": "dsm-mini",
         "desc": DESC,
-        # The file lives in a GitHub release: the catalogue only names it.
-        "link": f"https://github.com/{REPO}/releases/download/v{version.split('-')[0]}/{spk}",
+        # The package is served from the same site as the catalogue. It used
+        # to point at the GitHub release, and that link answers with a 302 to
+        # another host: Package Center downloaded something it would not
+        # install, and every update ended with "Invalid file format" while the
+        # very same file installed by hand. The release still carries the .spk
+        # for people who download it themselves.
+        "link": f"{PAGES}/{spk}",
         "md5": hashlib.md5(body).hexdigest(),
         "size": len(body),
         "thumbnail": [f"{PAGES}/icon_72.png"],
@@ -151,6 +156,11 @@ def main() -> None:
     shots.mkdir(exist_ok=True)
     for shot in SHOTS:
         shutil.copy2(shot, shots / shot.name)
+
+    # The packages themselves, next to the catalogue that points at them.
+    for arch in ARCHS:
+        name = f"dsm-mini-{args.version}-{arch}.spk"
+        shutil.copy2(spk_dir / name, out / name)
 
     (out / "index.html").write_text(
         INDEX.format(repo=REPO, pages=PAGES, version=args.version), encoding="utf-8")
