@@ -5,6 +5,7 @@ package filestation
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"testing"
@@ -166,4 +167,136 @@ func TestRenameRejectsSeparators(t *testing.T) {
 	if _, err := st.Rename(ctx, "/Media/x", "../evil"); err == nil {
 		t.Error("имя с разделителем пути должно отклоняться")
 	}
+}
+
+// TestCopyMovePreview проверяет копирование, перенос и предпросмотр на живом
+// NAS. Меняет файлы: нужен DSM_TEST_MUTATIONS=1 и DSM_TEST_FOLDER.
+func TestCopyMovePreview(t *testing.T) {
+	if os.Getenv("DSM_TEST_MUTATIONS") != "1" {
+		t.Skip("тест меняет файлы на NAS; запуск только с DSM_TEST_MUTATIONS=1")
+	}
+	parent := os.Getenv("DSM_TEST_FOLDER")
+	if parent == "" {
+		t.Skip("не задан DSM_TEST_FOLDER")
+	}
+
+	ctx := context.Background()
+	st := New(newClient(t))
+
+	root, err := st.CreateFolder(ctx, parent, fmt.Sprintf("dsm-mini-fs-%d", time.Now().Unix()))
+	if err != nil {
+		t.Fatalf("создание рабочей папки: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := st.Delete(context.Background(), []string{root}); err != nil {
+			t.Errorf("УБОРКА НЕ УДАЛАСЬ, удалите %s вручную: %v", root, err)
+		}
+	})
+
+	src, err := st.CreateFolder(ctx, root, "src")
+	if err != nil {
+		t.Fatalf("папка источника: %v", err)
+	}
+	dst, err := st.CreateFolder(ctx, root, "dst")
+	if err != nil {
+		t.Fatalf("папка приёмника: %v", err)
+	}
+
+	content := []byte("привет из dsm-mini\nвторая строка\n")
+	if err := st.Upload(ctx, src, "note.txt", content, true); err != nil {
+		t.Fatalf("загрузка: %v", err)
+	}
+
+	// Копирование.
+	taskID, err := st.Copy(ctx, []string{src + "/note.txt"}, dst, true)
+	if err != nil {
+		t.Fatalf("копирование: %v", err)
+	}
+	if err := waitTransfer(ctx, t, st, taskID); err != nil {
+		t.Fatalf("копирование не завершилось: %v", err)
+	}
+	if !hasFile(ctx, t, st, dst, "note.txt") {
+		t.Error("копия не появилась в папке назначения")
+	}
+	if !hasFile(ctx, t, st, src, "note.txt") {
+		t.Error("при копировании исчез оригинал")
+	}
+	t.Log("копирование прошло")
+
+	// Перенос: исходник должен опустеть.
+	if err := st.Upload(ctx, src, "moved.txt", content, true); err != nil {
+		t.Fatalf("загрузка для переноса: %v", err)
+	}
+	taskID, err = st.Move(ctx, []string{src + "/moved.txt"}, dst, true)
+	if err != nil {
+		t.Fatalf("перенос: %v", err)
+	}
+	if err := waitTransfer(ctx, t, st, taskID); err != nil {
+		t.Fatalf("перенос не завершился: %v", err)
+	}
+	if hasFile(ctx, t, st, src, "moved.txt") {
+		t.Error("после переноса файл остался в источнике")
+	}
+	if !hasFile(ctx, t, st, dst, "moved.txt") {
+		t.Error("перенесённый файл не появился в приёмнике")
+	}
+	t.Log("перенос прошёл")
+
+	// Защита от переноса папки внутрь себя.
+	if _, err := st.Move(ctx, []string{src}, src+"/внутрь", true); err == nil {
+		t.Error("перенос папки внутрь себя должен отклоняться")
+	}
+
+	// Предпросмотр: содержимое читается обратно.
+	preview, err := st.Download(ctx, dst+"/note.txt")
+	if err != nil {
+		t.Fatalf("чтение файла: %v", err)
+	}
+	defer preview.Body.Close()
+	got, err := io.ReadAll(preview.Body)
+	if err != nil {
+		t.Fatalf("чтение тела: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Errorf("содержимое не совпало: %q", string(got))
+	}
+	t.Logf("предпросмотр: %s, %d байт", preview.ContentType, len(got))
+
+	// Миниатюра текстового файла невозможна — это не сбой.
+	if _, err := st.Thumbnail(ctx, dst+"/note.txt", ThumbSmall); err == nil {
+		t.Log("NAS неожиданно отдал миниатюру текстового файла")
+	} else {
+		t.Logf("миниатюра текста недоступна, как и ожидалось: %v", err)
+	}
+}
+
+func waitTransfer(ctx context.Context, t *testing.T, st *Station, taskID string) error {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		status, err := st.Status(ctx, taskID)
+		if err != nil {
+			return err
+		}
+		if status.Finished {
+			t.Logf("задача %s завершена, пропущено=%v", taskID, status.Skipped)
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("задача %s не завершилась за минуту", taskID)
+}
+
+func hasFile(ctx context.Context, t *testing.T, st *Station, folder, name string) bool {
+	t.Helper()
+	entries, err := st.List(ctx, folder)
+	if err != nil {
+		t.Fatalf("список %s: %v", folder, err)
+	}
+	for _, e := range entries {
+		if e.Name == name {
+			return true
+		}
+	}
+	return false
 }

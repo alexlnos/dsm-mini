@@ -20,6 +20,8 @@ type Screen =
   | { name: 'pickDestination'; from: string }
   // Обзор NAS для переноса уже созданной задачи.
   | { name: 'pickTaskFolder'; from: string; taskId: string }
+  // Выбор папки, куда скопировать или перенести отмеченные файлы.
+  | { name: 'transferTarget'; paths: string[]; move: boolean }
 
 /** Как часто обновлять список, когда что-то качается. */
 const ACTIVE_POLL = 2500
@@ -145,7 +147,19 @@ export function App() {
             onAdd={() => setScreen({ name: 'add' })}
           />
         )}
-        {screen.name === 'files' && <Files />}
+        {screen.name === 'files' && (
+          <Files
+            onTransfer={(paths, move) => setScreen({ name: 'transferTarget', paths, move })}
+          />
+        )}
+        {screen.name === 'transferTarget' && (
+          <Files
+            pickMode
+            pending={{ paths: screen.paths, move: screen.move }}
+            onPick={() => setScreen({ name: 'files' })}
+            onCancelPick={() => setScreen({ name: 'files' })}
+          />
+        )}
         {screen.name === 'pickFolder' && (
           <Files
             pickMode

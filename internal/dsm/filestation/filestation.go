@@ -29,6 +29,8 @@ const (
 	apiRename   = "SYNO.FileStation.Rename"
 	apiUpload   = "SYNO.FileStation.Upload"
 	apiCreate   = "SYNO.FileStation.CreateFolder"
+	apiThumb    = "SYNO.FileStation.Thumb"
+	apiDownload = "SYNO.FileStation.Download"
 	apiCoreShar = "SYNO.Core.Share"
 )
 

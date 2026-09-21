@@ -53,6 +53,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return parsed as T
 }
 
+/**
+ * Забирает файл как blob.
+ *
+ * Через fetch, а не <img src>: подпись Telegram уходит заголовком и не
+ * попадает ни в адресную строку, ни в журналы прокси.
+ */
+async function fetchBlob(path: string): Promise<Blob> {
+  const headers = new Headers()
+  if (authToken) headers.set('Authorization', `tma ${authToken}`)
+  const response = await fetch(path, { headers })
+  if (!response.ok) {
+    let message = `Ошибка ${response.status}`
+    try {
+      const body = await response.json() as { error?: string }
+      if (body?.error) message = body.error
+    } catch {
+      // Ответ не JSON — оставляем общий текст.
+    }
+    throw new ApiError(response.status, message)
+  }
+  return response.blob()
+}
+
 export const api = {
   overview: () => request<Overview>('/api/overview'),
 
@@ -98,6 +121,29 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(settings),
     }),
+
+  copy: (paths: string[], destination: string, overwrite: boolean) =>
+    request<{ task_id: string }>('/api/files/copy', {
+      method: 'POST',
+      body: JSON.stringify({ paths, destination, overwrite }),
+    }),
+
+  move: (paths: string[], destination: string, overwrite: boolean) =>
+    request<{ task_id: string }>('/api/files/move', {
+      method: 'POST',
+      body: JSON.stringify({ paths, destination, overwrite }),
+    }),
+
+  transferStatus: (taskId: string) =>
+    request<{ task_id: string; finished: boolean; progress: number; processing?: string; skipped?: boolean }>(
+      `/api/files/transfer?id=${encodeURIComponent(taskId)}`,
+    ),
+
+  thumb: (path: string, size = 'small') =>
+    fetchBlob(`/api/files/thumb?path=${encodeURIComponent(path)}&size=${size}`),
+
+  preview: (path: string) =>
+    fetchBlob(`/api/files/preview?path=${encodeURIComponent(path)}`),
 
   files: (path: string) =>
     request<{ entries: Entry[] }>(`/api/files?path=${encodeURIComponent(path)}`),

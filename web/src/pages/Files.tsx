@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Preview } from '../components/Preview'
 import { api, ApiError } from '../api'
 import { size } from '../format'
 import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
@@ -28,13 +29,25 @@ interface FilesProps {
   onCancelPick?: () => void
   /** С какой папки начать обзор. Пусто — с корня. */
   initialPath?: string
+  /**
+   * Что перенести или скопировать сюда. Задаётся, когда обзор открыт ради
+   * выбора папки назначения для уже отмеченных файлов.
+   */
+  pending?: { paths: string[]; move: boolean } | null
+  /** Отмеченные файлы отправлены в другую папку: открыть выбор назначения. */
+  onTransfer?: (paths: string[], move: boolean) => void
 }
 
-export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProps = {}) {
+export function Files({
+  pickMode, onPick, onCancelPick, initialPath, pending, onTransfer,
+}: FilesProps = {}) {
   const [path, setPath] = useState('/')
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [preview, setPreview] = useState<Entry | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async (target: string) => {
@@ -44,6 +57,7 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
       const { entries } = await api.files(target)
       setEntries(entries ?? [])
       setPath(target)
+      setSelected(new Set())
     } catch (e) {
       setError(e instanceof ApiError ? (e.detail ?? e.message) : 'Не прочитать папку')
     } finally {
@@ -55,6 +69,7 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
     const start = initialPath ? '/' + initialPath.replace(/^\/+/, '') : '/'
     void load(start)
   }, [load, initialPath])
+
   useEffect(() => {
     if (!pickMode || !onCancelPick) return
     return backButton(onCancelPick)
@@ -64,31 +79,48 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
   // На верхнем уровне перечислены общие папки NAS: переименовать или удалить
   // их через File Station нельзя, поэтому и кнопок быть не должно.
   const canEdit = !pickMode && path !== '/'
+  const chosen = entries.filter((e) => selected.has(e.path))
 
-  async function remove(entry: Entry) {
-    const what = entry.is_dir ? 'папку' : 'файл'
-    if (!(await confirmAction(`Удалить ${what} «${entry.name}»? Это необратимо.`))) return
+  function toggle(entry: Entry) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(entry.path)) next.delete(entry.path)
+      else next.add(entry.path)
+      return next
+    })
+    haptic('light')
+  }
+
+  async function act(what: string, run: () => Promise<unknown>) {
+    setBusy(what)
     try {
-      await api.deleteFiles([entry.path])
+      await run()
       haptic('success')
       await load(path)
     } catch (e) {
       haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не удалить')
+      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не получилось')
+    } finally {
+      setBusy(null)
     }
   }
 
-  async function rename(entry: Entry) {
+  async function removeSelected() {
+    const names = chosen.map((e) => e.name).join(', ')
+    if (!(await confirmAction(`Удалить безвозвратно: ${names}?`))) return
+    await act('delete', () => api.deleteFiles(chosen.map((e) => e.path)))
+  }
+
+  async function renameEntry(entry: Entry) {
     const name = window.prompt('Новое имя', entry.name)
     if (!name || name === entry.name) return
-    try {
-      await api.rename(entry.path, name)
-      haptic('success')
-      await load(path)
-    } catch (e) {
-      haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не переименовать')
-    }
+    await act('rename', () => api.rename(entry.path, name))
+  }
+
+  async function createFolder() {
+    const name = window.prompt('Имя новой папки')
+    if (!name) return
+    await act('mkdir', () => api.createFolder(path, name))
   }
 
   async function upload(file: File) {
@@ -96,27 +128,34 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
       alertMessage('Выберите папку: в корень загружать нельзя')
       return
     }
-    try {
-      await api.upload(path, file, false)
-      haptic('success')
-      await load(path)
-    } catch (e) {
-      haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не загрузить файл')
-    }
+    await act('upload', () => api.upload(path, file, false))
   }
 
-  async function createFolder() {
-    const name = window.prompt('Имя новой папки')
-    if (!name) return
-    try {
-      await api.createFolder(path, name)
-      haptic('success')
-      await load(path)
-    } catch (e) {
-      haptic('error')
-      alertMessage(e instanceof ApiError ? (e.detail ?? e.message) : 'Не создать папку')
+  // Копирование и перенос идут на NAS фоновой задачей — дожидаемся её.
+  async function finishTransfer(taskId: string) {
+    for (let i = 0; i < 120; i++) {
+      const status = await api.transferStatus(taskId)
+      if (status.finished) {
+        if (status.skipped) {
+          alertMessage('Часть файлов пропущена: в папке назначения уже есть файлы с такими именами.')
+        }
+        return
+      }
+      await new Promise((r) => setTimeout(r, 1000))
     }
+    alertMessage('Операция ещё идёт на NAS — обновите папку позже.')
+  }
+
+  async function applyPending() {
+    if (!pending || path === '/') return
+    const verb = pending.move ? 'move' : 'copy'
+    await act(verb, async () => {
+      const { task_id } = pending.move
+        ? await api.move(pending.paths, path, false)
+        : await api.copy(pending.paths, path, false)
+      await finishTransfer(task_id)
+    })
+    onPick?.(path.replace(/^\/+/, ''))
   }
 
   return (
@@ -144,7 +183,23 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
         <h1>{segments.at(-1) ?? 'Общие папки'}</h1>
         <div className="muted tnum">{entries.length} объектов</div>
 
-        {pickMode && (
+        {pending && (
+          <div className="row">
+            <button
+              type="button"
+              className="button"
+              disabled={path === '/' || busy !== null}
+              onClick={() => void applyPending()}
+            >
+              {busy ? 'Переношу…' : (
+                path === '/' ? 'Откройте папку'
+                  : `${pending.move ? 'Перенести' : 'Скопировать'} сюда · ${pending.paths.length}`
+              )}
+            </button>
+          </div>
+        )}
+
+        {pickMode && !pending && (
           <div className="row">
             <button
               type="button"
@@ -163,7 +218,7 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
                     onClick={() => fileInput.current?.click()}>
               Загрузить
             </button>
-            <button type="button" className="button secondary" onClick={createFolder}>
+            <button type="button" className="button secondary" onClick={() => void createFolder()}>
               Новая папка
             </button>
           </div>
@@ -186,12 +241,18 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
       <div className="list">
         {entries.map((entry) => {
           const icon = ICONS[kindOf(entry)]
+          const checked = selected.has(entry.path)
           return (
-            <div key={entry.path} className="card entry">
+            <div key={entry.path} className={checked ? 'card entry checked' : 'card entry'}>
+              {canEdit && (
+                <label className="entry-check">
+                  <input type="checkbox" checked={checked} onChange={() => toggle(entry)} />
+                </label>
+              )}
               <button
                 type="button"
                 className="entry-main"
-                onClick={() => entry.is_dir && void load(entry.path)}
+                onClick={() => (entry.is_dir ? void load(entry.path) : setPreview(entry))}
               >
                 <span className={icon.className} aria-hidden="true">{icon.glyph}</span>
                 <span className="entry-text">
@@ -202,27 +263,38 @@ export function Files({ pickMode, onPick, onCancelPick, initialPath }: FilesProp
                 </span>
               </button>
               {canEdit && (
-              <button type="button" className="icon-button small" onClick={() => void rename(entry)}
-                      aria-label="Переименовать">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                </svg>
-              </button>
-              )}
-              {canEdit && (
-              <button type="button" className="icon-button small danger" onClick={() => void remove(entry)}
-                      aria-label="Удалить">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 7h16" /><path d="M6.5 7l.9 12.1A1.5 1.5 0 0 0 8.9 20.5h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7" />
-                </svg>
-              </button>
+                <button type="button" className="icon-button small" onClick={() => void renameEntry(entry)}
+                        aria-label="Переименовать">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                  </svg>
+                </button>
               )}
             </div>
           )
         })}
       </div>
+
+      {preview && <Preview entry={preview} onClose={() => setPreview(null)} />}
+
+      {chosen.length > 0 && (
+        <div className="action-bar">
+          <span className="action-count tnum">{chosen.length}</span>
+          <button type="button" className="action" disabled={busy !== null}
+                  onClick={() => onTransfer?.(chosen.map((e) => e.path), false)}>
+            Копировать
+          </button>
+          <button type="button" className="action" disabled={busy !== null}
+                  onClick={() => onTransfer?.(chosen.map((e) => e.path), true)}>
+            Перенести
+          </button>
+          <button type="button" className="action danger" disabled={busy !== null}
+                  onClick={() => void removeSelected()}>
+            Удалить
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -80,6 +80,12 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("POST /api/files/rename", s.handleRename)
 	api.HandleFunc("POST /api/files/delete", s.handleDeleteFiles)
 	api.HandleFunc("POST /api/files/upload", s.handleUpload)
+	api.HandleFunc("POST /api/files/copy", s.handleCopy)
+	api.HandleFunc("POST /api/files/move", s.handleMove)
+	api.HandleFunc("GET /api/files/transfer", s.handleTransferStatus)
+	api.HandleFunc("POST /api/files/transfer/stop", s.handleTransferStop)
+	api.HandleFunc("GET /api/files/thumb", s.handleThumb)
+	api.HandleFunc("GET /api/files/preview", s.handlePreview)
 	api.HandleFunc("GET /api/settings", s.handleGetSettings)
 	api.HandleFunc("PUT /api/settings", s.handleSaveSettings)
 
