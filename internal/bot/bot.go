@@ -1,8 +1,8 @@
-// Package bot — телеграм-бот: быстрый путь без открытия Mini App.
+// Package bot is the Telegram bot: the quick path without opening the Mini App.
 //
-// Самый частый сценарий на практике: пользователь пересылает magnet-ссылку
-// или файл .torrent прямо в чат, бот предлагает папку кнопками и ставит
-// задачу. Mini App нужен, когда хочется посмотреть на ход загрузки.
+// The most common scenario in practice: the user forwards a magnet link or a
+// .torrent file straight into the chat, the bot offers folders as buttons and
+// queues the task. The Mini App is for watching the download progress.
 package bot
 
 import (
@@ -23,11 +23,11 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-// maxTorrentSize — предел размера .torrent, который примем из чата.
-// Настоящие торрент-файлы на порядки меньше.
+// maxTorrentSize is the size limit for a .torrent accepted from the chat.
+// Real torrent files are orders of magnitude smaller.
 const maxTorrentSize = 10 << 20
 
-// Bot обслуживает чат.
+// Bot serves the chat.
 type Bot struct {
 	api       *tg.Bot
 	ds        downloadstation.Station
@@ -39,19 +39,19 @@ type Bot struct {
 	log       *slog.Logger
 }
 
-// Options — зависимости бота.
+// Options are the bot dependencies.
 type Options struct {
 	Token          string
 	AllowedUserIDs []int64
 	Downloads      downloadstation.Station
-	// Settings — закреплённые папки пользователя и история.
+	// Settings holds the user's pinned folders and history.
 	Settings *store.Store
-	// PublicURL — адрес Mini App для кнопки «Открыть».
+	// PublicURL is the Mini App address for the "Open" button.
 	PublicURL string
 	Logger    *slog.Logger
 }
 
-// New создаёт бота.
+// New creates a bot.
 func New(o Options) (*Bot, error) {
 	if o.Logger == nil {
 		o.Logger = slog.Default()
@@ -71,32 +71,32 @@ func New(o Options) (*Bot, error) {
 		tg.WithCallbackQueryDataHandler("dest:", tg.MatchTypePrefix, b.handleDestination),
 	)
 	if err != nil {
-		// Библиотека проверяет токен запросом getMe прямо при создании,
-		// поэтому неверный токен виден сразу при запуске, а не при первом
-		// сообщении. Подсказываем, где его взять.
+		// The library checks the token with a getMe request at creation time,
+		// so a wrong token shows up at startup rather than on the first
+		// message. We point at where to get one.
 		if strings.Contains(err.Error(), "unauthorized") {
 			return nil, fmt.Errorf("%w: %w", ErrBadToken, err)
 		}
-		return nil, fmt.Errorf("не создать бота: %w", err)
+		return nil, fmt.Errorf("cannot create the bot: %w", err)
 	}
 	b.api = api
 	return b, nil
 }
 
-// ErrBadToken — Telegram не принял токен. Повторять бессмысленно: это
-// ошибка настройки, а не связи.
-var ErrBadToken = errors.New("Telegram отклонил токен бота — проверьте TELEGRAM_BOT_TOKEN, его выдаёт @BotFather")
+// ErrBadToken means Telegram did not accept the token. Retrying is pointless:
+// this is a configuration error, not a connectivity one.
+var ErrBadToken = errors.New("Telegram rejected the bot token — check TELEGRAM_BOT_TOKEN, @BotFather issues it")
 
-// Start запускает получение обновлений и работает, пока жив контекст.
+// Start begins receiving updates and runs for as long as the context lives.
 //
-// Используется long polling, а не webhook: DSM перезапускает nginx при каждом
-// продлении сертификата, и на webhook это означало бы потерянные сообщения.
+// Long polling is used rather than a webhook: DSM restarts nginx on every
+// certificate renewal, and with a webhook that would mean lost messages.
 func (b *Bot) Start(ctx context.Context) {
-	b.log.Info("бот запущен")
+	b.log.Info("bot started")
 	b.api.Start(ctx)
 }
 
-// API даёт доступ к клиенту Telegram для отправки уведомлений.
+// API exposes the Telegram client for sending notifications.
 func (b *Bot) API() *tg.Bot { return b.api }
 
 func (b *Bot) isAllowed(id int64) bool {
@@ -117,7 +117,7 @@ func (b *Bot) handleMessage(ctx context.Context, api *tg.Bot, update *models.Upd
 	lang := i18n.Match(msg.From.LanguageCode)
 
 	if !b.isAllowed(from) {
-		b.log.Warn("сообщение от постороннего", "user", from, "username", msg.From.Username)
+		b.log.Warn("message from an outsider", "user", from, "username", msg.From.Username)
 		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.denied"))
 		return
 	}
@@ -135,14 +135,14 @@ func (b *Bot) handleMessage(ctx context.Context, api *tg.Bot, update *models.Upd
 	}
 }
 
-// rememberLanguage запоминает язык собеседника: уведомления о завершённых
-// задачах уходят сами, и спросить язык в тот момент не у кого.
+// rememberLanguage records the language of whoever is talking to us: task
+// notifications are sent on our own initiative, with nobody to ask by then.
 func (b *Bot) rememberLanguage(ctx context.Context, userID int64, code string) {
 	if b.settings == nil {
 		return
 	}
 	if err := b.settings.RememberLanguage(ctx, userID, code); err != nil {
-		b.log.Warn("не запомнить язык", "user", userID, "err", err)
+		b.log.Warn("cannot remember the language", "user", userID, "err", err)
 	}
 }
 
@@ -156,7 +156,7 @@ func (b *Bot) sendWelcome(ctx context.Context, chatID int64, lang i18n.Lang) {
 		}
 	}
 	if _, err := b.api.SendMessage(ctx, params); err != nil {
-		b.log.Error("не отправить приветствие", "err", err)
+		b.log.Error("cannot send the greeting", "err", err)
 	}
 }
 
@@ -223,7 +223,7 @@ func (b *Bot) handleDocument(ctx context.Context, msg *models.Message, lang i18n
 
 	data, err := b.download(ctx, doc.FileID)
 	if err != nil {
-		b.log.Error("не скачать файл из Telegram", "err", err)
+		b.log.Error("cannot download the file from Telegram", "err", err)
 		b.reply(ctx, msg.Chat.ID, i18n.T(lang, "bot.fetchFailed"))
 		return
 	}
@@ -231,7 +231,7 @@ func (b *Bot) handleDocument(ctx context.Context, msg *models.Message, lang i18n
 		pending{File: data, FileName: name, Title: name})
 }
 
-// download забирает файл, присланный в чат, с серверов Telegram.
+// download fetches a file sent to the chat from Telegram's servers.
 func (b *Bot) download(ctx context.Context, fileID string) ([]byte, error) {
 	f, err := b.api.GetFile(ctx, &tg.GetFileParams{FileID: fileID})
 	if err != nil {
@@ -249,12 +249,12 @@ func (b *Bot) download(ctx context.Context, fileID string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Telegram ответил HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("Telegram answered HTTP %d", resp.StatusCode)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, maxTorrentSize+1))
 }
 
-// askDestination предлагает папки кнопками.
+// askDestination offers folders as buttons.
 func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, lang i18n.Lang, p pending) {
 	key := b.pending.put(p)
 
@@ -263,8 +263,8 @@ func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, lang i18
 	for i, f := range folders {
 		rows = append(rows, []models.InlineKeyboardButton{{
 			Text: f,
-			// В callback_data влезает 64 байта, поэтому здесь только ключ
-			// запроса и номер папки, а не сам путь.
+			// callback_data holds 64 bytes, so only the request key and the
+			// folder number go here, not the path itself.
 			CallbackData: fmt.Sprintf("dest:%s:%d", key, i),
 		}})
 	}
@@ -279,17 +279,15 @@ func (b *Bot) askDestination(ctx context.Context, chatID, userID int64, lang i18
 		ReplyMarkup: &models.InlineKeyboardMarkup{InlineKeyboard: rows},
 	})
 	if err != nil {
-		b.log.Error("не отправить выбор папки", "err", err)
+		b.log.Error("cannot send the folder choice", "err", err)
 	}
 }
 
-// folders собирает список папок для кнопок: папка по умолчанию и те, куда
-// недавно уже качали.
-// folders собирает папки для кнопок: закреплённые пользователем, затем его
-// недавние и папка по умолчанию.
+// folders collects the folders for the buttons: the ones pinned by the user,
+// then their recent ones, then the default folder.
 //
-// Папки существующих задач сюда не идут: это чужие раздачи и давние
-// закачки, к новой загрузке отношения не имеющие.
+// Folders of existing tasks do not go here: those are other people's torrents
+// and long-past downloads, unrelated to a new one.
 func (b *Bot) folders(ctx context.Context, userID int64) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, 6)
@@ -304,7 +302,7 @@ func (b *Bot) folders(ctx context.Context, userID int64) []string {
 	if b.settings != nil {
 		settings, err := b.settings.Get(ctx, userID)
 		if err != nil {
-			b.log.Warn("не прочитать настройки для папок", "user", userID, "err", err)
+			b.log.Warn("cannot read the settings for folders", "user", userID, "err", err)
 		} else {
 			for _, folder := range settings.PinnedFolders {
 				add(folder)
@@ -312,7 +310,7 @@ func (b *Bot) folders(ctx context.Context, userID int64) []string {
 			if settings.ShowRecent {
 				recent, err := b.settings.RecentFolders(ctx, userID, 5)
 				if err != nil {
-					b.log.Warn("не прочитать историю папок", "err", err)
+					b.log.Warn("cannot read the folder history", "err", err)
 				}
 				for _, folder := range recent {
 					add(folder)
@@ -371,7 +369,7 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 	}
 
 	if err := b.ds.Create(ctx, req); err != nil {
-		b.log.Error("не поставить задачу из чата", "user", q.From.ID, "err", err)
+		b.log.Error("cannot queue the task from the chat", "user", q.From.ID, "err", err)
 		b.answer(ctx, q.ID, i18n.T(lang, "bot.failed"))
 		b.reply(ctx, chatOf(q), i18n.T(lang, "bot.nasRefused", i18n.P{"error": err.Error()}))
 		return
@@ -379,10 +377,10 @@ func (b *Bot) handleDestination(ctx context.Context, api *tg.Bot, update *models
 
 	if b.settings != nil {
 		if err := b.settings.RememberLastUsed(ctx, q.From.ID, dest); err != nil {
-			b.log.Warn("не запомнить папку", "err", err)
+			b.log.Warn("cannot remember the folder", "err", err)
 		}
 	}
-	b.log.Info("задача из чата поставлена", "user", q.From.ID, "dest", dest)
+	b.log.Info("task from the chat queued", "user", q.From.ID, "dest", dest)
 	b.answer(ctx, q.ID, i18n.T(lang, "bot.queued"))
 	b.reply(ctx, chatOf(q), i18n.T(lang, "bot.queuedTo", i18n.P{"folder": dest}))
 }
@@ -398,13 +396,13 @@ func (b *Bot) answer(ctx context.Context, id, text string) {
 	if _, err := b.api.AnswerCallbackQuery(ctx, &tg.AnswerCallbackQueryParams{
 		CallbackQueryID: id, Text: text,
 	}); err != nil {
-		b.log.Error("не ответить на нажатие", "err", err)
+		b.log.Error("cannot answer the button press", "err", err)
 	}
 }
 
 func (b *Bot) reply(ctx context.Context, chatID int64, text string) {
 	if _, err := b.api.SendMessage(ctx, &tg.SendMessageParams{ChatID: chatID, Text: text}); err != nil {
-		b.log.Error("не отправить сообщение", "err", err)
+		b.log.Error("cannot send the message", "err", err)
 	}
 }
 
@@ -418,7 +416,7 @@ func isDownloadLink(s string) bool {
 	return false
 }
 
-// titleFromLink достаёт из magnet-ссылки человекочитаемое имя, если оно там есть.
+// titleFromLink pulls a human-readable name out of a magnet link, if any.
 func titleFromLink(link string) string {
 	if i := strings.Index(link, "dn="); i >= 0 {
 		name := link[i+3:]

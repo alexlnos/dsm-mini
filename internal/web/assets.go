@@ -1,8 +1,8 @@
-// Package web встраивает собранное Mini App в бинарник.
+// Package web embeds the built Mini App into the binary.
 //
-// Файлы появляются здесь после сборки фронтенда: `npm run build` в каталоге
-// web/ кладёт результат в internal/web/dist. Без них сервис работает как
-// обычный бот, только без Mini App.
+// The files appear here after the frontend is built: `npm run build` in the
+// web/ directory puts the result into internal/web/dist. Without them the
+// service runs as a plain bot, just without the Mini App.
 package web
 
 import (
@@ -14,10 +14,10 @@ import (
 //go:embed all:dist
 var embedded embed.FS
 
-// ErrNotBuilt означает, что фронтенд не собран.
-var ErrNotBuilt = errors.New("Mini App не собрано: выполните сборку в каталоге web/")
+// ErrNotBuilt means the frontend has not been built.
+var ErrNotBuilt = errors.New("the Mini App is not built: run the build in the web/ directory")
 
-// Assets возвращает файловую систему с собранным приложением.
+// Assets returns a file system with the built app.
 func Assets() (fs.FS, error) {
 	sub, err := fs.Sub(embedded, "dist")
 	if err != nil {

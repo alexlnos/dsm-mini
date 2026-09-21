@@ -11,23 +11,23 @@ import (
 	"strings"
 )
 
-// Content — бинарный ответ DSM: миниатюра, файл, архив.
+// Content is a binary DSM response: a thumbnail, a file, an archive.
 type Content struct {
 	Body        io.ReadCloser
 	ContentType string
-	// Length — размер, если DSM его сообщил; иначе -1.
+	// Length is the size if DSM reported it; otherwise -1.
 	Length int64
-	// Filename — имя из Content-Disposition, если было.
+	// Filename is the name from Content-Disposition, if there was one.
 	Filename string
 }
 
-// Fetch выполняет GET и возвращает тело ответа, не разбирая его как JSON.
+// Fetch performs a GET and returns the response body without parsing it as JSON.
 //
-// Нужен для API, отдающих файлы: SYNO.FileStation.Thumb и
-// SYNO.FileStation.Download. Ошибку DSM в таких ответах видно по типу
-// содержимого: вместо картинки приходит JSON с полем error.
+// Needed for APIs that hand back files: SYNO.FileStation.Thumb and
+// SYNO.FileStation.Download. A DSM error in such responses shows up in the
+// content type: instead of an image, JSON with an error field arrives.
 //
-// Тело закрывает вызывающий.
+// The caller closes the body.
 func (c *Client) Fetch(ctx context.Context, api, method string, version int,
 	params map[string]any) (*Content, error) {
 
@@ -64,8 +64,8 @@ func (c *Client) fetch(ctx context.Context, api, method string, version int,
 	query.Set("version", strconv.Itoa(version))
 	query.Set("_sid", sid)
 	for k, v := range params {
-		// У этих API requestFormat — JSON, поэтому значения кодируются так же,
-		// как в обычных вызовах: строки в кавычках, списки в скобках.
+		// These APIs use requestFormat JSON, so values are encoded the same way
+		// as in ordinary calls: strings quoted, lists in brackets.
 		b, err := json.Marshal(v)
 		if err != nil {
 			continue
@@ -81,7 +81,7 @@ func (c *Client) fetch(ctx context.Context, api, method string, version int,
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("запрос к DSM не удался: %w", err)
+		return nil, fmt.Errorf("the request to DSM failed: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
@@ -89,12 +89,12 @@ func (c *Client) fetch(ctx context.Context, api, method string, version int,
 	}
 
 	ct := resp.Header.Get("Content-Type")
-	// DSM сообщает об отказе тем же каналом, но уже в виде JSON.
+	// DSM reports a refusal through the same channel, but as JSON.
 	if strings.Contains(ct, "application/json") || strings.Contains(ct, "text/json") {
 		defer resp.Body.Close()
 		var out response
 		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
-			return nil, fmt.Errorf("%s.%s: не разобрать ответ", api, method)
+			return nil, fmt.Errorf("%s.%s: cannot parse the response", api, method)
 		}
 		e := &APIError{API: api, Method: method}
 		if out.Error != nil {

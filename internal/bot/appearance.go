@@ -10,33 +10,33 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
-// Appearance — то, как бот выглядит в Telegram.
+// Appearance is how the bot looks in Telegram.
 //
-// Всё это выставляется из кода при каждом запуске, поэтому вид бота живёт
-// в репозитории, а не в настройках @BotFather, которые нигде не записаны и
-// теряются при смене владельца.
+// All of it is set from code on every start, so the bot's looks live in the
+// repository rather than in @BotFather settings, which are written down
+// nowhere and get lost when the owner changes.
 //
-// Единственное, чего не даёт Bot API, — аватар: его меняют только вручную
-// через @BotFather (/setuserpic).
+// The only thing the Bot API does not offer is the avatar: it is changed by
+// hand through @BotFather (/setuserpic).
 type Appearance struct {
-	// Name — имя в шапке чата, до 64 символов.
+	// Name is the name in the chat header, up to 64 characters.
 	Name string
-	// ShortDescription — строка в профиле бота, до 120 символов.
+	// ShortDescription is the line in the bot profile, up to 120 characters.
 	ShortDescription string
-	// Description — текст на пустом экране чата до первого сообщения,
-	// до 512 символов.
+	// Description is the text on an empty chat screen before the first
+	// message, up to 512 characters.
 	Description string
-	// MenuButtonText — подпись кнопки, открывающей Mini App.
+	// MenuButtonText is the label of the button that opens the Mini App.
 	MenuButtonText string
-	// Commands — меню команд слева от поля ввода.
+	// Commands is the command menu left of the input field.
 	Commands []models.BotCommand
 }
 
-// DefaultAppearance — вид бота на заданном языке.
+// DefaultAppearance is the bot's looks in a given language.
 //
-// Telegram хранит имя, описание и команды отдельно для каждого языка и
-// показывает их по языку клиента. Пустой язык — значения по умолчанию,
-// которые видят все, для кого своего перевода нет.
+// Telegram stores the name, description and commands separately per language
+// and shows them by the client's language. An empty language means the
+// defaults, seen by everyone who has no translation of their own.
 func DefaultAppearance(lang i18n.Lang) Appearance {
 	return Appearance{
 		Name:             i18n.T(lang, "look.name"),
@@ -50,32 +50,32 @@ func DefaultAppearance(lang i18n.Lang) Appearance {
 	}
 }
 
-// ConfigureAll выставляет вид бота на всех языках словаря.
+// ConfigureAll sets the bot's looks in every language of the dictionary.
 //
-// Telegram хранит имя, описание и команды отдельно для каждого языка и
-// показывает их по языку клиента. Значения без языка видят все, для кого
-// своего перевода нет.
+// Telegram stores the name, description and commands separately per language
+// and shows them by the client's language. Values with no language are seen
+// by everyone who has no translation of their own.
 func (b *Bot) ConfigureAll(ctx context.Context) {
-	// Сначала — общий вид: он же запасной для незнакомых языков.
+	// The common looks first: they double as the fallback for unknown languages.
 	b.Configure(ctx, "", DefaultAppearance(i18n.Fallback))
 	for _, lang := range i18n.Languages() {
 		b.Configure(ctx, string(lang), DefaultAppearance(lang))
 	}
-	// Кнопка меню у Telegram одна на бота, без языков.
+	// Telegram has one menu button per bot, with no languages.
 	if err := b.setMenuButton(ctx, DefaultAppearance(i18n.Fallback).MenuButtonText); err != nil {
-		b.log.Warn("не настроить кнопку меню", "err", err)
+		b.log.Warn("cannot set the menu button", "err", err)
 	}
-	b.log.Info("оформление бота применено", "языков", len(i18n.Languages())+1)
+	b.log.Info("bot appearance applied", "languages", len(i18n.Languages())+1)
 }
 
-// Configure приводит вид бота к заданному для одного языка.
+// Configure brings the bot's looks to the given ones for a single language.
 //
-// Значения сперва читаются: Telegram резко ограничивает смену имени (после
-// нескольких подряд приходит «retry after 60»), а при перезапуске сервиса
-// меняться обычно нечему. Заодно это бережёт лимиты при десяти языках.
+// Values are read first: Telegram limits name changes harshly (after a few
+// in a row it answers "retry after 60"), and on a service restart there is
+// usually nothing to change. It also saves the rate limits across ten languages.
 //
-// Ошибки не прерывают запуск: неудавшаяся настройка оформления — повод для
-// предупреждения в журнале, а не причина оставить пользователя без бота.
+// Errors do not stop the startup: a failed appearance setting is worth a
+// warning in the log, not leaving the user without a bot.
 func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 	type step struct {
 		what    string
@@ -86,7 +86,7 @@ func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 
 	steps := []step{
 		{
-			what: "имя",
+			what: "name",
 			current: func() (string, error) {
 				n, err := b.api.GetMyName(ctx, &tg.GetMyNameParams{LanguageCode: lang})
 				if err != nil {
@@ -101,7 +101,7 @@ func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 			},
 		},
 		{
-			what: "краткое описание",
+			what: "short description",
 			current: func() (string, error) {
 				d, err := b.api.GetMyShortDescription(ctx, &tg.GetMyShortDescriptionParams{LanguageCode: lang})
 				if err != nil {
@@ -119,7 +119,7 @@ func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 			},
 		},
 		{
-			what: "описание",
+			what: "description",
 			current: func() (string, error) {
 				d, err := b.api.GetMyDescription(ctx, &tg.GetMyDescriptionParams{LanguageCode: lang})
 				if err != nil {
@@ -137,7 +137,7 @@ func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 			},
 		},
 		{
-			what: "команды",
+			what: "commands",
 			current: func() (string, error) {
 				cmds, err := b.api.GetMyCommands(ctx, &tg.GetMyCommandsParams{LanguageCode: lang})
 				if err != nil {
@@ -159,21 +159,21 @@ func (b *Bot) Configure(ctx context.Context, lang string, look Appearance) {
 	for _, s := range steps {
 		current, err := s.current()
 		if err != nil {
-			b.log.Warn("не прочитать оформление бота", "что", s.what, "язык", lang, "err", err)
+			b.log.Warn("cannot read the bot appearance", "what", s.what, "lang", lang, "err", err)
 			continue
 		}
 		if current == s.wanted {
 			continue
 		}
 		if err := s.apply(); err != nil {
-			b.log.Warn("не настроить оформление бота", "что", s.what, "язык", lang, "err", err)
+			b.log.Warn("cannot set the bot appearance", "what", s.what, "lang", lang, "err", err)
 			continue
 		}
-		b.log.Debug("оформление бота обновлено", "что", s.what, "язык", lang)
+		b.log.Debug("bot appearance updated", "what", s.what, "lang", lang)
 	}
 }
 
-// commandsKey сводит список команд к строке, чтобы сравнивать одним действием.
+// commandsKey folds the command list into a string to compare in one step.
 func commandsKey(cmds []models.BotCommand) string {
 	var sb strings.Builder
 	for _, c := range cmds {
@@ -185,10 +185,10 @@ func commandsKey(cmds []models.BotCommand) string {
 	return sb.String()
 }
 
-// setMenuButton вешает на кнопку рядом с полем ввода открытие Mini App.
+// setMenuButton makes the button next to the input field open the Mini App.
 //
-// Без публичного адреса ставить нечего: Telegram принимает в Mini App только
-// https, поэтому оставляем обычное меню команд.
+// With no public address there is nothing to set: Telegram accepts only https
+// for a Mini App, so we leave the plain command menu.
 func (b *Bot) setMenuButton(ctx context.Context, text string) error {
 	if b.publicURL == "" {
 		_, err := b.api.SetChatMenuButton(ctx, &tg.SetChatMenuButtonParams{

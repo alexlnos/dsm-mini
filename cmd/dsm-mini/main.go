@@ -1,4 +1,4 @@
-// Команда dsm-mini — телеграм-бот с Mini App для управления Synology NAS.
+// Command dsm-mini is a Telegram bot with a Mini App for managing a Synology NAS.
 package main
 
 import (
@@ -29,34 +29,36 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/web"
 )
 
-// version подставляется при сборке: `-ldflags "-X main.version=1.2.3"`.
-// Нужна в поддержке — первый вопрос к чужой установке «какая версия».
+// version is injected at build time: -ldflags "-X main.version=1.2.3".
+// Support needs it — the first question about someone else's install is
+// "which version".
 var version = "dev"
 
 func main() {
-	// Контейнер проверяет себя этим же бинарником: в distroless нет ни
-	// shell, ни curl, а тянуть их ради healthcheck — значит тянуть и всё,
-	// что к ним прилагается.
+	// The container checks itself with this very binary: distroless has
+	// neither a shell nor curl, and pulling them in for a health check means
+	// pulling in everything that comes with them.
 	if len(os.Args) > 1 && (os.Args[1] == "-healthcheck" || os.Args[1] == "--healthcheck") {
 		os.Exit(healthcheck())
 	}
 
 	if err := run(); err != nil {
-		// Печатаем напрямую, а не через журнал: ошибка конфигурации
-		// многострочная, и в виде одной строки с \n она нечитаема.
+		// Printed directly rather than through the logger: a configuration
+		// error is multi-line, and squeezed into a single line with \n it
+		// becomes unreadable.
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-// healthcheck стучится в собственный /healthz и возвращает код выхода:
-// 0 — сервис отвечает, 1 — нет.
+// healthcheck knocks on our own /healthz and returns an exit code:
+// 0 — the service answers, 1 — it does not.
 func healthcheck() int {
 	addr := os.Getenv("LISTEN_ADDR")
 	if addr == "" {
 		addr = ":8080"
 	}
-	// «:8080» — это «слушать везде»; стучаться надо в конкретный адрес.
+	// ":8080" means "listen everywhere"; we have to knock on a real address.
 	if strings.HasPrefix(addr, ":") {
 		addr = "127.0.0.1" + addr
 	}
@@ -69,7 +71,7 @@ func healthcheck() int {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "healthz ответил %d\n", resp.StatusCode)
+		fmt.Fprintf(os.Stderr, "healthz answered %d\n", resp.StatusCode)
 		return 1
 	}
 	return 0
@@ -78,13 +80,14 @@ func healthcheck() int {
 func run() error {
 	cfg, err := config.Load()
 	if err != nil {
-		// Ошибки конфигурации печатаем как есть: человек поднимает сервис
-		// впервые и должен сразу увидеть, чего не хватает.
+		// Configuration errors are printed as they are: someone is bringing
+		// the service up for the first time and must see straight away what
+		// is missing.
 		return err
 	}
 
 	log := newLogger(cfg.LogLevel)
-	log.Info("dsm-mini запускается", "версия", version)
+	log.Info("dsm-mini starting", "version", version)
 	slog.SetDefault(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -99,8 +102,8 @@ func run() error {
 		Logger:      log,
 	})
 
-	// Входим сразу, чтобы неверные учётные данные всплыли при запуске, а не
-	// при первом обращении пользователя.
+	// Log in right away so that wrong credentials surface at startup instead
+	// of on the first user request.
 	loginCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	err = client.Login(loginCtx)
 	cancel()
@@ -117,26 +120,26 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Info("Download Station подключён", "api", ds.Generation())
+	log.Info("download station connected", "api", ds.Generation())
 	files := filestation.New(client)
 	sys := system.New(client)
 	store2 := storage.New(client)
 	machines := vmm.New(client)
 	boxes := containers.New(client)
 
-	// База с настройками и состоянием наблюдателя. Лежит в томе, который
-	// переживает пересоздание контейнера.
+	// Database with settings and watcher state. It lives in a volume that
+	// survives recreating the container.
 	database, err := db.Open(databaseFile())
 	if err != nil {
 		return err
 	}
 	defer database.Close()
-	log.Info("база открыта", "path", databaseFile())
+	log.Info("database opened", "path", databaseFile())
 	settings := store.New(database)
 
 	static, err := web.Assets()
 	if err != nil {
-		log.Warn("Mini App не встроено в бинарник — будет доступен только бот", "err", err)
+		log.Warn("mini app is not embedded in the binary — only the bot will be available", "err", err)
 	}
 
 	apiServer := httpapi.New(httpapi.Options{
@@ -157,8 +160,8 @@ func run() error {
 		Addr:              cfg.ListenAddr,
 		Handler:           apiServer.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
-		// Загрузка файла на NAS идёт через этот сервер, поэтому запись
-		// не ограничиваем жёстко.
+		// Uploads to the NAS go through this server, so the write timeout is
+		// deliberately generous.
 		WriteTimeout: 10 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
 	}
@@ -168,23 +171,24 @@ func run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Info("HTTP слушает", "addr", cfg.ListenAddr, "public", cfg.PublicURL)
+		log.Info("http listening", "addr", cfg.ListenAddr, "public", cfg.PublicURL)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Error("HTTP сервер остановился", "err", err)
+			log.Error("http server stopped", "err", err)
 			stop()
 		}
 	}()
 
-	// Бот живёт своей жизнью: без связи с Telegram он ждёт её появления, а
-	// Mini App всё это время работает — его открывает клиент на телефоне.
+	// The bot lives its own life: with no link to Telegram it waits for one,
+	// and the Mini App keeps working meanwhile — it is opened by the client
+	// on the phone.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		runBot(ctx, cfg, ds, settings, log)
 	}()
 
-	// Состояние NAS держим наготове: иначе первый, кто откроет приложение,
-	// ждёт полный обход DSM больше секунды.
+	// Keep the NAS state warm: otherwise the first person to open the app
+	// waits out a full DSM round trip, over a second.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -192,12 +196,12 @@ func run() error {
 	}()
 
 	<-ctx.Done()
-	log.Info("останавливаемся")
+	log.Info("shutting down")
 
 	shutdown, cancelShutdown := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelShutdown()
 	if err := srv.Shutdown(shutdown); err != nil {
-		log.Warn("сервер закрылся с ошибкой", "err", err)
+		log.Warn("server closed with an error", "err", err)
 	}
 
 	wg.Wait()

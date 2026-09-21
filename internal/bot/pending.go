@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-// pendingTTL — сколько ждём выбора папки, прежде чем забыть запрос.
+// pendingTTL is how long we wait for a folder choice before forgetting the request.
 const pendingTTL = 30 * time.Minute
 
-// pending — то, что пользователь прислал и что ждёт выбора папки.
+// pending is what the user sent and what is waiting for a folder choice.
 //
-// Хранить приходится на сервере: в callback_data инлайн-кнопки помещается
-// 64 байта, а magnet-ссылка и тем более файл туда не влезают.
+// It has to be kept on the server: an inline button's callback_data holds
+// 64 bytes, and a magnet link — let alone a file — does not fit.
 type pending struct {
 	URL      string
 	File     []byte
@@ -31,7 +31,7 @@ func newPendingStore() *pendingStore {
 	return &pendingStore{items: make(map[string]pending)}
 }
 
-// put кладёт запрос и возвращает короткий ключ для кнопки.
+// put stores a request and returns a short key for the button.
 func (s *pendingStore) put(p pending) string {
 	p.Created = time.Now()
 	key := randomKey()
@@ -43,7 +43,7 @@ func (s *pendingStore) put(p pending) string {
 	return key
 }
 
-// take забирает запрос по ключу: повторное нажатие кнопки задачу не задвоит.
+// take fetches a request by key: pressing the button twice will not duplicate the task.
 func (s *pendingStore) take(key string) (pending, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -69,8 +69,8 @@ func (s *pendingStore) evictLocked() {
 func randomKey() string {
 	var b [6]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		// Ключ нужен только как метка в памяти процесса; при отказе
-		// генератора берём временную метку, чтобы бот не падал.
+		// The key is only a label inside the process memory; if the generator
+		// fails we fall back to a timestamp so the bot does not crash.
 		return base64.RawURLEncoding.EncodeToString([]byte(time.Now().Format("150405.000")))
 	}
 	return base64.RawURLEncoding.EncodeToString(b[:])

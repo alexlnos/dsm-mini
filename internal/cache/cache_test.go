@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// TestReusesValue: пока значение свежее, источник не дёргается.
+// TestReusesValue: while the value is fresh, the source is left alone.
 func TestReusesValue(t *testing.T) {
 	var calls atomic.Int32
 	c := New[int](time.Minute)
@@ -21,15 +21,15 @@ func TestReusesValue(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		v, err := c.Get(context.Background(), load)
 		if err != nil || v != 42 {
-			t.Fatalf("получили %v, %v", v, err)
+			t.Fatalf("got %v, %v", v, err)
 		}
 	}
 	if calls.Load() != 1 {
-		t.Errorf("источник вызван %d раз, ожидался один", calls.Load())
+		t.Errorf("source called %d times, expected one", calls.Load())
 	}
 }
 
-// TestRefreshesAfterTTL: по истечении срока значение обновляется.
+// TestRefreshesAfterTTL: once the ttl is up, the value is refreshed.
 func TestRefreshesAfterTTL(t *testing.T) {
 	var calls atomic.Int32
 	c := New[int](20 * time.Millisecond)
@@ -42,14 +42,14 @@ func TestRefreshesAfterTTL(t *testing.T) {
 	second, _ := c.Get(context.Background(), load)
 
 	if first == second {
-		t.Error("значение не обновилось после истечения срока")
+		t.Error("value was not refreshed after the ttl expired")
 	}
 }
 
-// TestSingleFlight: одновременные запросы обращаются к источнику один раз.
+// TestSingleFlight: concurrent requests hit the source once.
 //
-// Ради этого кэш и заводился: при открытии экрана в приложении запросы идут
-// пачкой, и каждый не должен превращаться в обращение к NAS.
+// This is what the cache was built for: opening a screen in the app fires a
+// burst of requests, and each of them must not become a call to the NAS.
 func TestSingleFlight(t *testing.T) {
 	var calls atomic.Int32
 	release := make(chan struct{})
@@ -76,20 +76,20 @@ func TestSingleFlight(t *testing.T) {
 	wg.Wait()
 
 	if calls.Load() != 1 {
-		t.Errorf("источник вызван %d раз, ожидался один", calls.Load())
+		t.Errorf("source called %d times, expected one", calls.Load())
 	}
 	for i, v := range results {
 		if v != 7 {
-			t.Errorf("запрос %d получил %d", i, v)
+			t.Errorf("request %d got %d", i, v)
 		}
 	}
 }
 
-// TestCachesError: ошибка тоже кэшируется, иначе недоступный NAS заставит
-// каждый запрос ждать таймаута.
+// TestCachesError: an error is cached too, otherwise an unreachable NAS makes
+// every request wait out the timeout.
 func TestCachesError(t *testing.T) {
 	var calls atomic.Int32
-	want := errors.New("NAS недоступен")
+	want := errors.New("NAS unreachable")
 	c := New[int](time.Minute)
 	load := func(context.Context) (int, error) {
 		calls.Add(1)
@@ -98,15 +98,15 @@ func TestCachesError(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		if _, err := c.Get(context.Background(), load); !errors.Is(err, want) {
-			t.Fatalf("ожидалась ошибка, получили %v", err)
+			t.Fatalf("expected an error, got %v", err)
 		}
 	}
 	if calls.Load() != 1 {
-		t.Errorf("источник вызван %d раз, ожидался один", calls.Load())
+		t.Errorf("source called %d times, expected one", calls.Load())
 	}
 }
 
-// TestInvalidate: после действия кэш сбрасывается и данные читаются заново.
+// TestInvalidate: after an action the cache is dropped and data is read anew.
 func TestInvalidate(t *testing.T) {
 	var calls atomic.Int32
 	c := New[int](time.Minute)
@@ -117,13 +117,13 @@ func TestInvalidate(t *testing.T) {
 	second, _ := c.Get(context.Background(), load)
 
 	if first == second {
-		t.Error("после сброса значение осталось прежним")
+		t.Error("value stayed the same after invalidation")
 	}
 }
 
-// TestGetStaleReturnsImmediately: устаревшее значение отдаётся сразу, а
-// обновление идёт в фоне. Ради этого кэш и переделывался: ожидание ответа
-// NAS пользователь видит как подвисание экрана.
+// TestGetStaleReturnsImmediately: a stale value is served at once while the
+// refresh runs in the background. This is what the cache was reworked for:
+// waiting for the NAS reads to the user as the screen hanging.
 func TestGetStaleReturnsImmediately(t *testing.T) {
 	var calls atomic.Int32
 	slow := make(chan struct{})
@@ -132,46 +132,46 @@ func TestGetStaleReturnsImmediately(t *testing.T) {
 	load := func(context.Context) (int, error) {
 		n := calls.Add(1)
 		if n > 1 {
-			<-slow // второй вызов намеренно висит
+			<-slow // the second call hangs on purpose
 		}
 		return int(n), nil
 	}
 
-	// Первый раз ждём по-честному: показывать ещё нечего.
+	// The first time we wait honestly: there is nothing to show yet.
 	if v, _ := c.Get(context.Background(), load); v != 1 {
-		t.Fatalf("первое значение %d", v)
+		t.Fatalf("first value %d", v)
 	}
-	time.Sleep(20 * time.Millisecond) // значение протухло
+	time.Sleep(20 * time.Millisecond) // the value goes stale
 
 	start := time.Now()
 	v, err := c.GetStale(context.Background(), load)
 	elapsed := time.Since(start)
 
 	if err != nil {
-		t.Fatalf("ошибка: %v", err)
+		t.Fatalf("error: %v", err)
 	}
 	if v != 1 {
-		t.Errorf("вернулось %d, ожидалось прежнее значение 1", v)
+		t.Errorf("got %d, expected the previous value 1", v)
 	}
 	if elapsed > 50*time.Millisecond {
-		t.Errorf("ждали %v, а должны были ответить сразу", elapsed)
+		t.Errorf("waited %v, should have answered immediately", elapsed)
 	}
 
 	close(slow)
-	// Даём фоновому обновлению завершиться, чтобы не мешать другим тестам.
+	// Let the background refresh finish so it does not disturb other tests.
 	time.Sleep(30 * time.Millisecond)
 	if calls.Load() < 2 {
-		t.Error("фоновое обновление не запустилось")
+		t.Error("background refresh did not start")
 	}
 }
 
-// TestGetStaleWaitsWhenEmpty: без единого значения ждём, иначе показывать нечего.
+// TestGetStaleWaitsWhenEmpty: with no value at all we wait — there is nothing to show.
 func TestGetStaleWaitsWhenEmpty(t *testing.T) {
 	c := New[int](time.Minute)
 	v, err := c.GetStale(context.Background(), func(context.Context) (int, error) {
 		return 5, nil
 	})
 	if err != nil || v != 5 {
-		t.Errorf("получили %v, %v", v, err)
+		t.Errorf("got %v, %v", v, err)
 	}
 }

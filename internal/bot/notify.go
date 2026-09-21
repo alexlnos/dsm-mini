@@ -6,13 +6,13 @@ import (
 	tg "github.com/go-telegram/bot"
 )
 
-// Notify отправляет сообщение в чат. Реализует watcher.Notifier.
+// Notify sends a message to a chat. Implements watcher.Notifier.
 func (b *Bot) Notify(ctx context.Context, chatID int64, text string) error {
 	_, err := b.api.SendMessage(ctx, &tg.SendMessageParams{
 		ChatID: chatID,
 		Text:   text,
-		// Ссылки в названиях раздач разворачивались бы в предпросмотр —
-		// в уведомлении это лишний шум.
+		// Links inside torrent names would expand into a preview — needless
+		// noise in a notification.
 		LinkPreviewOptions: &tgDisabledPreview,
 	})
 	return err

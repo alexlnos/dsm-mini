@@ -1,8 +1,8 @@
-// Package cache — небольшой кэш значений с временем жизни.
+// Package cache is a small value cache with a time to live.
 //
-// Нужен, чтобы частые опросы с телефона не превращались в шквал запросов к
-// NAS: сведения об устройстве меняются раз в месяц, список пакетов — раз в
-// неделю, и запрашивать их при каждом обновлении экрана незачем.
+// It exists so that frequent polling from a phone does not turn into a storm
+// of requests to the NAS: device details change once a month, the package
+// list once a week, and asking for them on every screen refresh is pointless.
 package cache
 
 import (
@@ -14,28 +14,28 @@ import (
 type entry[T any] struct {
 	value   T
 	expires time.Time
-	// err запоминается вместе со значением: иначе при недоступном NAS
-	// каждый запрос снова ждал бы таймаута.
+	// err is remembered alongside the value: otherwise, with the NAS down,
+	// every request would wait out the timeout again.
 	err error
 }
 
-// Cache хранит одно значение, обновляя его не чаще, чем раз в ttl.
+// Cache holds a single value and refreshes it no more often than once per ttl.
 type Cache[T any] struct {
 	ttl time.Duration
 
 	mu      sync.Mutex
 	current *entry[T]
-	// loading не даёт нескольким одновременным запросам дёргать NAS разом:
-	// первый идёт за данными, остальные ждут его результата.
+	// loading keeps several concurrent requests from hitting the NAS at once:
+	// the first one goes for the data, the rest wait for its result.
 	loading chan struct{}
 }
 
-// New создаёт кэш с заданным временем жизни.
+// New creates a cache with the given time to live.
 func New[T any](ttl time.Duration) *Cache[T] {
 	return &Cache[T]{ttl: ttl}
 }
 
-// Get возвращает значение из кэша или вычисляет его через load.
+// Get returns the cached value or computes it through load.
 func (c *Cache[T]) Get(ctx context.Context, load func(context.Context) (T, error)) (T, error) {
 	for {
 		c.mu.Lock()
@@ -47,7 +47,7 @@ func (c *Cache[T]) Get(ctx context.Context, load func(context.Context) (T, error
 		}
 
 		if c.loading != nil {
-			// Кто-то уже пошёл за данными — ждём его и смотрим результат.
+			// Someone already went for the data — wait and take their result.
 			wait := c.loading
 			c.mu.Unlock()
 			select {
@@ -75,20 +75,20 @@ func (c *Cache[T]) Get(ctx context.Context, load func(context.Context) (T, error
 	}
 }
 
-// Invalidate сбрасывает кэш: нужен после действий, меняющих состояние.
+// Invalidate drops the cache: needed after actions that change state.
 func (c *Cache[T]) Invalidate() {
 	c.mu.Lock()
 	c.current = nil
 	c.mu.Unlock()
 }
 
-// GetStale возвращает последнее известное значение немедленно, а обновление
-// запускает в фоне.
+// GetStale returns the last known value immediately and starts the refresh
+// in the background.
 //
-// Для экрана это важнее свежести до секунды: показатели загрузки и список
-// задач всё равно обновляются на следующем опросе, а ожидание ответа NAS
-// пользователь видит как подвисание. Пока значения ещё нет, ведёт себя как
-// обычный Get и ждёт.
+// For the screen that matters more than being a second fresh: usage figures
+// and the task list are updated by the next poll anyway, while waiting for
+// the NAS reads as the app hanging. With no value yet it behaves like a
+// plain Get and waits.
 func (c *Cache[T]) GetStale(ctx context.Context, load func(context.Context) (T, error)) (T, error) {
 	c.mu.Lock()
 	current := c.current
@@ -97,12 +97,12 @@ func (c *Cache[T]) GetStale(ctx context.Context, load func(context.Context) (T, 
 	c.mu.Unlock()
 
 	if current == nil {
-		// Первый запрос: показывать нечего, придётся подождать.
+		// First request: there is nothing to show, so we have to wait.
 		return c.Get(ctx, load)
 	}
 	if !fresh && !alreadyLoading {
-		// Обновляем в фоне: контекст запроса для этого не годится — он
-		// завершится вместе с ответом, оборвав загрузку на середине.
+		// Refresh in the background: the request context is no good for that —
+		// it ends with the response and would cut the load off halfway.
 		go func() {
 			background, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()

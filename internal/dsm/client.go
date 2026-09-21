@@ -1,14 +1,14 @@
-// Package dsm — клиент Synology DSM Web API.
+// Package dsm is a client for the Synology DSM Web API.
 //
-// Три особенности DSM, из-за которых нельзя просто слать form-запросы:
+// Three quirks of DSM make plain form requests impossible:
 //
-//  1. Путь и допустимые версии каждого API узнаются в рантайме через
-//     SYNO.API.Info — они отличаются между DSM 6 и 7 и между моделями NAS.
-//  2. У части API requestFormat == "JSON": тогда КАЖДОЕ значение параметра
-//     должно быть закодировано как JSON (строки — в кавычках). Иначе DSM
-//     отвечает 101/105 без объяснений.
-//  3. Ошибки приходят в теле ответа с HTTP 200, а сессия молча протухает —
-//     нужен прозрачный повторный вход.
+//  1. The path and allowed versions of every API are discovered at runtime
+//     through SYNO.API.Info — they differ between DSM 6 and 7 and between models.
+//  2. Some APIs have requestFormat == "JSON": then EVERY parameter value must
+//     be encoded as JSON (strings quoted). Otherwise DSM answers 101/105
+//     without explanation.
+//  3. Errors arrive in the body of an HTTP 200 response, and the session goes
+//     stale silently — a transparent re-login is required.
 package dsm
 
 import (
@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// Client — потокобезопасный клиент DSM Web API.
+// Client is a thread-safe DSM Web API client.
 type Client struct {
 	baseURL string
 	user    string
@@ -38,9 +38,9 @@ type Client struct {
 	mu   sync.RWMutex
 	sid  string
 	apis map[string]apiInfo
-	// goodVersion помнит версию, которой вызов уже удавался: на некоторых
-	// сборках DSM старшая версия API сломана, и перебирать её каждый раз
-	// значит платить лишним запросом.
+	// goodVersion remembers the version a call already succeeded with: on some
+	// DSM builds the newer API version is broken, and probing it every time
+	// means paying for an extra request.
 	goodVersion map[string]int
 }
 
@@ -51,7 +51,7 @@ type apiInfo struct {
 	RequestFormat string `json:"requestFormat"`
 }
 
-// Options — параметры подключения к DSM.
+// Options are the DSM connection parameters.
 type Options struct {
 	BaseURL     string
 	User        string
@@ -62,8 +62,8 @@ type Options struct {
 	Logger      *slog.Logger
 }
 
-// New создаёт клиент. Сетевых запросов не делает — вход происходит лениво
-// при первом вызове или явно через Login.
+// New creates a client. It makes no network requests — the login happens
+// lazily on the first call or explicitly through Login.
 func New(o Options) *Client {
 	if o.Timeout == 0 {
 		o.Timeout = 30 * time.Second
@@ -73,8 +73,8 @@ func New(o Options) *Client {
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if o.InsecureTLS {
-		// У DSM из коробки самоподписанный сертификат. Проверку отключаем
-		// только по явному согласию — см. DSM_INSECURE_TLS.
+		// DSM ships with a self-signed certificate. Verification is disabled
+		// only with explicit consent — see DSM_INSECURE_TLS.
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return &Client{
@@ -95,19 +95,19 @@ type response struct {
 	Error   *struct {
 		Code   int `json:"code"`
 		Errors struct {
-			// DownloadStation2 складывает сюда задачи, не принявшие действие.
+			// DownloadStation2 puts tasks that refused an action here.
 			FailedTask []ItemFailure `json:"failed_task"`
 		} `json:"errors"`
 	} `json:"error"`
 }
 
-// ItemFailure — отказ по одному элементу пакетной операции.
+// ItemFailure is a refusal for a single item of a batch operation.
 type ItemFailure struct {
 	ID   string `json:"id"`
 	Code int    `json:"error"`
 }
 
-// Login выполняет вход и запоминает SID.
+// Login signs in and remembers the SID.
 func (c *Client) Login(ctx context.Context) error {
 	params := map[string]any{
 		"account": c.user,
@@ -119,7 +119,7 @@ func (c *Client) Login(ctx context.Context) error {
 		params["otp_code"] = c.otp
 	}
 
-	// Вход идёт до того, как известен requestFormat, — параметры шлём как есть.
+	// The login happens before requestFormat is known — parameters go as they are.
 	raw, err := c.post(ctx, "entry.cgi", buildForm("SYNO.API.Auth", "login", 7, "", params, false))
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (c *Client) Login(ctx context.Context) error {
 		}
 		msg, ok := authErrorText[code]
 		if !ok {
-			msg = fmt.Sprintf("код %d", code)
+			msg = fmt.Sprintf("code %d", code)
 		}
 		return fmt.Errorf("%w: %s", ErrAuth, msg)
 	}
@@ -140,18 +140,18 @@ func (c *Client) Login(ctx context.Context) error {
 		SID string `json:"sid"`
 	}
 	if err := json.Unmarshal(raw.Data, &out); err != nil {
-		return fmt.Errorf("не разобрать ответ входа: %w", err)
+		return fmt.Errorf("cannot parse the login response: %w", err)
 	}
 
 	c.mu.Lock()
 	c.sid = out.SID
 	c.mu.Unlock()
-	c.log.Info("вход в DSM выполнен", "user", c.user)
+	c.log.Info("signed in to DSM", "user", c.user)
 	return nil
 }
 
-// Logout закрывает сессию. Ошибку можно игнорировать — сессия всё равно
-// протухнет сама.
+// Logout closes the session. The error can be ignored — the session goes
+// stale on its own anyway.
 func (c *Client) Logout(ctx context.Context) error {
 	c.mu.RLock()
 	sid := c.sid
@@ -167,10 +167,10 @@ func (c *Client) Logout(ctx context.Context) error {
 	return err
 }
 
-// Call вызывает метод DSM API и раскладывает поле data в out.
+// Call invokes a DSM API method and unpacks the data field into out.
 //
-// Сам выполняет вход, если сессии ещё нет, и повторяет запрос один раз,
-// если DSM сообщил о протухшей сессии.
+// It signs in by itself when there is no session yet, and repeats the request
+// once if DSM reported a stale session.
 func (c *Client) Call(ctx context.Context, api, method string, version int, params map[string]any, out any) error {
 	if err := c.ensureSession(ctx); err != nil {
 		return err
@@ -179,7 +179,7 @@ func (c *Client) Call(ctx context.Context, api, method string, version int, para
 	data, err := c.call(ctx, api, method, version, params)
 	var apiErr *APIError
 	if err != nil && asAPIError(err, &apiErr) && apiErr.needsRelogin() {
-		c.log.Debug("сессия DSM недействительна, повторный вход", "api", api)
+		c.log.Debug("the DSM session is invalid, signing in again", "api", api)
 		if err := c.Login(ctx); err != nil {
 			return err
 		}
@@ -192,7 +192,7 @@ func (c *Client) Call(ctx context.Context, api, method string, version int, para
 		return nil
 	}
 	if err := json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("%s.%s: не разобрать ответ: %w", api, method, err)
+		return fmt.Errorf("%s.%s: cannot parse the response: %w", api, method, err)
 	}
 	return nil
 }
@@ -223,8 +223,8 @@ func (c *Client) call(ctx context.Context, api, method string, version int, para
 	return raw.Data, nil
 }
 
-// apiInfo возвращает путь и формат запроса для API, запрашивая их у NAS
-// однократно и кэшируя.
+// apiInfo returns the path and request format of an API, asking the NAS for
+// them once and caching the answer.
 func (c *Client) apiInfo(ctx context.Context, api string) (apiInfo, error) {
 	c.mu.RLock()
 	info, ok := c.apis[api]
@@ -239,16 +239,16 @@ func (c *Client) apiInfo(ctx context.Context, api string) (apiInfo, error) {
 		return apiInfo{}, err
 	}
 	if !raw.Success {
-		return apiInfo{}, fmt.Errorf("не получить сведения об API %s", api)
+		return apiInfo{}, fmt.Errorf("cannot get information about API %s", api)
 	}
 
 	var all map[string]apiInfo
 	if err := json.Unmarshal(raw.Data, &all); err != nil {
-		return apiInfo{}, fmt.Errorf("не разобрать SYNO.API.Info: %w", err)
+		return apiInfo{}, fmt.Errorf("cannot parse SYNO.API.Info: %w", err)
 	}
 	info, ok = all[api]
 	if !ok {
-		return apiInfo{}, fmt.Errorf("API %s на этом NAS отсутствует", api)
+		return apiInfo{}, fmt.Errorf("API %s is missing on this NAS", api)
 	}
 
 	c.mu.Lock()
@@ -257,15 +257,15 @@ func (c *Client) apiInfo(ctx context.Context, api string) (apiInfo, error) {
 	return info, nil
 }
 
-// HasAPI сообщает, есть ли такой API на этом NAS. Нужно, чтобы выбирать между
-// современным SYNO.DownloadStation2 и легаси SYNO.DownloadStation.
+// HasAPI reports whether this NAS has such an API. Needed to choose between
+// the modern SYNO.DownloadStation2 and the legacy SYNO.DownloadStation.
 func (c *Client) HasAPI(ctx context.Context, api string) bool {
 	_, err := c.apiInfo(ctx, api)
 	return err == nil
 }
 
-// APIMaxVersion возвращает максимальную поддерживаемую версию API, 0 — если
-// API нет.
+// APIMaxVersion returns the highest supported API version, 0 when the API is
+// missing.
 func (c *Client) APIMaxVersion(ctx context.Context, api string) int {
 	info, err := c.apiInfo(ctx, api)
 	if err != nil {
@@ -295,13 +295,13 @@ func (c *Client) post(ctx context.Context, path string, form url.Values) (*respo
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("запрос к DSM не удался: %w", err)
+		return nil, fmt.Errorf("the request to DSM failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
-		return nil, fmt.Errorf("не прочитать ответ DSM: %w", err)
+		return nil, fmt.Errorf("cannot read the DSM response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, &HTTPError{Status: resp.StatusCode}
@@ -309,16 +309,16 @@ func (c *Client) post(ctx context.Context, path string, form url.Values) (*respo
 
 	var out response
 	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, fmt.Errorf("ответ DSM не является JSON: %w", err)
+		return nil, fmt.Errorf("the DSM response is not JSON: %w", err)
 	}
 	return &out, nil
 }
 
-// buildForm собирает тело запроса.
+// buildForm assembles the request body.
 //
-// При jsonFormat каждое значение кодируется как JSON: строка "url" уходит как
-// "\"url\"". Это требование API с requestFormat == "JSON" (все entry.cgi
-// DownloadStation2 и Virtualization), и именно на нём чаще всего спотыкаются.
+// With jsonFormat every value is encoded as JSON: the string "url" goes out as
+// "\"url\"". That is required by APIs with requestFormat == "JSON" (all of
+// DownloadStation2 and Virtualization entry.cgi), and it trips people up most.
 func buildForm(api, method string, version int, sid string, params map[string]any, jsonFormat bool) url.Values {
 	form := url.Values{}
 	form.Set("api", api)

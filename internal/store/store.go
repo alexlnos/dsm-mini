@@ -1,8 +1,8 @@
-// Package store хранит пользовательские настройки в SQLite.
+// Package store keeps user settings in SQLite.
 //
-// Настройки лежат на стороне сервиса, а не в браузере: Mini App открывают с
-// разных устройств, и закреплённые папки должны быть везде одинаковыми, а
-// хранилище webview Telegram чистится без предупреждения.
+// Settings live on the service side rather than in the browser: the Mini App
+// is opened from different devices and pinned folders must look the same
+// everywhere, while Telegram's webview storage is wiped without warning.
 package store
 
 import (
@@ -14,34 +14,34 @@ import (
 	"time"
 )
 
-// maxPinned — сколько папок можно закрепить.
-// Больше десятка превращают выбор в прокрутку и теряют смысл.
+// maxPinned is how many folders may be pinned.
+// More than a dozen turns the choice into scrolling and loses its point.
 const maxPinned = 12
 
-// Settings — настройки одного пользователя.
+// Settings are the settings of a single user.
 type Settings struct {
-	// PinnedFolders — папки быстрого выбора, в порядке показа.
+	// PinnedFolders are the quick-pick folders, in display order.
 	PinnedFolders []string `json:"pinned_folders"`
-	// ShowRecent — подмешивать ли папки недавних задач.
+	// ShowRecent tells whether to mix in folders from recent tasks.
 	ShowRecent bool `json:"show_recent"`
-	// LastUsed — куда клали в прошлый раз.
+	// LastUsed is where things went the previous time.
 	LastUsed string `json:"last_used"`
 }
 
-// Defaults возвращает настройки пользователя, который ничего не менял.
+// Defaults returns the settings of a user who changed nothing.
 func Defaults() Settings {
 	return Settings{ShowRecent: true}
 }
 
-// Store — доступ к настройкам.
+// Store gives access to the settings.
 type Store struct {
 	db *sql.DB
 }
 
-// New оборачивает уже открытую базу.
+// New wraps an already open database.
 func New(database *sql.DB) *Store { return &Store{db: database} }
 
-// Get возвращает настройки пользователя; для незнакомого — значения по умолчанию.
+// Get returns a user's settings; for an unknown user, the defaults.
 func (s *Store) Get(ctx context.Context, userID int64) (Settings, error) {
 	out := Defaults()
 
@@ -53,14 +53,14 @@ func (s *Store) Get(ctx context.Context, userID int64) (Settings, error) {
 	case errors.Is(err, sql.ErrNoRows):
 		return out, nil
 	case err != nil:
-		return out, fmt.Errorf("не прочитать настройки: %w", err)
+		return out, fmt.Errorf("cannot read the settings: %w", err)
 	}
 	out.ShowRecent = showRecent != 0
 
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT path FROM pinned_folders WHERE user_id = ? ORDER BY position`, userID)
 	if err != nil {
-		return out, fmt.Errorf("не прочитать закреплённые папки: %w", err)
+		return out, fmt.Errorf("cannot read the pinned folders: %w", err)
 	}
 	defer rows.Close()
 
@@ -74,8 +74,8 @@ func (s *Store) Get(ctx context.Context, userID int64) (Settings, error) {
 	return out, rows.Err()
 }
 
-// Set сохраняет настройки, приводя их в порядок: пути нормализуются,
-// дубликаты и пустые значения выбрасываются, список подрезается.
+// Set saves the settings after tidying them up: paths are normalised,
+// duplicates and empty values are dropped, the list is trimmed.
 func (s *Store) Set(ctx context.Context, userID int64, v Settings) (Settings, error) {
 	v.PinnedFolders = cleanFolders(v.PinnedFolders)
 	v.LastUsed = normalize(v.LastUsed)
@@ -97,11 +97,11 @@ func (s *Store) Set(ctx context.Context, userID int64, v Settings) (Settings, er
 			show_recent = excluded.show_recent,
 			last_used   = excluded.last_used`,
 		userID, showRecent, v.LastUsed); err != nil {
-		return v, fmt.Errorf("не сохранить настройки: %w", err)
+		return v, fmt.Errorf("cannot save the settings: %w", err)
 	}
 
-	// Порядок папок значим, поэтому список переписывается целиком: так
-	// позиции всегда плотные и совпадают с тем, что видит пользователь.
+	// Folder order matters, so the list is rewritten whole: that keeps the
+	// positions dense and matching what the user sees.
 	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM pinned_folders WHERE user_id = ?`, userID); err != nil {
 		return v, err
@@ -110,13 +110,13 @@ func (s *Store) Set(ctx context.Context, userID int64, v Settings) (Settings, er
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO pinned_folders (user_id, position, path) VALUES (?, ?, ?)`,
 			userID, i, folder); err != nil {
-			return v, fmt.Errorf("не сохранить папку %q: %w", folder, err)
+			return v, fmt.Errorf("cannot save the folder %q: %w", folder, err)
 		}
 	}
 	return v, tx.Commit()
 }
 
-// RememberLastUsed запоминает папку последней задачи и пополняет историю.
+// RememberLastUsed records the folder of the latest task and adds to history.
 func (s *Store) RememberLastUsed(ctx context.Context, userID int64, folder string) error {
 	folder = normalize(folder)
 	if folder == "" {
@@ -146,8 +146,8 @@ func (s *Store) RememberLastUsed(ctx context.Context, userID int64, folder strin
 	return tx.Commit()
 }
 
-// RecentFolders возвращает папки, куда пользователь складывал загрузки,
-// начиная с самой свежей.
+// RecentFolders returns the folders the user put downloads into, newest
+// first.
 func (s *Store) RecentFolders(ctx context.Context, userID int64, limit int) ([]string, error) {
 	if limit <= 0 {
 		limit = 6
@@ -158,7 +158,7 @@ func (s *Store) RecentFolders(ctx context.Context, userID int64, limit int) ([]s
 		ORDER BY used_at DESC
 		LIMIT ?`, userID, limit)
 	if err != nil {
-		return nil, fmt.Errorf("не прочитать историю папок: %w", err)
+		return nil, fmt.Errorf("cannot read the folder history: %w", err)
 	}
 	defer rows.Close()
 
@@ -190,8 +190,8 @@ func cleanFolders(in []string) []string {
 	return out
 }
 
-// normalize приводит путь к виду, который принимает Download Station:
-// без ведущего и завершающего слеша, например "Media/Music".
+// normalize brings a path to the shape Download Station accepts:
+// no leading and no trailing slash, for example "Media/Music".
 func normalize(p string) string {
 	p = strings.TrimSpace(p)
 	p = strings.Trim(p, "/")
@@ -201,11 +201,11 @@ func normalize(p string) string {
 	return p
 }
 
-// RememberLanguage запоминает язык, на котором с человеком говорит Telegram.
+// RememberLanguage records the language Telegram speaks to this person in.
 //
-// Нужен уведомлениям: они уходят сами, без входящего сообщения, и спросить
-// язык в этот момент не у кого. Пустой код игнорируется — он бы стёр
-// известный язык и перевёл человека на английский.
+// Notifications need it: they are sent on our own initiative, with no
+// incoming message, and there is nobody to ask at that moment. An empty code
+// is ignored — it would wipe a known language and switch the person to English.
 func (s *Store) RememberLanguage(ctx context.Context, userID int64, code string) error {
 	if code == "" {
 		return nil
@@ -215,12 +215,12 @@ func (s *Store) RememberLanguage(ctx context.Context, userID int64, code string)
 		ON CONFLICT (user_id) DO UPDATE SET language = excluded.language`,
 		userID, code)
 	if err != nil {
-		return fmt.Errorf("не запомнить язык: %w", err)
+		return fmt.Errorf("cannot remember the language: %w", err)
 	}
 	return nil
 }
 
-// Language возвращает запомненный язык; для незнакомого человека — пусто.
+// Language returns the remembered language; empty for an unknown person.
 func (s *Store) Language(ctx context.Context, userID int64) (string, error) {
 	var code string
 	err := s.db.QueryRowContext(ctx,
@@ -229,7 +229,7 @@ func (s *Store) Language(ctx context.Context, userID int64) (string, error) {
 	case errors.Is(err, sql.ErrNoRows):
 		return "", nil
 	case err != nil:
-		return "", fmt.Errorf("не прочитать язык: %w", err)
+		return "", fmt.Errorf("cannot read the language: %w", err)
 	}
 	return code, nil
 }

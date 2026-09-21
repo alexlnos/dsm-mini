@@ -1,4 +1,4 @@
-// Package watcher следит за задачами и пишет в чат, когда они завершаются.
+// Package watcher follows tasks and writes to the chat when they finish.
 package watcher
 
 import (
@@ -12,26 +12,26 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
 
-// Notifier отправляет готовый текст в чат.
+// Notifier sends ready-made text to a chat.
 type Notifier interface {
 	Notify(ctx context.Context, chatID int64, text string) error
 }
 
-// LangSource сообщает, на каком языке писать в конкретный чат.
+// LangSource tells which language to write to a particular chat in.
 //
-// Уведомление уходит само, без входящего сообщения, поэтому язык берётся из
-// того, что запомнено при прошлом обращении человека.
+// A notification is sent on our own initiative, with no incoming message, so
+// the language comes from what was remembered on the person's last request.
 type LangSource interface {
 	Language(ctx context.Context, userID int64) (string, error)
 }
 
-// StateStore хранит последние известные статусы задач между запусками.
+// StateStore keeps the last known task statuses between runs.
 type StateStore interface {
 	TaskStates(ctx context.Context) (map[string]string, error)
 	SaveTaskStates(ctx context.Context, states map[string]string) error
 }
 
-// Watcher опрашивает Download Station и сообщает о завершившихся задачах.
+// Watcher polls Download Station and reports finished tasks.
 type Watcher struct {
 	ds       downloadstation.Station
 	notifier Notifier
@@ -41,26 +41,26 @@ type Watcher struct {
 	interval time.Duration
 	log      *slog.Logger
 
-	// seen хранит последний известный статус каждой задачи.
+	// seen holds the last known status of every task.
 	seen map[string]downloadstation.Status
 }
 
-// Options — настройки наблюдателя.
+// Options are the watcher settings.
 type Options struct {
 	Downloads downloadstation.Station
 	Notifier  Notifier
-	// ChatIDs — кому слать. Обычно совпадает со списком разрешённых.
+	// ChatIDs is who to write to. Usually the same as the allow list.
 	ChatIDs  []int64
 	Interval time.Duration
-	// Store хранит состояние между запусками. Без него после перезапуска
-	// сервис повторно сообщит о задачах, завершившихся ещё до него.
+	// Store keeps state between runs. Without it the service would report
+	// tasks that finished before a restart all over again.
 	Store StateStore
-	// Langs подсказывает язык получателя. Без него пишем по-английски.
+	// Langs hints at the recipient's language. Without it we write in English.
 	Langs  LangSource
 	Logger *slog.Logger
 }
 
-// New создаёт наблюдателя.
+// New creates a watcher.
 func New(o Options) *Watcher {
 	if o.Logger == nil {
 		o.Logger = slog.Default()
@@ -82,11 +82,11 @@ func New(o Options) *Watcher {
 	return w
 }
 
-// Run опрашивает NAS, пока жив контекст.
+// Run polls the NAS for as long as the context lives.
 func (w *Watcher) Run(ctx context.Context) {
-	// Первый проход — «тихий»: он лишь запоминает текущее положение дел,
-	// иначе после запуска в чат посыпались бы сообщения обо всём, что
-	// докачалось когда-то раньше.
+	// The first pass is a quiet one: it only records the current state of
+	// affairs, otherwise a start would flood the chat with everything that
+	// ever finished downloading.
 	if len(w.seen) == 0 {
 		w.snapshot(ctx)
 	}
@@ -94,7 +94,7 @@ func (w *Watcher) Run(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
-	w.log.Info("наблюдение за задачами запущено", "interval", w.interval)
+	w.log.Info("task watching started", "interval", w.interval)
 	for {
 		select {
 		case <-ctx.Done():
@@ -109,20 +109,20 @@ func (w *Watcher) Run(ctx context.Context) {
 func (w *Watcher) snapshot(ctx context.Context) {
 	tasks, err := w.ds.List(ctx)
 	if err != nil {
-		w.log.Warn("первый опрос не удался", "err", err)
+		w.log.Warn("the first poll failed", "err", err)
 		return
 	}
 	for _, t := range tasks {
 		w.seen[t.ID] = t.Status
 	}
 	w.save(ctx)
-	w.log.Info("исходное состояние записано", "tasks", len(tasks))
+	w.log.Info("initial state recorded", "tasks", len(tasks))
 }
 
 func (w *Watcher) check(ctx context.Context) {
 	tasks, err := w.ds.List(ctx)
 	if err != nil {
-		w.log.Warn("опрос задач не удался", "err", err)
+		w.log.Warn("polling tasks failed", "err", err)
 		return
 	}
 
@@ -138,15 +138,15 @@ func (w *Watcher) check(ctx context.Context) {
 		}
 		changed = true
 
-		// Сообщаем только о переходе в конечное состояние и только если
-		// раньше задача была в работе: иначе перезапуск NAS или первое
-		// появление готовой задачи породили бы ложное уведомление.
+		// Report only the transition into a final state, and only if the task
+		// was running before: otherwise a NAS restart or a finished task
+		// showing up for the first time would raise a false notification.
 		if known && t.Status.Terminal() && !prev.Terminal() {
 			w.announce(ctx, t)
 		}
 	}
 
-	// Удалённые задачи забываем, чтобы карта не росла бесконечно.
+	// Forget deleted tasks so the map does not grow forever.
 	for id := range w.seen {
 		if !alive[id] {
 			delete(w.seen, id)
@@ -162,20 +162,20 @@ func (w *Watcher) announce(ctx context.Context, t downloadstation.Task) {
 	for _, chat := range w.chatIDs {
 		text := formatTask(w.langOf(ctx, chat), t)
 		if err := w.notifier.Notify(ctx, chat, text); err != nil {
-			w.log.Error("не отправить уведомление", "chat", chat, "err", err)
+			w.log.Error("cannot send the notification", "chat", chat, "err", err)
 		}
 	}
-	w.log.Info("уведомление отправлено", "task", t.ID, "status", t.Status)
+	w.log.Info("notification sent", "task", t.ID, "status", t.Status)
 }
 
-// langOf — язык получателя; неизвестный язык даёт английский.
+// langOf is the recipient's language; an unknown language gives English.
 func (w *Watcher) langOf(ctx context.Context, chatID int64) i18n.Lang {
 	if w.langs == nil {
 		return i18n.Fallback
 	}
 	code, err := w.langs.Language(ctx, chatID)
 	if err != nil {
-		w.log.Warn("не прочитать язык получателя", "chat", chatID, "err", err)
+		w.log.Warn("cannot read the recipient language", "chat", chatID, "err", err)
 		return i18n.Fallback
 	}
 	return i18n.Match(code)
@@ -243,14 +243,14 @@ func (w *Watcher) load(ctx context.Context) {
 	}
 	states, err := w.store.TaskStates(ctx)
 	if err != nil {
-		w.log.Warn("не прочитать сохранённое состояние", "err", err)
+		w.log.Warn("cannot read the saved state", "err", err)
 		return
 	}
 	for id, status := range states {
 		w.seen[id] = downloadstation.Status(status)
 	}
 	if len(w.seen) > 0 {
-		w.log.Info("состояние восстановлено", "tasks", len(w.seen))
+		w.log.Info("state restored", "tasks", len(w.seen))
 	}
 }
 
@@ -263,6 +263,6 @@ func (w *Watcher) save(ctx context.Context) {
 		states[id] = string(status)
 	}
 	if err := w.store.SaveTaskStates(ctx, states); err != nil {
-		w.log.Warn("не сохранить состояние", "err", err)
+		w.log.Warn("cannot save the state", "err", err)
 	}
 }

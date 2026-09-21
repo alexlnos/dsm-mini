@@ -10,18 +10,19 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/watcher"
 )
 
-// newWatcher настраивает наблюдателя за задачами.
+// newWatcher wires up the task watcher.
 //
-// Уведомления идут всем, кому разрешён доступ: список короткий и состоит из
-// владельцев NAS, а привязывать задачу к тому, кто её создал, невозможно —
-// Download Station не хранит, из какого чата она пришла.
+// Notifications go to everyone on the allow list: it is short and consists of
+// the NAS owners, and there is no way to tie a task back to whoever created
+// it — Download Station does not record which chat it came from.
 func newWatcher(cfg *config.Config, ds downloadstation.Station, b *bot.Bot,
 	st *store.Store, log *slog.Logger) *watcher.Watcher {
 	return watcher.New(watcher.Options{
 		Downloads: ds,
 		Notifier:  b,
 		Store:     st,
-		// Язык получателя: уведомление уходит само, спросить некого.
+		// Recipient language: a notification is sent on our own initiative,
+		// so there is nobody to ask at that moment.
 		Langs:    st,
 		ChatIDs:  cfg.AllowedUserIDs,
 		Interval: cfg.WatchInterval,

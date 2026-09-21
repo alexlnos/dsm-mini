@@ -6,15 +6,15 @@ import (
 	"strings"
 )
 
-// APIError — ошибка, которую DSM вернул в поле "error" успешного HTTP-ответа.
+// APIError is an error DSM returned in the "error" field of a successful HTTP response.
 //
-// DSM почти всегда отвечает HTTP 200, а реальный результат кладёт в JSON,
-// поэтому на коды статуса полагаться нельзя.
+// DSM almost always answers HTTP 200 and puts the real outcome into the JSON,
+// so status codes cannot be relied upon.
 type APIError struct {
 	Code   int
 	API    string
 	Method string
-	// Failed перечисляет элементы пакетной операции, которые её не приняли.
+	// Failed lists the items of a batch operation that did not go through.
 	Failed []ItemFailure
 }
 
@@ -24,16 +24,16 @@ func (e *APIError) Error() string {
 		for _, f := range e.Failed {
 			parts = append(parts, fmt.Sprintf("%s (%s)", f.ID, itemErrorText(f.Code)))
 		}
-		return fmt.Sprintf("%s.%s: не выполнено для задач: %s",
+		return fmt.Sprintf("%s.%s: failed for tasks: %s",
 			e.API, e.Method, strings.Join(parts, ", "))
 	}
 	if msg, ok := errorText[e.Code]; ok {
-		return fmt.Sprintf("%s.%s: %s (код %d)", e.API, e.Method, msg, e.Code)
+		return fmt.Sprintf("%s.%s: %s (code %d)", e.API, e.Method, msg, e.Code)
 	}
-	return fmt.Sprintf("%s.%s: ошибка DSM с кодом %d", e.API, e.Method, e.Code)
+	return fmt.Sprintf("%s.%s: DSM error with code %d", e.API, e.Method, e.Code)
 }
 
-// needsRelogin сообщает, что ошибка лечится повторным входом.
+// needsRelogin reports that the error is cured by logging in again.
 func (e *APIError) needsRelogin() bool {
 	switch e.Code {
 	case 105, 106, 107, 119:
@@ -42,66 +42,66 @@ func (e *APIError) needsRelogin() bool {
 	return false
 }
 
-// ErrAuth возвращается, когда войти не удалось: неверный пароль, отключённая
-// учётная запись или требование кода 2FA. Повторять такой запрос бессмысленно.
-var ErrAuth = errors.New("аутентификация в DSM не удалась")
+// ErrAuth is returned when the login failed: wrong password, a disabled
+// account or a demand for a 2FA code. Repeating such a request is pointless.
+var ErrAuth = errors.New("authentication with DSM failed")
 
-// errorText — общие коды DSM плюс коды входа и Download Station.
+// errorText holds the common DSM codes plus login and Download Station ones.
 //
-// Диапазон 400+ у Synology перекрывается: 403 при входе означает «нужен код
-// 2FA», а в Download Station — «папка назначения не существует». Разводим их
-// при формировании ошибки, а не здесь.
+// Synology's 400+ range overlaps: 403 during login means "2FA code needed",
+// while in Download Station it means "destination folder does not exist". We
+// tell them apart when building the error, not here.
 var errorText = map[int]string{
-	100: "неизвестная ошибка",
-	101: "неверный параметр",
-	102: "такого API на этом NAS нет",
-	103: "такого метода у API нет",
-	104: "версия API не поддерживается",
-	105: "недостаточно прав у учётной записи",
-	106: "сессия истекла",
-	107: "сессия прервана повторным входом",
-	119: "сессия не найдена (SID недействителен)",
+	100: "unknown error",
+	101: "invalid parameter",
+	102: "no such API on this NAS",
+	103: "the API has no such method",
+	104: "API version is not supported",
+	105: "the account lacks permission",
+	106: "session expired",
+	107: "session interrupted by another login",
+	119: "session not found (SID is invalid)",
 }
 
 var authErrorText = map[int]string{
-	400: "неверное имя пользователя или пароль",
-	401: "учётная запись отключена",
-	402: "доступ запрещён",
-	403: "требуется код двухэтапной проверки — заведите пользователя без 2FA",
-	404: "неверный код двухэтапной проверки",
-	406: "требуется подтверждение по почте",
-	407: "адрес заблокирован",
-	408: "срок действия пароля истёк",
-	409: "пароль просрочен и должен быть изменён",
-	410: "пароль просрочен",
-	411: "учётная запись заблокирована",
+	400: "wrong user name or password",
+	401: "the account is disabled",
+	402: "access denied",
+	403: "a two-factor code is required — create a user without 2FA",
+	404: "wrong two-factor code",
+	406: "email confirmation is required",
+	407: "the address is blocked",
+	408: "the password has expired",
+	409: "the password is expired and must be changed",
+	410: "the password is expired",
+	411: "the account is locked",
 }
 
-// itemErrorText расшифровывает код отказа по отдельной задаче.
+// itemErrorText decodes the failure code of an individual task.
 func itemErrorText(code int) string {
 	if msg, ok := DownloadStationErrorText[code]; ok {
 		return msg
 	}
-	return fmt.Sprintf("код %d", code)
+	return fmt.Sprintf("code %d", code)
 }
 
-// DownloadStationErrorText переводит коды, специфичные для Download Station.
+// DownloadStationErrorText translates codes specific to Download Station.
 //
-// Коды 400–408 — из официальной документации Synology (Download Station
-// Official API). Код 544 в ней отсутствует, но приходит на деле, когда
-// действие адресовано несуществующей задаче.
+// Codes 400-408 come from Synology's official documentation (Download Station
+// Official API). Code 544 is missing there but arrives in practice when an
+// action is addressed to a task that does not exist.
 var DownloadStationErrorText = map[int]string{
-	400: "загрузка файла не удалась",
-	401: "достигнут предел числа задач",
-	402: "папка назначения недоступна",
-	403: "папка назначения не существует",
-	404: "задача с таким id не найдена",
-	405: "недопустимое действие над задачей",
-	406: "не задана папка назначения по умолчанию",
-	407: "не удалось задать папку назначения",
-	408: "файл не существует",
-	544: "задача не найдена или действие к ней неприменимо",
-	// Коды ниже в документации отсутствуют, но приходят на деле.
-	1203: "папка назначения не найдена на NAS",
-	1913: "сведения доступны, только пока задача качается или раздаётся",
+	400: "file upload failed",
+	401: "the task limit has been reached",
+	402: "the destination folder is not available",
+	403: "the destination folder does not exist",
+	404: "no task with this id",
+	405: "the action is not allowed for this task",
+	406: "no default destination folder is set",
+	407: "could not set the destination folder",
+	408: "the file does not exist",
+	544: "the task is gone or the action does not apply to it",
+	// The codes below are missing from the documentation but arrive in practice.
+	1203: "the destination folder was not found on the NAS",
+	1913: "details are available only while the task is downloading or seeding",
 }

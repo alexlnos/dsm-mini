@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-// TaskStates возвращает последние известные статусы задач.
+// TaskStates returns the last known statuses of the tasks.
 //
-// Наблюдатель сверяет с ними свежий список, чтобы поймать переход в
-// завершённое состояние и не повторить уведомление после перезапуска.
+// The watcher compares a fresh list against them to catch the transition to
+// a finished state and not repeat a notification after a restart.
 func (s *Store) TaskStates(ctx context.Context) (map[string]string, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT task_id, status FROM task_state`)
 	if err != nil {
-		return nil, fmt.Errorf("не прочитать состояние задач: %w", err)
+		return nil, fmt.Errorf("cannot read the task state: %w", err)
 	}
 	defer rows.Close()
 
@@ -28,8 +28,8 @@ func (s *Store) TaskStates(ctx context.Context) (map[string]string, error) {
 	return out, rows.Err()
 }
 
-// SaveTaskStates заменяет состояние целиком: задачи, которых больше нет,
-// удаляются, чтобы таблица не росла бесконечно.
+// SaveTaskStates replaces the state as a whole: tasks that are gone are
+// removed so the table does not grow forever.
 func (s *Store) SaveTaskStates(ctx context.Context, states map[string]string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *Store) SaveTaskStates(ctx context.Context, states map[string]string) er
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO task_state (task_id, status, updated_at) VALUES (?, ?, ?)`,
 			id, status, now); err != nil {
-			return fmt.Errorf("не сохранить состояние задачи %s: %w", id, err)
+			return fmt.Errorf("cannot save the state of task %s: %w", id, err)
 		}
 	}
 	return tx.Commit()

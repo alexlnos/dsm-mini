@@ -1,8 +1,8 @@
-// Package db — хранилище на SQLite.
+// Package db is the SQLite storage.
 //
-// Драйвер взят на чистом Go (modernc.org/sqlite), а не привычный
-// mattn/go-sqlite3: последний требует CGO, а с ним пропадает статическая
-// сборка, на которой держится образ из distroless.
+// The driver is the pure Go one (modernc.org/sqlite) rather than the usual
+// mattn/go-sqlite3: the latter needs CGO, and with CGO the static build the
+// distroless image relies on is gone.
 package db
 
 import (
@@ -16,9 +16,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// migrations применяются по порядку; номер последней записывается в
-// user_version. Менять уже применённую миграцию нельзя — только добавлять
-// новую, иначе базы у разных людей разойдутся.
+// migrations are applied in order; the number of the last one is written to
+// user_version. An already applied migration must never be edited — only a
+// new one added, otherwise databases drift apart between installs.
 var migrations = []string{
 	`
 	CREATE TABLE user_settings (
@@ -34,8 +34,8 @@ var migrations = []string{
 		PRIMARY KEY (user_id, position)
 	);
 
-	-- Последний известный статус задачи: по нему наблюдатель понимает, что
-	-- задача завершилась, и не повторяет уведомление после перезапуска.
+	-- Last known status of a task: the watcher uses it to tell that a task
+	-- finished, and not to repeat a notification after a restart.
 	CREATE TABLE task_state (
 		task_id    TEXT    PRIMARY KEY,
 		status     TEXT    NOT NULL,
@@ -43,9 +43,9 @@ var migrations = []string{
 	);
 	`,
 	`
-	-- Куда пользователь сам складывал загрузки. Раньше «недавние» папки
-	-- брались из задач Download Station, то есть из чужих раздач и старых
-	-- закачек; здесь — только собственная история.
+	-- Where the user put downloads themselves. "Recent" folders used to come
+	-- from Download Station tasks, that is from other people's torrents and
+	-- old downloads; here it is their own history only.
 	CREATE TABLE recent_folders (
 		user_id INTEGER NOT NULL,
 		path    TEXT    NOT NULL,
@@ -57,34 +57,34 @@ var migrations = []string{
 		ON recent_folders (user_id, used_at DESC);
 	`,
 	`
-	-- Язык, который Telegram сообщил при последнем обращении. Уведомления о
-	-- завершённых задачах уходят сами, без входящего сообщения, и спросить
-	-- язык в этот момент не у кого — поэтому он хранится.
+	-- The language Telegram reported on the last request. Notifications about
+	-- finished tasks are sent on our own initiative, with no incoming message,
+	-- and there is nobody to ask at that moment — hence it is stored.
 	ALTER TABLE user_settings ADD COLUMN language TEXT NOT NULL DEFAULT '';
 	`,
 }
 
-// Open открывает базу и доводит её схему до актуальной.
+// Open opens the database and brings its schema up to date.
 func Open(path string) (*sql.DB, error) {
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return nil, fmt.Errorf("не создать каталог базы: %w", err)
+			return nil, fmt.Errorf("cannot create the database directory: %w", err)
 		}
 	}
 
-	// WAL — чтобы чтение не блокировалось записью: HTTP-запросы и наблюдатель
-	// работают с базой одновременно. busy_timeout убирает случайные
-	// «database is locked» под нагрузкой.
+	// WAL so that reads are not blocked by writes: HTTP requests and the
+	// watcher work with the database at the same time. busy_timeout removes
+	// random "database is locked" under load.
 	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)" +
 		"&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)"
 
 	database, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("не открыть базу: %w", err)
+		return nil, fmt.Errorf("cannot open the database: %w", err)
 	}
 
-	// Одно соединение на запись: SQLite не любит параллельную запись, а
-	// нагрузка тут — десятки запросов в минуту.
+	// A single writer connection: SQLite dislikes concurrent writes, and the
+	// load here is tens of requests per minute.
 	database.SetMaxOpenConns(1)
 	database.SetConnMaxLifetime(0)
 
@@ -93,19 +93,19 @@ func Open(path string) (*sql.DB, error) {
 
 	if err := database.PingContext(ctx); err != nil {
 		database.Close()
-		return nil, fmt.Errorf("база не отвечает: %w", err)
+		return nil, fmt.Errorf("the database does not answer: %w", err)
 	}
 	if err := migrate(ctx, database); err != nil {
 		database.Close()
 		return nil, err
 	}
 
-	// SQLite создаёт файлы по umask, то есть обычно доступными на чтение
-	// всем. В базе лежат пользовательские настройки, поэтому права режем
-	// явно — вместе со спутниками WAL-режима.
+	// SQLite creates files according to umask, that is usually readable by
+	// everyone. The database holds user settings, so permissions are set
+	// explicitly — together with the WAL mode companions.
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		if err := os.Chmod(path+suffix, 0o600); err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("не выставить права на %s: %w", path+suffix, err)
+			return nil, fmt.Errorf("cannot set permissions on %s: %w", path+suffix, err)
 		}
 	}
 	return database, nil
@@ -114,11 +114,11 @@ func Open(path string) (*sql.DB, error) {
 func migrate(ctx context.Context, database *sql.DB) error {
 	var version int
 	if err := database.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
-		return fmt.Errorf("не прочитать версию схемы: %w", err)
+		return fmt.Errorf("cannot read the schema version: %w", err)
 	}
 	if version > len(migrations) {
-		return fmt.Errorf("база новее приложения: схема версии %d, известно %d — "+
-			"обновите dsm-mini", version, len(migrations))
+		return fmt.Errorf("the database is newer than the app: schema version %d, known %d — "+
+			"update dsm-mini", version, len(migrations))
 	}
 
 	for i := version; i < len(migrations); i++ {
@@ -128,13 +128,13 @@ func migrate(ctx context.Context, database *sql.DB) error {
 		}
 		if _, err := tx.ExecContext(ctx, migrations[i]); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("миграция %d не применилась: %w", i+1, err)
+			return fmt.Errorf("migration %d did not apply: %w", i+1, err)
 		}
-		// PRAGMA не принимает параметры, поэтому номер подставляется в текст;
-		// значение — индекс из кода, а не пользовательский ввод.
+		// PRAGMA takes no parameters, so the number is interpolated into the
+		// text; the value is an index from code, not user input.
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", i+1)); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("не записать версию схемы: %w", err)
+			return fmt.Errorf("cannot write the schema version: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
 			return err

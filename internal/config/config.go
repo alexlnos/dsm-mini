@@ -1,7 +1,7 @@
-// Package config загружает и проверяет конфигурацию сервиса.
+// Package config loads and validates the service configuration.
 //
-// Вся настройка идёт через переменные окружения — в образе и в репозитории
-// не должно быть ни одного значения, привязанного к конкретному NAS.
+// Everything is configured through environment variables — neither the image
+// nor the repository may contain a single value tied to a particular NAS.
 package config
 
 import (
@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-// Config — полная конфигурация сервиса.
+// Config is the full service configuration.
 //
-// Поля с секретами (DSMPassword, BotToken) не должны попадать в логи:
-// у Config есть LogValue, который их вырезает.
+// Fields holding secrets (DSMPassword, BotToken) must not reach the logs:
+// Config has a LogValue that strips them.
 type Config struct {
 	DSMURL      string
 	DSMUser     string
@@ -34,10 +34,10 @@ type Config struct {
 	LogLevel      string
 }
 
-// Load читает конфигурацию из окружения и проверяет её.
+// Load reads the configuration from the environment and checks it.
 //
-// Возвращает все найденные проблемы разом, а не первую попавшуюся: человек,
-// который поднимает сервис впервые, не должен чинить их по одной.
+// It returns every problem at once rather than the first one it hits:
+// someone bringing the service up the first time should not fix them one by one.
 func Load() (*Config, error) {
 	c := &Config{
 		DSMURL:        env("DSM_URL", ""),
@@ -61,46 +61,46 @@ func Load() (*Config, error) {
 	c.AllowedUserIDs = ids
 
 	if c.DSMURL == "" {
-		problems = append(problems, "DSM_URL: не задан (например https://192.168.1.10:5001)")
+		problems = append(problems, "DSM_URL: not set (for example https://192.168.1.10:5001)")
 	} else if u, err := url.Parse(c.DSMURL); err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
-		problems = append(problems, "DSM_URL: должен быть вида https://host:5001")
+		problems = append(problems, "DSM_URL: must look like https://host:5001")
 	} else {
 		c.DSMURL = strings.TrimRight(c.DSMURL, "/")
 	}
 
 	if c.DSMUser == "" {
-		problems = append(problems, "DSM_USER: не задан")
+		problems = append(problems, "DSM_USER: not set")
 	}
 	if c.DSMPassword == "" {
-		problems = append(problems, "DSM_PASSWORD: не задан")
+		problems = append(problems, "DSM_PASSWORD: not set")
 	}
 	if c.BotToken == "" {
-		problems = append(problems, "TELEGRAM_BOT_TOKEN: не задан, получите у @BotFather")
+		problems = append(problems, "TELEGRAM_BOT_TOKEN: not set, get one from @BotFather")
 	}
 
-	// Пустой список — это не «пускать всех», а «не пускать никого». Сервис,
-	// открытый в интернет, не должен становиться публичным из-за забытой строки.
+	// An empty list means "let nobody in", not "let everybody in". A service
+	// exposed to the internet must not go public over a forgotten line.
 	if len(c.AllowedUserIDs) == 0 {
-		problems = append(problems, "ALLOWED_USER_IDS: не задан — без него доступ закрыт для всех")
+		problems = append(problems, "ALLOWED_USER_IDS: not set — without it access is closed to everyone")
 	}
 
 	if c.PublicURL == "" {
-		problems = append(problems, "PUBLIC_URL: не задан (публичный HTTPS-адрес Mini App)")
+		problems = append(problems, "PUBLIC_URL: not set (public HTTPS address of the Mini App)")
 	} else if !strings.HasPrefix(c.PublicURL, "https://") {
-		problems = append(problems, "PUBLIC_URL: Telegram открывает Mini App только по https")
+		problems = append(problems, "PUBLIC_URL: Telegram opens the Mini App over https only")
 	}
 
 	if c.WatchInterval < 5*time.Second {
-		problems = append(problems, "WATCH_INTERVAL: не меньше 5s, иначе DSM захлебнётся опросом")
+		problems = append(problems, "WATCH_INTERVAL: no less than 5s, or DSM chokes on the polling")
 	}
 
 	if len(problems) > 0 {
-		return nil, fmt.Errorf("проверьте конфигурацию:\n  - %s", strings.Join(problems, "\n  - "))
+		return nil, fmt.Errorf("check the configuration:\n  - %s", strings.Join(problems, "\n  - "))
 	}
 	return c, nil
 }
 
-// IsAllowed сообщает, разрешён ли доступ этому Telegram-пользователю.
+// IsAllowed reports whether this Telegram user may use the service.
 func (c *Config) IsAllowed(userID int64) bool {
 	for _, id := range c.AllowedUserIDs {
 		if id == userID {
@@ -122,7 +122,7 @@ func parseUserIDs(raw string) ([]int64, error) {
 		}
 		id, err := strconv.ParseInt(part, 10, 64)
 		if err != nil {
-			return nil, errors.New("ожидались числовые ID через запятую, получено " + strconv.Quote(part))
+			return nil, errors.New("expected numeric IDs separated by commas, got " + strconv.Quote(part))
 		}
 		ids = append(ids, id)
 	}

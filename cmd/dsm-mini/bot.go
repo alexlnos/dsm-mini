@@ -15,16 +15,17 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
-// botRetry — пауза между попытками достучаться до Telegram.
+// botRetry is how long to wait between attempts to reach Telegram.
 const botRetry = 30 * time.Second
 
-// runBot поднимает бота и всё, что от него зависит: оформление, приём
-// сообщений и наблюдатель за завершёнными задачами.
+// runBot starts the bot and everything that depends on it: appearance,
+// incoming messages and the watcher for finished tasks.
 //
-// Недоступность Telegram не роняет сервис. Mini App открывает клиент на
-// телефоне, а не NAS, поэтому приложение работает даже тогда, когда сам NAS
-// до api.telegram.org не достаёт — так бывает, когда его трафик идёт мимо
-// VPN. Бот подключится сам, как только связь появится.
+// An unreachable Telegram must not take the service down. The Mini App is
+// opened by the client on the phone, not by the NAS, so the app keeps working
+// even when the NAS itself cannot reach api.telegram.org — which happens when
+// its traffic bypasses the VPN. The bot connects on its own once the link is
+// back.
 func runBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
 	settings *store.Store, log *slog.Logger) {
 
@@ -35,10 +36,11 @@ func runBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
 
 	var wg sync.WaitGroup
 
-	// Вид бота задаётся из кода на каждом языке словаря: имя, описания и
-	// команды не живут только в @BotFather. Значения читаются перед записью,
-	// поэтому перезапуск не тратит лимиты Telegram. Аватар Bot API менять не
-	// умеет — он ставится вручную.
+	// The bot's appearance is declared in code for every language in the
+	// dictionary: name, descriptions and commands do not live in @BotFather
+	// alone. Values are read before they are written, so a restart does not
+	// burn Telegram's rate limits. The Bot API cannot change the avatar — it
+	// is set by hand.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -62,10 +64,11 @@ func runBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
 	wg.Wait()
 }
 
-// waitForBot создаёт бота, повторяя попытки, пока Telegram недоступен.
+// waitForBot creates the bot, retrying for as long as Telegram is out of
+// reach.
 //
-// Возвращает nil, только если ждать бессмысленно: сервис остановлен или
-// токен отвергнут.
+// Returns nil only when waiting is pointless: the service is shutting down or
+// the token was rejected.
 func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
 	settings *store.Store, log *slog.Logger) *bot.Bot {
 
@@ -81,28 +84,28 @@ func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Stat
 		})
 		if err == nil {
 			if warned {
-				log.Info("связь с Telegram появилась")
-				notifyDSM("dsm-mini", "Связь с Telegram восстановлена, бот работает.")
+				log.Info("telegram is reachable again")
+				notifyDSM("dsm-mini", "Telegram is reachable again, the bot is running.")
 			}
 			return tgBot
 		}
 
-		// Неверный токен повтором не лечится.
+		// A rejected token is not cured by retrying.
 		if errors.Is(err, bot.ErrBadToken) {
-			log.Error("бот не запустится", "err", err)
-			notifyDSM("dsm-mini", "Telegram отклонил токен бота. Проверьте настройки пакета.")
+			log.Error("the bot will not start", "err", err)
+			notifyDSM("dsm-mini", "Telegram rejected the bot token. Check the package settings.")
 			return nil
 		}
 
-		// О недоступности сообщаем один раз: повторять её каждые полминуты
-		// в Центре уведомлений — значит сделать его бесполезным.
+		// Report the outage once: repeating it every half a minute would turn
+		// the notification centre into noise.
 		if !warned {
 			warned = true
-			log.Warn("Telegram недоступен, продолжаю без бота", "err", err, "повтор", botRetry)
+			log.Warn("telegram unreachable, carrying on without the bot", "err", err, "retry", botRetry)
 			notifyDSM("dsm-mini",
-				"Нет связи с api.telegram.org. Mini App работает, бот подключится сам, когда связь появится.")
+				"Cannot reach api.telegram.org. The Mini App works; the bot will connect once the link is back.")
 		} else {
-			log.Debug("Telegram всё ещё недоступен", "err", err)
+			log.Debug("telegram still unreachable", "err", err)
 		}
 
 		select {
@@ -113,11 +116,12 @@ func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Stat
 	}
 }
 
-// notifyDSM пишет в Центр уведомлений DSM.
+// notifyDSM writes to the DSM notification centre.
 //
-// Работает, только когда сервис запущен пакетом на самом NAS: в контейнере и
-// при локальном запуске команды просто нет, и это не ошибка. Права на неё
-// тоже может не быть — тогда молчим, уведомление не стоит остановки службы.
+// It only works when the service runs as a package on the NAS itself: inside a
+// container and during local runs the tool simply is not there, and that is
+// not an error. Permission may also be missing — then we stay quiet, as a
+// notification is not worth stopping the service over.
 func notifyDSM(title, message string) {
 	const tool = "/usr/syno/bin/synodsmnotify"
 	if _, err := os.Stat(tool); err != nil {
