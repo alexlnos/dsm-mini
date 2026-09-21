@@ -7,22 +7,20 @@ interface Props {
   data: Overview | null
   onDone: () => void
   onBack: () => void
+  onConfigureFolders: () => void
 }
 
-export function Add({ data, onDone, onBack }: Props) {
+export function Add({ data, onDone, onBack, onConfigureFolders }: Props) {
   const [link, setLink] = useState('')
-  const [destination, setDestination] = useState(data?.default_destination ?? '')
+  const [destination, setDestination] = useState(
+    data?.settings?.last_used || data?.default_destination || '',
+  )
   const [sending, setSending] = useState(false)
 
   useEffect(() => backButton(onBack), [onBack])
 
-  // Папки: та, что по умолчанию, плюс использованные недавно.
-  const folders = Array.from(
-    new Set(
-      [data?.default_destination, ...(data?.tasks ?? []).map((t) => t.destination)]
-        .filter((f): f is string => Boolean(f)),
-    ),
-  ).slice(0, 6)
+  // Список приходит с сервера: закреплённые папки, затем недавние.
+  const folders = data?.folders ?? []
 
   async function submit() {
     const urls = link.split('\n').map((s) => s.trim()).filter(Boolean)
@@ -74,8 +72,11 @@ export function Add({ data, onDone, onBack }: Props) {
         </div>
       </div>
 
-      <div className="section-head">
+      <div className="section-head row-between">
         <span className="section-title">Куда положить</span>
+        <button type="button" className="link-button" onClick={onConfigureFolders}>
+          Настроить
+        </button>
       </div>
 
       <div className="list">
@@ -94,7 +95,7 @@ export function Add({ data, onDone, onBack }: Props) {
         ))}
         {folders.length === 0 && (
           <div className="card empty-text">
-            Папки появятся, когда Download Station сообщит папку по умолчанию.
+            Список пуст. Нажмите «Настроить», чтобы закрепить папки.
           </div>
         )}
       </div>

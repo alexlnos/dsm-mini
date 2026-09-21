@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import { size } from '../format'
-import { alertMessage, confirmAction, haptic } from '../telegram'
+import { alertMessage, backButton, confirmAction, haptic } from '../telegram'
 import type { Entry } from '../types'
 
 const ICONS: Record<string, { glyph: string; className: string }> = {
@@ -21,7 +21,14 @@ function kindOf(entry: Entry): keyof typeof ICONS {
   return 'doc'
 }
 
-export function Files() {
+interface FilesProps {
+  /** Режим выбора папки: вместо обычного обзора показываем кнопку подтверждения. */
+  pickMode?: boolean
+  onPick?: (path: string) => void
+  onCancelPick?: () => void
+}
+
+export function Files({ pickMode, onPick, onCancelPick }: FilesProps = {}) {
   const [path, setPath] = useState('/')
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,6 +50,10 @@ export function Files() {
   }, [])
 
   useEffect(() => { void load('/') }, [load])
+  useEffect(() => {
+    if (!pickMode || !onCancelPick) return
+    return backButton(onCancelPick)
+  }, [pickMode, onCancelPick])
 
   const segments = path.split('/').filter(Boolean)
 
@@ -125,7 +136,20 @@ export function Files() {
         <h1>{segments.at(-1) ?? 'Общие папки'}</h1>
         <div className="muted tnum">{entries.length} объектов</div>
 
-        {path !== '/' && (
+        {pickMode && (
+          <div className="row">
+            <button
+              type="button"
+              className="button"
+              disabled={path === '/'}
+              onClick={() => onPick?.(path.replace(/^\/+/, ''))}
+            >
+              {path === '/' ? 'Откройте папку' : `Выбрать ${segments.at(-1)}`}
+            </button>
+          </div>
+        )}
+
+        {!pickMode && path !== '/' && (
           <div className="row">
             <button type="button" className="button secondary"
                     onClick={() => fileInput.current?.click()}>
@@ -169,6 +193,7 @@ export function Files() {
                   </span>
                 </span>
               </button>
+              {!pickMode && (
               <button type="button" className="icon-button small" onClick={() => void rename(entry)}
                       aria-label="Переименовать">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -176,6 +201,8 @@ export function Files() {
                   <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
                 </svg>
               </button>
+              )}
+              {!pickMode && (
               <button type="button" className="icon-button small danger" onClick={() => void remove(entry)}
                       aria-label="Удалить">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -183,6 +210,7 @@ export function Files() {
                   <path d="M4 7h16" /><path d="M6.5 7l.9 12.1A1.5 1.5 0 0 0 8.9 20.5h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7" />
                 </svg>
               </button>
+              )}
             </div>
           )
         })}

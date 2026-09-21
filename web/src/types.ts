@@ -28,12 +28,25 @@ export interface Volume {
   size_total: number
 }
 
+export interface Settings {
+  pinned_folders: string[] | null
+  show_recent: boolean
+  last_used: string
+}
+
+export interface SettingsView extends Settings {
+  suggested: string[] | null
+}
+
 export interface Overview {
   tasks: Task[]
   stats: { speed_down: number; speed_up: number }
   volumes: Volume[] | null
   default_destination: string
   api_generation: string
+  /** Папки для экрана добавления: закреплённые, затем недавние. */
+  folders: string[] | null
+  settings: Settings
 }
 
 export interface Entry {

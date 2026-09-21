@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
 	"github.com/alexlnos/dsm-mini/internal/dsm/filestation"
+	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
 // Server обслуживает Mini App: отдаёт статику и REST поверх NAS.
@@ -17,6 +18,7 @@ type Server struct {
 	allowed  []int64
 	ds       downloadstation.Station
 	fs       *filestation.Station
+	settings *store.Store
 	static   fs.FS
 	log      *slog.Logger
 }
@@ -27,6 +29,9 @@ type Options struct {
 	AllowedUserIDs []int64
 	Downloads      downloadstation.Station
 	Files          *filestation.Station
+	// Settings хранит пользовательские настройки. Может быть nil: тогда
+	// приложение работает с настройками по умолчанию и ничего не сохраняет.
+	Settings *store.Store
 	// Static — собранное Mini App. Может быть nil: тогда отдаётся заглушка,
 	// что удобно при разработке бэкенда отдельно от фронтенда.
 	Static fs.FS
@@ -43,6 +48,7 @@ func New(o Options) *Server {
 		allowed:  o.AllowedUserIDs,
 		ds:       o.Downloads,
 		fs:       o.Files,
+		settings: o.Settings,
 		static:   o.Static,
 		log:      o.Logger,
 	}
@@ -69,6 +75,8 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("POST /api/files/rename", s.handleRename)
 	api.HandleFunc("POST /api/files/delete", s.handleDeleteFiles)
 	api.HandleFunc("POST /api/files/upload", s.handleUpload)
+	api.HandleFunc("GET /api/settings", s.handleGetSettings)
+	api.HandleFunc("PUT /api/settings", s.handleSaveSettings)
 
 	root := http.NewServeMux()
 	root.Handle("/api/", s.authMiddleware(api))

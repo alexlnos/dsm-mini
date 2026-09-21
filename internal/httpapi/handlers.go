@@ -62,12 +62,20 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		s.log.Warn("не получить папку по умолчанию", "err", err)
 	}
 
+	u, _ := userFrom(ctx)
+	settings := s.userSettings(u.ID)
+	if settings.LastUsed == "" {
+		settings.LastUsed = dest
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"tasks":               views,
 		"stats":               stats,
 		"volumes":             volumes,
 		"default_destination": dest,
 		"api_generation":      s.ds.Generation(),
+		"folders":             s.folderChoices(r, u.ID),
+		"settings":            settings,
 	})
 }
 
@@ -115,6 +123,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := userFrom(r.Context())
+	if s.settings != nil && req.Destination != "" {
+		s.settings.RememberLastUsed(u.ID, req.Destination)
+	}
 	s.log.Info("задача поставлена", "user", u.ID, "count", len(urls), "dest", req.Destination)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "count": len(urls)})
 }

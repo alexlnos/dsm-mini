@@ -1,4 +1,4 @@
-import type { Entry, Overview, Task } from './types'
+import type { Entry, Overview, Settings, SettingsView, Task } from './types'
 
 /**
  * initData — подписанная Telegram строка, доказывающая, кто открыл приложение.
@@ -66,6 +66,14 @@ export const api = {
     request<{ ok: boolean }>('/api/downloads/action', {
       method: 'POST',
       body: JSON.stringify({ action, ids, force_complete: forceComplete }),
+    }),
+
+  settings: () => request<SettingsView>('/api/settings'),
+
+  saveSettings: (settings: Settings) =>
+    request<SettingsView>('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
     }),
 
   files: (path: string) =>

@@ -377,6 +377,82 @@ h1 {
 .main-button:disabled { opacity: 0.45; }
 
 .section-head { padding: 6px 6px 0; }
+.section-head.row-between {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.settings-row.toggle { justify-content: space-between; cursor: pointer; }
+.settings-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.small { font-size: 12px; line-height: 1.4; }
+
+.settings-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px;
+  cursor: pointer;
+}
+
+.divider { height: 1px; background: var(--separator); margin-left: 14px; }
+
+.input.inline {
+  width: auto;
+  flex-grow: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.button.compact {
+  flex-grow: 0;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.chip {
+  border: 1px solid var(--separator);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  border-radius: 16px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.icon-button:disabled { opacity: 0.3; cursor: default; }
 
 .section-title {
   font-size: 12px;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Downloads } from './pages/Downloads'
 import { Add } from './pages/Add'
 import { Files } from './pages/Files'
+import { Folders } from './pages/Folders'
 import { TaskDetail } from './pages/TaskDetail'
 import { api, ApiError } from './api'
 import type { Overview, Task } from './types'
@@ -11,6 +12,9 @@ type Screen =
   | { name: 'files' }
   | { name: 'add' }
   | { name: 'task'; id: string }
+  | { name: 'folders' }
+  // Обзор NAS в режиме выбора папки: открывается из настройки папок.
+  | { name: 'pickFolder' }
 
 /** Как часто обновлять список, когда что-то качается. */
 const ACTIVE_POLL = 2500
@@ -20,6 +24,8 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'downloads' })
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Папка, выбранная в обзоре NAS и переданная в настройку папок.
+  const [pickedFolder, setPickedFolder] = useState<string | undefined>()
 
   const refresh = useCallback(async () => {
     try {
@@ -70,11 +76,30 @@ export function App() {
           />
         )}
         {screen.name === 'files' && <Files />}
+        {screen.name === 'pickFolder' && (
+          <Files
+            pickMode
+            onPick={(path) => {
+              setPickedFolder(path)
+              setScreen({ name: 'folders' })
+            }}
+            onCancelPick={() => setScreen({ name: 'folders' })}
+          />
+        )}
+        {screen.name === 'folders' && (
+          <Folders
+            incoming={pickedFolder}
+            onBack={() => { setPickedFolder(undefined); setScreen({ name: 'add' }) }}
+            onSaved={() => { setPickedFolder(undefined); void refresh() }}
+            onPickOnNas={() => setScreen({ name: 'pickFolder' })}
+          />
+        )}
         {screen.name === 'add' && (
           <Add
             data={data}
             onDone={() => { void refresh(); setScreen({ name: 'downloads' }) }}
             onBack={() => setScreen({ name: 'downloads' })}
+            onConfigureFolders={() => setScreen({ name: 'folders' })}
           />
         )}
         {screen.name === 'task' && current && (
