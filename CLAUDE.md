@@ -196,6 +196,13 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   with `gh release download`, not from a fresh build: `md5` has to describe the
   exact file people will get, and a rebuild from a branch that moved on since
   the tag is a different file.
+- Every icon in the repository is rendered from **`assets/icon.svg`** by
+  `tools/make-icons.sh` — the package icons, the one in the SynoCommunity
+  recipe, the Mini App favicon and the one in the READMEs. The PNGs are
+  committed because none of the places that need them can run a renderer, so
+  the rule is: change the SVG, run the script, never touch a PNG by hand.
+  The arrow in the mark is a cut-out, not a white shape on top: at 40 px, the
+  size Package Center and Telegram really show, a thin outline disappears.
 - The wizard files in `spk/WIZARD_UIFILES/` are generated and committed; CI
   regenerates them and fails if the result differs. The same goes for the ten
   READMEs: a check compares the language links, because a translation nothing

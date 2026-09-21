@@ -1,3 +1,5 @@
+<img src="docs/icon.png" width="88" alt="">
+
 # dsm-mini
 
 [English](README.md) · [Русский](README_RU.md) · [Español](README_ES.md) · [Português](README_PT.md) · [Deutsch](README_DE.md) · [Français](README_FR.md) · [Italiano](README_IT.md) · **Türkçe** · [Українська](README_UK.md) · [Polski](README_PL.md)

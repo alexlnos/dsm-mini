@@ -1,0 +1,28 @@
+<!--
+  The project mark: a chat bubble with an arrow cut out of it — what the
+  service does, in one shape. From a chat into storage.
+
+  The arrow is a cut-out rather than a white shape laid on top: at 40 px, the
+  size Package Center and Telegram actually show, an outline a pixel thick
+  disappears while a cut-out still reads.
+
+  This file is the source. Every PNG in the repository is rendered from it by
+  tools/make-icons.sh — do not touch the PNGs by hand.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5B7CFA"/>
+      <stop offset="1" stop-color="#2B44D6"/>
+    </linearGradient>
+    <mask id="m">
+      <rect width="256" height="256" fill="#000"/>
+      <!-- the bubble -->
+      <path d="M62 44h132a28 28 0 0 1 28 28v88a28 28 0 0 1-28 28h-52l-44 38 8-38H62a28 28 0 0 1-28-28V72a28 28 0 0 1 28-28z" fill="#fff"/>
+      <!-- the arrow, cut out of it -->
+      <path d="M115 74h26v46h28l-41 48-41-48h28z" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#g)"/>
+  <rect width="256" height="256" fill="#fff" mask="url(#m)"/>
+</svg>
