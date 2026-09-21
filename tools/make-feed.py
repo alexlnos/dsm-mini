@@ -62,7 +62,7 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
     return {
         "package": "dsm-mini",
         "version": version,
-        "dname": "dsm-mini",
+        "dname": "DSM mini (Telegram Mini App)",
         "desc": DESC,
         # The package is served from the same site as the catalogue. It used
         # to point at the GitHub release, and that link answers with a 302 to

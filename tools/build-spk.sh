@@ -52,10 +52,13 @@ echo "→ package.tgz"
 
 echo "→ INFO"
 cat > "$WORK/INFO" <<EOF
+# package is the identifier, not the name: /var/packages/dsm-mini, the upgrade
+# path and every API call go by it, so it stays as it is. The visible name is
+# displayname.
 package="dsm-mini"
 version="$SPK_VERSION"
 os_min_ver="7.0-40000"
-displayname="dsm-mini"
+displayname="DSM mini (Telegram Mini App)"
 maintainer="alexlnos"
 maintainer_url="https://github.com/alexlnos/dsm-mini"
 support_url="https://github.com/alexlnos/dsm-mini/issues"

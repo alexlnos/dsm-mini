@@ -199,6 +199,11 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   the Synology toolkit: the binary is static, a chroot with their environment is
   not needed. The file order in the archive follows spksrc: `package.tgz`,
   `INFO`, `scripts`, then the rest.
+- `package` in INFO is the **identifier**, `displayname` is what people see.
+  `/var/packages/dsm-mini`, the upgrade path and every API call go by the
+  identifier, so it stays `dsm-mini` whatever the visible name becomes. The
+  visible name lives in three places that have to agree: `displayname` in
+  INFO, `dname` in the catalogue and `DISPLAY_NAME` in the spksrc recipe.
 - The `arch` values in INFO are **Synology platform names**, not processors
   (`epyc7002`, `rtd1296`). One package covers every model of the same
   architecture.

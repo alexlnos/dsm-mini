@@ -147,7 +147,7 @@ actualizaciones van por el propio Centro de paquetes:
    - ARM (modelos básicos): `https://alexlnos.github.io/dsm-mini/arm64.json`
 3. Permite paquetes de terceros: **Configuración → General → Nivel de confianza
    → Cualquier editor**.
-4. A la izquierda aparecerá la sección **Comunidad** y dentro `dsm-mini`. Pulsa
+4. A la izquierda aparecerá la sección **Comunidad** y dentro **DSM mini (Telegram Mini App)**. Pulsa
    Instalar: el asistente pedirá después los ajustes.
 
 Si no sabes tu arquitectura, prueba `amd64`: DSM se niega sin más a instalar un
@@ -245,7 +245,7 @@ Listo.
 
 | Qué ves | De qué se trata | Qué hacer |
 |---|---|---|
-| El bot calla ante `/start` | Token incorrecto, o el paquete no está en marcha | Centro de paquetes → `dsm-mini` → el registro |
+| El bot calla ante `/start` | Token incorrecto, o el paquete no está en marcha | Centro de paquetes → **DSM mini (Telegram Mini App)** → el registro |
 | «El acceso a este bot está cerrado» | Tu ID no está en la lista | Pon el número del paso 2 en los IDs permitidos (ver «Cambiar los ajustes» abajo) |
 | No hay botón de la aplicación | La dirección pública está vacía o no es `https://` | En el mismo sitio: el archivo de ajustes, luego reinicia el paquete |
 | El botón está, la aplicación no abre | El proxy inverso o el certificado no funcionan | Abre `https://tu-direccion/healthz` en un navegador |

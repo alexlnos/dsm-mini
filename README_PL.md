@@ -146,7 +146,7 @@ idą prosto z Centrum pakietów:
    - ARM (modele budżetowe): `https://alexlnos.github.io/dsm-mini/arm64.json`
 3. Pozwól na pakiety z zewnątrz: **Ustawienia → Ogólne → Poziom zaufania →
    Dowolny wydawca**.
-4. Po lewej pojawi się sekcja **Społeczność**, a w niej `dsm-mini`. Naciśnij
+4. Po lewej pojawi się sekcja **Społeczność**, a w niej **DSM mini (Telegram Mini App)**. Naciśnij
    Zainstaluj — dalej kreator zapyta o ustawienia.
 
 Nie znasz swojej architektury — spróbuj `amd64`: niepasującego pakietu DSM po
@@ -243,7 +243,7 @@ Gotowe.
 
 | Co widzisz | O co chodzi | Co zrobić |
 |---|---|---|
-| Bot milczy na `/start` | Zły token albo pakiet nie jest uruchomiony | Centrum pakietów → `dsm-mini` → dziennik |
+| Bot milczy na `/start` | Zły token albo pakiet nie jest uruchomiony | Centrum pakietów → **DSM mini (Telegram Mini App)** → dziennik |
 | „Dostęp do tego bota jest zamknięty” | Twojego ID nie ma na liście | Wpisz liczbę z kroku 2 do dozwolonych identyfikatorów (patrz „Zmienić ustawienia” niżej) |
 | Nie ma przycisku aplikacji | Publiczny adres jest pusty albo nie jest `https://` | To samo miejsce: plik ustawień, potem zrestartuj pakiet |
 | Przycisk jest, aplikacja się nie otwiera | Nie działa zwrotny serwer proxy albo certyfikat | Otwórz `https://twoj-adres/healthz` w przeglądarce |
