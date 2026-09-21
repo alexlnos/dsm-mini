@@ -1,0 +1,135 @@
+[
+   {
+      "step_title": "Accès au NAS",
+      "items": [
+         {
+            "desc": "Créez un utilisateur DSM dédié au service plutôt qu'un administrateur : Panneau de configuration → Utilisateur et groupe → Créer. N'autorisez que Download Station et File Station, et n'activez pas la double authentification."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_url",
+                  "desc": "Adresse DSM",
+                  "defaultValue": "https://localhost:5001",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire",
+                     "regex": {
+                        "expr": "/^https?:\\/\\/[^\\/]+$/",
+                        "errorText": "Doit commencer par https:// et sans barre oblique finale"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_user",
+                  "desc": "Utilisateur DSM",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "Mot de passe DSM",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire"
+                  }
+               }
+            ]
+         }
+      ]
+   },
+   {
+      "step_title": "Telegram",
+      "items": [
+         {
+            "desc": "Créez un bot avec @BotFather et récupérez votre identifiant numérique auprès de @userinfobot."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_bot_token",
+                  "desc": "Jeton du bot",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_allowed_ids",
+                  "desc": "Identifiants Telegram autorisés (séparés par des virgules)",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire",
+                     "regex": {
+                        "expr": "/^[0-9]+(,[0-9]+)*$/",
+                        "errorText": "Chiffres et virgules uniquement"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_public_url",
+                  "desc": "Adresse HTTPS publique de l'application",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire",
+                     "regex": {
+                        "expr": "/^https:\\/\\/[^\\/]+$/",
+                        "errorText": "Doit commencer par https:// et sans barre oblique finale"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "desc": "Telegram n'ouvre la Mini App qu'en HTTPS avec un certificat valide. Configurez dans DSM un proxy inverse de cette adresse vers localhost et le port ci-dessous."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_port",
+                  "desc": "Port local",
+                  "defaultValue": "8080",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Champ obligatoire",
+                     "regex": {
+                        "expr": "/^[0-9]{2,5}$/",
+                        "errorText": "Numéro de port uniquement"
+                     }
+                  }
+               }
+            ]
+         }
+      ]
+   }
+]

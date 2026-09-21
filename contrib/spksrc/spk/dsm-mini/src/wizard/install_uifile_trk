@@ -1,0 +1,135 @@
+[
+   {
+      "step_title": "NAS erişimi",
+      "items": [
+         {
+            "desc": "Hizmet için yönetici yerine ayrı bir DSM kullanıcısı oluşturun: Denetim Masası → Kullanıcı ve Grup → Oluştur. Yalnızca Download Station ve File Station izni verin ve iki adımlı doğrulamayı açmayın."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_url",
+                  "desc": "DSM adresi",
+                  "defaultValue": "https://localhost:5001",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu",
+                     "regex": {
+                        "expr": "/^https?:\\/\\/[^\\/]+$/",
+                        "errorText": "https:// ile başlamalı ve sonunda eğik çizgi olmamalı"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_user",
+                  "desc": "DSM kullanıcısı",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_dsm_password",
+                  "desc": "DSM parolası",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu"
+                  }
+               }
+            ]
+         }
+      ]
+   },
+   {
+      "step_title": "Telegram",
+      "items": [
+         {
+            "desc": "@BotFather ile bir bot oluşturun, sayısal kimliğinizi @userinfobot'tan alın."
+         },
+         {
+            "type": "password",
+            "subitems": [
+               {
+                  "key": "wizard_bot_token",
+                  "desc": "Bot belirteci",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu"
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_allowed_ids",
+                  "desc": "İzin verilen Telegram kimlikleri (virgülle)",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu",
+                     "regex": {
+                        "expr": "/^[0-9]+(,[0-9]+)*$/",
+                        "errorText": "Yalnızca rakam ve virgül"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_public_url",
+                  "desc": "Uygulamanın herkese açık HTTPS adresi",
+                  "defaultValue": "",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu",
+                     "regex": {
+                        "expr": "/^https:\\/\\/[^\\/]+$/",
+                        "errorText": "https:// ile başlamalı ve sonunda eğik çizgi olmamalı"
+                     }
+                  }
+               }
+            ]
+         },
+         {
+            "desc": "Telegram, Mini App'i yalnızca geçerli sertifikalı HTTPS üzerinden açar. DSM'de bu adresten localhost'a ve aşağıdaki porta ters proxy kurun."
+         },
+         {
+            "type": "textfield",
+            "subitems": [
+               {
+                  "key": "wizard_port",
+                  "desc": "Yerel port",
+                  "defaultValue": "8080",
+                  "validator": {
+                     "allowBlank": false,
+                     "errorText": "Bu alan zorunlu",
+                     "regex": {
+                        "expr": "/^[0-9]{2,5}$/",
+                        "errorText": "Yalnızca port numarası"
+                     }
+                  }
+               }
+            ]
+         }
+      ]
+   }
+]
