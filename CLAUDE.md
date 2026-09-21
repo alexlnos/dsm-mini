@@ -33,7 +33,15 @@ Known traps that specific lines of code exist for:
   a torrent is a working feature.
 - When the API says nothing about what it can do, the answer is in the web UI
   code on the NAS: `/var/packages/<Package>/target/ui/*.js` shows which call DSM
-  itself makes and with which parameters.
+  itself makes and with which parameters. Over HTTP the same files are at
+  `/webman/3rdparty/<Package>/`, and the package's `config` there names them —
+  that is how the whole task-status table was read out of Download Station
+  instead of being guessed one failing task at a time.
+- **Task statuses come as numbers** in DownloadStation2, and the table is in
+  `docs/synology-api.md`. Ours was shifted by one from code 7 on, so a task
+  being unpacked (10) was shown as failed. Anything outside the table is an
+  error — that is what Download Station's own `getStatusString` does with its
+  default branch, and why a failure arrives as 101 with no string of its own.
 - In `Task.edit` the parameter is called `id`, in `Task.BT.File` it is `task_id`.
 - A trailing slash in the `CopyMove` destination path gives error 418.
 - `SYNO.Core.System` does not return the host name — `FileStation.Info` has it.

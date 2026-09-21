@@ -35,25 +35,55 @@ const (
 // statusByCode holds the numeric codes of DownloadStation2.
 //
 // The legacy API reports the same states as strings, so the numbers are only
-// needed on the modern path. Codes confirmed on a live DSM 7.2.2 by asking
-// both APIs about the same task: 2, 5 and 101. The rest come from Synology's
-// schema and have not been seen in the wild.
+// needed on the modern path. This table is not guesswork: it is transcribed
+// from getStatusString in Download Station's own interface,
+// /webman/3rdparty/DownloadStation/download.js on the NAS. An earlier version
+// of this map was shifted by one from code 7 on, which meant a task being
+// unpacked (10) was shown to the user as a failure.
 var statusByCode = map[int]Status{
 	1:  StatusWaiting,
+	11: StatusWaiting,
+	12: StatusWaiting,
 	2:  StatusDownloading,
 	3:  StatusPaused,
 	4:  StatusFinishing,
+	13: StatusFinishing,
+	14: StatusFinishing,
 	5:  StatusFinished,
 	6:  StatusHashChecking,
-	7:  StatusSeeding,
-	8:  StatusWaiting, // filehosting_waiting — to the user this is the same waiting
-	9:  StatusExtracting,
-	10: StatusError,
-	// A failed task reports 101, not 10: the legacy API called the very same
-	// task "error" with status_extra.error_detail, while this one answered
-	// 101 and no extra. Without this line a broken download showed up in the
-	// app as "unknown" — in a calm blue, with a pause button.
-	101: StatusError,
+	// Pre-seeding is the moment between finishing and seeding. There is no
+	// separate word for it here, and "seeding" is what it becomes.
+	7: StatusSeeding,
+	8: StatusSeeding,
+	// filehosting_waiting — to the user this is the same waiting.
+	9:  StatusWaiting,
+	10: StatusExtracting,
+	// captcha_needed. The task is stuck until a human types the captcha in
+	// Download Station itself, so it is shown as a failure: red is the signal
+	// that someone has to go and look. If file-hosting downloads ever become
+	// a real scenario here, this deserves a state of its own.
+	15: StatusError,
+}
+
+// StatusFromCode translates a numeric DownloadStation2 code into a Status.
+//
+// Everything outside the table is an error — that is what Download Station's
+// own interface does, and it is why a failed task arrives as 101 with no
+// string of its own. Codes 102 to 134 name the specific reason (no space on
+// disk, destination denied, invalid torrent and so on); we do not show those
+// yet, and the legacy API is the only one that reports them in words.
+//
+// Unmapped codes are still written to the log: the table above was wrong once
+// and will go stale again when Synology adds a state.
+func StatusFromCode(code int) Status {
+	if s, ok := statusByCode[code]; ok {
+		return s
+	}
+	if _, seen := unknownCodes.LoadOrStore(code, true); !seen {
+		slog.Default().Warn("Download Station status code outside the known table, shown as an error",
+			"code", code)
+	}
+	return StatusError
 }
 
 // unknownCodes remembers the codes already reported.
@@ -61,21 +91,6 @@ var statusByCode = map[int]Status{
 // The task list is polled every few seconds, so a code nobody mapped would
 // otherwise repeat the same warning until the task goes away.
 var unknownCodes sync.Map
-
-// StatusFromCode translates a numeric DownloadStation2 code into a Status.
-//
-// An unmapped code becomes "unknown" — and says so in the log. The map above
-// is incomplete by nature: Synology documents none of this, and the codes are
-// learned one failing task at a time.
-func StatusFromCode(code int) Status {
-	if s, ok := statusByCode[code]; ok {
-		return s
-	}
-	if _, seen := unknownCodes.LoadOrStore(code, true); !seen {
-		slog.Default().Warn("unknown Download Station status code, shown as unknown", "code", code)
-	}
-	return StatusUnknown
-}
 
 // StatusFromString translates a legacy API string into a Status.
 func StatusFromString(s string) Status {
