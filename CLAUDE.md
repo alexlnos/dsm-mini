@@ -273,6 +273,20 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   `SYNO.Core.Package.Installation` `upgrade`/`install` call. `make-feed.py`
   takes them from the file itself and refuses to build a catalogue without it,
   so an entry cannot describe a package that is not there.
+- The `link` in the catalogue must point at a host that **does not compress**
+  what it serves. GitHub Pages does: asked with `Accept-Encoding: gzip` it
+  returns the .spk as a gzip stream, and no `md5` in the catalogue can describe
+  both that and the file. Release assets are served as they are, so the link
+  goes there and the redirect it answers with is harmless. `make-feed.py
+  --verify` downloads its own link and refuses to publish a catalogue that
+  describes something else — that check is the whole reason this was found.
+- The package is built with `COPYFILE_DISABLE=1` and `--format=ustar`. macOS
+  tar writes an AppleDouble companion beside every file (`._INFO` next to
+  `INFO`) and hides them again when listing the archive, so a package built on
+  a Mac had twenty junk entries and started with `._package.tgz` while
+  `tar tvf` showed it clean. `build-spk.sh` reads the finished archive back
+  with Python and fails if the junk returns or the first entry is not
+  `package.tgz`.
 - The catalogue is built from the **.spk files of the release**, downloaded back
   with `gh release download`, not from a fresh build: `md5` has to describe the
   exact file people will get, and a rebuild from a branch that moved on since

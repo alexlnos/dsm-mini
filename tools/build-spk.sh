@@ -10,6 +10,17 @@
 # Result: dist/dsm-mini-1.2.3-amd64.spk
 set -euo pipefail
 
+# macOS tar writes an AppleDouble companion next to every file whose extended
+# attributes it cannot store in the entry itself — `._INFO` beside `INFO`, and
+# so on. It then hides them again when it reads the archive back, so `tar tvf`
+# showed a clean package while half of its forty entries were these. The first
+# entry of the archive was `._package.tgz`, and that is what Package Center's
+# parser met where it expected the package: it refused the download as "not a
+# package" (error 4521) while the very same file, uploaded by hand, installed
+# without a word. GNU tar on Linux ignores the variable, so the build produces
+# the same archive on either machine.
+export COPYFILE_DISABLE=1
+
 ARCH="${1:-amd64}"
 VERSION="${2:-0.0.0}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -46,7 +57,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -C "$ROOT" -trimpath \
     -o "$WORK/staging/bin/dsm-mini" ./cmd/dsm-mini
 
 echo "→ package.tgz"
-( cd "$WORK/staging" && tar cpzf "$WORK/package.tgz" --owner=root --group=root . )
+( cd "$WORK/staging" && tar cpzf "$WORK/package.tgz" --format=ustar --owner=root --group=root . )
 
 # The md5 of package.tgz goes into INFO as `checksum`. Package Center verifies
 # it when installing from a package source, and a package without the field is
@@ -105,7 +116,24 @@ echo "→ .spk"
 mkdir -p "$OUT_DIR"
 SPK="$OUT_DIR/dsm-mini-$SPK_VERSION-$ARCH.spk"
 # The file order matches spksrc: DSM reads INFO without unpacking everything.
-( cd "$WORK" && tar cpf "$SPK" --owner=root --group=root \
+# `--format=ustar` rather than whatever the local tar defaults to: BSD tar
+# writes pax, and a pax header is one more entry in front of the real one.
+( cd "$WORK" && tar cpf "$SPK" --format=ustar --owner=root --group=root \
     package.tgz INFO scripts PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG WIZARD_UIFILES conf LICENSE )
+
+# The archive is checked rather than trusted: the same tar that writes the
+# AppleDouble entries also hides them when listing, so the only way to see what
+# is really inside is to read it with something else. The first entry has to be
+# package.tgz — that is where Package Center looks.
+python3 - "$SPK" <<'PYEOF'
+import sys, tarfile
+
+names = tarfile.open(sys.argv[1]).getnames()
+junk = [n for n in names if n.split("/")[-1].startswith("._") or "PaxHeader" in n]
+if junk:
+    sys.exit("%d macOS metadata entries in the package: %s" % (len(junk), junk[:3]))
+if names[0] != "package.tgz":
+    sys.exit("the package starts with %r, package.tgz expected" % names[0])
+PYEOF
 
 echo "done: $SPK ($(du -h "$SPK" | cut -f1))"

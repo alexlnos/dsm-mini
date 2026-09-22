@@ -105,7 +105,7 @@ jobs:
 
       - name: Build the catalogue
         run: |
-          python3 tools/make-feed.py "${{ steps.version.outputs.value }}" --spk dist --out public
+          python3 tools/make-feed.py "${{ steps.version.outputs.value }}" --spk dist --out public --verify
           cp spk/PACKAGE_ICON.PNG public/icon_72.png
           cp spk/PACKAGE_ICON_256.PNG public/icon_256.png
           ls public/

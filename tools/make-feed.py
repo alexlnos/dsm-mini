@@ -23,6 +23,7 @@ import hashlib
 import json
 import pathlib
 import shutil
+import urllib.request
 
 REPO = "alexlnos/dsm-mini"
 PAGES = f"https://{REPO.split('/')[0]}.github.io/{REPO.split('/')[1]}"
@@ -64,13 +65,16 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
         "version": version,
         "dname": "DSM mini (Telegram Mini App)",
         "desc": DESC,
-        # The package is served from the same site as the catalogue. It used
-        # to point at the GitHub release, and that link answers with a 302 to
-        # another host: Package Center downloaded something it would not
-        # install, and every update ended with "Invalid file format" while the
-        # very same file installed by hand. The release still carries the .spk
-        # for people who download it themselves.
-        "link": f"{PAGES}/{spk}",
+        # The release asset, and the redirect it answers with is fine — it was
+        # never the problem. What refused the package was its own contents:
+        # macOS tar had been writing AppleDouble entries into the archive (see
+        # tools/build-spk.sh). The link lives here rather than on Pages for a
+        # plainer reason — Pages compresses what it serves, and a package that
+        # arrives gzip-encoded is one more thing that can go wrong for no gain:
+        #
+        #   Pages:   content-encoding: gzip, content-length: 5249303
+        #   release: content-length: 5335040, served as it is
+        "link": f"https://github.com/{REPO}/releases/download/v{version.split('-')[0]}/{spk}",
         "md5": hashlib.md5(body).hexdigest(),
         "size": len(body),
         "thumbnail": [f"{PAGES}/icon_72.png"],
@@ -133,11 +137,41 @@ INDEX = """<!doctype html>
 """
 
 
+def verify(link: str, md5: str, size: int) -> None:
+    """Check that the link really serves the bytes the catalogue promises.
+
+    It did not, once. The link pointed at GitHub Pages, which compresses what
+    it serves: a client that says it understands gzip gets 5 249 303 bytes of
+    gzip instead of the 5 335 040 of the package, and no md5 in the catalogue
+    can describe both. Package Center says "invalid file format" and names
+    nothing, so the check is done here, where the two values are still side by
+    side. The request asks for gzip on purpose — the point is to see what a
+    downloader that accepts it would be handed.
+    """
+    request = urllib.request.Request(link, headers={"Accept-Encoding": "gzip"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        encoding = response.headers.get("Content-Encoding", "")
+        body = response.read()  # raw: urllib does not decode gzip by itself
+
+    if encoding:
+        raise SystemExit(
+            f"{link}\n  served with Content-Encoding: {encoding} — the package "
+            f"has to arrive as it is, or its checksum describes nothing")
+    if len(body) != size:
+        raise SystemExit(f"{link}\n  {len(body)} bytes, {size} in the catalogue")
+    got = hashlib.md5(body).hexdigest()
+    if got != md5:
+        raise SystemExit(f"{link}\n  md5 {got}, {md5} in the catalogue")
+    print(f"  {link.rsplit('/', 1)[-1]}: {size} bytes, md5 matches")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("version", help="package version, for example 1.2.3-1")
     ap.add_argument("--spk", default="dist", help="directory with the built .spk files")
     ap.add_argument("--out", default="public", help="where to put the catalogue")
+    ap.add_argument("--verify", action="store_true",
+                    help="download every link and check it against the catalogue")
     args = ap.parse_args()
 
     out = pathlib.Path(args.out)
@@ -145,7 +179,10 @@ def main() -> None:
 
     spk_dir = pathlib.Path(args.spk)
     for arch, syno_archs in ARCHS.items():
-        body = {"packages": [entry(args.version, arch, spk_dir)]}
+        package = entry(args.version, arch, spk_dir)
+        if args.verify:
+            verify(package["link"], package["md5"], package["size"])
+        body = {"packages": [package]}
         (out / f"{arch}.json").write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
         # Every platform name gets its own file: people should not have to
         # know their epyc7002 is amd64. The files are identical, so it is a copy.
@@ -157,10 +194,6 @@ def main() -> None:
     for shot in SHOTS:
         shutil.copy2(shot, shots / shot.name)
 
-    # The packages themselves, next to the catalogue that points at them.
-    for arch in ARCHS:
-        name = f"dsm-mini-{args.version}-{arch}.spk"
-        shutil.copy2(spk_dir / name, out / name)
 
     (out / "index.html").write_text(
         INDEX.format(repo=REPO, pages=PAGES, version=args.version), encoding="utf-8")
