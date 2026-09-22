@@ -75,10 +75,14 @@ echo "→ package.tgz"
 PKG_CHECKSUM="$(md5 -q "$WORK/package.tgz" 2>/dev/null || md5sum "$WORK/package.tgz" | cut -d" " -f1)"
 
 echo "→ INFO"
+# `package` is the identifier, not the name: /var/packages/dsm-mini, the
+# upgrade path and every API call go by it, so it stays as it is whatever the
+# visible name becomes — that one is `displayname`.
+#
+# No comments go into the file itself. Neither of the third-party packages that
+# install from a source on a live DSM has one, and INFO is being kept to their
+# shape while a parser in the upgrade path is under suspicion.
 cat > "$WORK/INFO" <<EOF
-# package is the identifier, not the name: /var/packages/dsm-mini, the upgrade
-# path and every API call go by it, so it stays as it is. The visible name is
-# displayname.
 package="dsm-mini"
 version="$SPK_INFO_VERSION"
 os_min_ver="7.0-40000"
@@ -96,22 +100,19 @@ silent_uninstall="no"
 ctl_stop="yes"
 EOF
 
-# The listing text comes from assets/store.json so that the package and the
-# catalogue on GitHub Pages cannot drift apart. Package Center picks the
-# description matching the DSM language and falls back to `description`.
+# INFO carries one short description and nothing else from the listing. The
+# long text and the changelog live in the catalogue, which is what Package
+# Center actually shows — the changelog in the update card comes from there,
+# not from here. This is not tidiness: INFO had grown to 11 506 bytes with a
+# single line of 1 490, while every third-party package that installs from a
+# source on a live DSM has around 700 and no line over 200. Nine translated
+# descriptions and the whole changelog were going in.
 python3 - "$ROOT/assets/store.json" >> "$WORK/INFO" <<'PYEOF'
 import json, sys
 
 store = json.load(open(sys.argv[1], encoding="utf-8"))
-
-def line(key, value):
-    # INFO is key="value"; a stray quote would cut the value short.
-    return '%s="%s"' % (key, value.replace('"', "'"))
-
-print(line("description", store["description"]["enu"]))
-for lang, text in store["description"].items():
-    print(line("description_%s" % lang, text))
-print(line("changelog", store["changelog"]))
+# INFO is key="value"; a stray quote would cut the value short.
+print('description="%s"' % store["short"].replace('"', "'"))
 PYEOF
 
 cp -r "$ROOT/spk/scripts" "$ROOT/spk/conf" "$ROOT/spk/WIZARD_UIFILES" "$WORK/"
