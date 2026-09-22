@@ -225,6 +225,13 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   because that path does not check it. The package looked healthy for a month
   that way. `build-spk.sh` computes it; details and the two third-party
   packages it was verified against are in `docs/synology-api.md`.
+- The version in INFO ends with a **build number**, pinned at `-0`. A Synology
+  version is `major.minor.build-buildnumber`, and every package that installs
+  from a source on a live DSM carries one; ours did while it was `1.0.0-1` and
+  lost it when the suffix was dropped for looking like noise. `build-spk.sh`
+  and `make-feed.py` both append it, because Package Center compares the
+  catalogue's version against INFO's and the two have to be spelled the same
+  way. The tag and the file name stay plain — nothing compares those.
 - The `arch` values in INFO are **Synology platform names**, not processors
   (`epyc7002`, `rtd1296`). One package covers every model of the same
   architecture.

@@ -49,6 +49,13 @@ SHOTS = sorted((pathlib.Path(__file__).resolve().parent.parent
                 / "docs" / "store").glob("*.png"))
 
 
+# The build number at the end of a Synology version. Pinned at 0 and kept in
+# step with tools/build-spk.sh: Package Center compares the catalogue's version
+# against the one in INFO, so the two have to be spelled the same way. The file
+# name and the tag stay plain — nothing compares those.
+BUILD = 0
+
+
 def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
     spk = f"dsm-mini-{version}-{arch}.spk"
 
@@ -62,7 +69,7 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
 
     return {
         "package": "dsm-mini",
-        "version": version,
+        "version": f"{version}-{BUILD}",
         "dname": "DSM mini (Telegram Mini App)",
         "desc": DESC,
         # The release asset, and the redirect it answers with is fine — it was

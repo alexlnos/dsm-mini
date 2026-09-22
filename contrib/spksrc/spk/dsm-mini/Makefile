@@ -1,6 +1,6 @@
 SPK_NAME = dsm-mini
-SPK_VERS = 1.0.4
-SPK_REV = 1
+SPK_VERS = 1.0.5
+SPK_REV = 0
 SPK_ICON = src/dsm-mini.png
 
 DEPENDS = cross/dsm-mini

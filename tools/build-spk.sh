@@ -45,15 +45,22 @@ case "$ARCH" in
         ;;
 esac
 
-# DSM understands only digits and the . - _ separators in a version. A build
-# number after a hyphen is allowed but not added here: "1.0.2-1" with a build
-# number frozen at 1 told nobody anything, and read worse than "1.0.2".
-SPK_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//')"
+# A Synology version is major.minor.build-buildnumber, and the last part is
+# not decoration: every package that installs from a source on a live DSM has
+# one, ours had one while it was 1.0.0-1, and it went missing when the suffix
+# was dropped for looking like noise. It is pinned at 0 — the number means
+# nothing to anyone here, and a frozen 1 read worse than no number at all.
+#
+# It goes into INFO and into the catalogue, which have to agree, and stays out
+# of the file name and the tag, which nothing compares.
+SPK_BUILD=0
+SPK_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//; s/-[0-9]*$//')"
+SPK_INFO_VERSION="$SPK_VERSION-$SPK_BUILD"
 
 echo "→ building the binary ($GOARCH)"
 mkdir -p "$WORK/staging/bin"
 CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -C "$ROOT" -trimpath \
-    -ldflags "-s -w -X main.version=$SPK_VERSION" \
+    -ldflags "-s -w -X main.version=$SPK_INFO_VERSION" \
     -o "$WORK/staging/bin/dsm-mini" ./cmd/dsm-mini
 
 echo "→ package.tgz"
@@ -73,7 +80,7 @@ cat > "$WORK/INFO" <<EOF
 # path and every API call go by it, so it stays as it is. The visible name is
 # displayname.
 package="dsm-mini"
-version="$SPK_VERSION"
+version="$SPK_INFO_VERSION"
 os_min_ver="7.0-40000"
 checksum="$PKG_CHECKSUM"
 displayname="DSM mini (Telegram Mini App)"
