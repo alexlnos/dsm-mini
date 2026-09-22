@@ -34,12 +34,10 @@ case "$ARCH" in
         ;;
 esac
 
-# DSM understands only digits and the . - _ separators in a version
+# DSM understands only digits and the . - _ separators in a version. A build
+# number after a hyphen is allowed but not added here: "1.0.2-1" with a build
+# number frozen at 1 told nobody anything, and read worse than "1.0.2".
 SPK_VERSION="$(printf '%s' "$VERSION" | sed 's/^v//')"
-case "$SPK_VERSION" in
-    *-*) : ;;                      # a build number is already there
-    *) SPK_VERSION="$SPK_VERSION-1" ;;
-esac
 
 echo "→ building the binary ($GOARCH)"
 mkdir -p "$WORK/staging/bin"

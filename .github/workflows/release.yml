@@ -89,7 +89,6 @@ jobs:
             value="${{ inputs.version }}"
           fi
           echo "tag=v${value%%-*}" >> $GITHUB_OUTPUT
-          case "$value" in *-*) : ;; *) value="$value-1" ;; esac
           echo "value=$value" >> $GITHUB_OUTPUT
 
       # The packages come from the release itself rather than from a fresh
