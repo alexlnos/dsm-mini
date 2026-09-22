@@ -279,7 +279,9 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   both that and the file. Release assets are served as they are, so the link
   goes there and the redirect it answers with is harmless. `make-feed.py
   --verify` downloads its own link and refuses to publish a catalogue that
-  describes something else — that check is the whole reason this was found.
+  describes something else. Whether this is what Package Center tripped over is
+  **not established** — `docs/synology-api.md` lists what has been ruled out and
+  says plainly that the cause of "Invalid file format" is still open.
 - The package is built with `COPYFILE_DISABLE=1` and `--format=ustar`. macOS
   tar writes an AppleDouble companion beside every file (`._INFO` next to
   `INFO`) and hides them again when listing the archive, so a package built on
