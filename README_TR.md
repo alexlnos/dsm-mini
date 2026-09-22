@@ -60,185 +60,67 @@ bir dil İngilizce alır.
 
 ## Kurulum
 
-Bundan sonrası adım adım. Önceden bir şey bilmeniz gerekmiyor ama yarım saat
-ayırın: zamanın çoğu servise değil, sertifikaya gidiyor.
-
-### Neler gerekecek
-
-- **DSM 7'li bir Synology NAS.** Önceden bir şey kurmanız gerekmiyor: servis DSM
-  paketi olarak geliyor ve NAS'ın kendisinde çalışıyor.
-- **Download Station** — henüz yoksa Paket Merkezi'nden kurun.
-- Telefonda **Telegram**.
-- **Yönlendiriciye erişim** — iki bağlantı noktasını yönlendirmek gerekecek.
+Yarım saat, ve çoğu servise değil sertifikaya gidiyor. DSM 7'li bir Synology
+NAS ve Download Station gerekiyor; başka hiçbir şeyi önceden kurmak gerekmez.
 
 > **Genel bir adres neden gerekli.** Telegram bir Mini App'i yalnızca gerçek
-> sertifikalı `https://` üzerinden açar. Kendinden imzalı bir sertifika, yerel
-> bir `192.168.…` ve `nas:5001` türü bir adres işe yaramaz: uygulama basitçe
-> açılmaz. Bot ise adres olmadan da çalışır — yalnızca düğmesiz.
+> sertifikalı `https://` üzerinden açar: yerel bir `192.168.…` ya da kendinden
+> imzalı bir sertifika açılmaz. Botun kendisi adressiz de çalışır, sadece
+> düğmesiz.
 
----
+**1. Botu oluşturmak.** [@BotFather](https://t.me/BotFather) → `/newbot` → bir
+ad ve `bot` ile biten bir kullanıcı adı. Yanıt olarak bir belirteç gelir;
+saklayın, o botunuzun parolasıdır.
 
-### Adım 1. Botu oluşturmak
+**2. Kendi numaranızı öğrenmek.** [@userinfobot](https://t.me/userinfobot) →
+Start. `Id` satırıyla yanıt verir.
 
-1. Telegram'da [@BotFather](https://t.me/BotFather)'ı açın ve **Start**'a basın.
-2. `/newbot` gönderin.
-3. Botun **adını** yazın — herhangi bir şey, sohbet başlığında görünen budur.
-   Örneğin: `NAS'ım`.
-4. Botun **kullanıcı adını** yazın — Latin harfleriyle ve mutlaka `bot` ile
-   bitecek. Örneğin: `alex_home_nas_bot`. Doluysa BotFather başkasını ister.
-5. Yanıt olarak şuna benzer bir satır gelir:
-   `1234567890:AAExampleTokenReplaceThisWithYours0`. Bu, **belirteç**. Kopyalayın
-   — 5. adımda gerekecek.
+**3. Servis için bir DSM kullanıcısı açmak.** Denetim Masası → Kullanıcı ve
+Grup → Oluştur. Yalnızca Download Station ve File Station erişimi, iki aşamalı
+doğrulama olmadan: tek kullanımlık kod bir yapılandırma dosyasından gelemez.
+Yönetici vermeyin: servis dosya silebiliyor.
 
-> Belirteç botun parolasıdır. Elinde olan botu yönetir. Sohbetlerde ve GitHub'da
-> paylaşmayın.
+**4. Adres ve sertifika almak.** NAS'ta geçerli sertifikalı bir alan adı zaten
+varsa atlayın.
 
-### Adım 2. Kendi Telegram kimliğinizi öğrenmek
+- Denetim Masası → Harici Erişim → DDNS → Ekle, sağlayıcı `Synology`:
+  `alex-nas.synology.me` gibi bir şey çıkar.
+- Yönlendiricide **80** ve **443** numaralı bağlantı noktalarını NAS'a
+  yönlendirin. 80 olmadan sertifika verilmez, 443 olmadan uygulama açılmaz.
+- Denetim Masası → Güvenlik → Sertifika → Ekle → Let's Encrypt'ten, aynı ad
+  için.
 
-Servisin, yazanın siz olduğunuzu, bir yabancı olmadığınızı anladığı sayı budur.
+Telefondan mobil veriyle deneyin: `https://alex-nas.synology.me:5001` DSM'yi
+uyarısız açmalı.
 
-1. [@userinfobot](https://t.me/userinfobot)'u açın ve **Start**'a basın.
-2. `Id` satırında bir sayıyla yanıt verir, örneğin `123456789`. Not alın.
+**5. Paketi kurmak.** Paket Merkezi → Ayarlar → Paket Kaynakları → Ekle, ad
+`dsm-mini` ve mimarinize göre adres:
 
-### Adım 3. NAS'ta ayrı bir kullanıcı açmak
+- Intel ve AMD, modellerin çoğu: `https://alexlnos.github.io/dsm-mini/amd64.json`
+- ARM, giriş seviyesi modeller: `https://alexlnos.github.io/dsm-mini/arm64.json`
 
-Servis dosya silebiliyor, bu yüzden ona yönetici vermek kötü bir fikir.
+Sonra Ayarlar → Genel → Güven Düzeyi → **Herhangi bir yayıncı**, ve
+**Topluluk** bölümünden **DSM mini (Telegram Mini App)** kurun. Mimariden emin
+değil misiniz? `amd64` deneyin: uymayan bir paket zaten reddedilir.
 
-1. DSM'de: **Denetim Masası → Kullanıcı ve Grup → Kullanıcı → Oluştur**.
-2. Ad: `dsm-mini`. Parola uzun ve rastgele olsun; not alın.
-3. **İki aşamalı doğrulamayı açmayın.** Tek kullanımlık kodu alacak bir yer yok,
-   oturum açma basitçe geçmez.
-4. Gruplar: `users` kalsın.
-5. Paylaşılan klasörler: **yalnızca** indirme yapacağınız klasörlere erişim verin
-   (genelde `download` ya da `Media`). Geri kalanına «Erişim yok».
-6. Uygulamalar: **Download Station** ve **File Station**'a izin verin, geri
-   kalanını yasaklayın.
+Yükleyici yedi değer sorar ve her birini sorarken açıklar — hepsi için gereken
+yukarıdaki adımlarda toplandı. Ya da `.spk` dosyasını
+[sürümlerden](https://github.com/alexlnos/dsm-mini/releases) elle kurun, Paket
+Merkezi → Elle Yükleme ile.
 
-> 5. adımda günlükte `authentication with DSM failed` görürseniz buraya dönün ve
-> bu kullanıcıya bir de **DSM** uygulamasına izin verin: bazı sürümlerde onsuz
-> oturum açma API üzerinden bile geçmiyor.
+**6. Adresi servise yönlendirmek.** Denetim Masası → Oturum Açma Portalı →
+Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin adınız, bağlantı
+noktası `443`. Hedef: `HTTP`, `localhost`, bağlantı noktası `8080`.
 
-### Adım 4. Adres ve sertifika almak
+> Bu ad için **80** numaralı bağlantı noktasını proxy'lemeyin: DSM sertifikayı
+> oradan yeniliyor, araya girmek yenilemeyi üç ay sonra bozar.
 
-NAS'ta geçerli sertifikalı bir alan adınız zaten varsa bu adımı atlayın.
+**7. Denemek.** Tarayıcıda `https://adresiniz/healthz` `{"status":"ok"}`
+yanıtını vermeli. Telegram imzası olmadan dışarıya hiçbir şey verilmez.
 
-1. **Ad.** Denetim Masası → **Harici Erişim → DDNS → Ekle**. Hizmet sağlayıcı
-   `Synology`, ana bilgisayar adı boş olan herhangi biri, örneğin `alex-nas`.
-   `alex-nas.synology.me` adresi çıkar. Kaydedin.
-2. **Yönlendiricideki bağlantı noktaları.** Yönlendirici ayarlarında **80** ve
-   **443** numaralı bağlantı noktalarını NAS'ın iç adresine yönlendirin. 80
-   olmadan sertifika verilmez, 443 olmadan uygulama açılmaz.
-3. **Sertifika.** Denetim Masası → **Güvenlik → Sertifika → Ekle → Let's
-   Encrypt'ten sertifika al**. Alan adı yine o `alex-nas.synology.me`, e-posta
-   sizinki. Verilmesi bir dakika sürer.
-
-Deneyin: telefondan mobil veriyle (ev Wi-Fi'siyle değil)
-`https://alex-nas.synology.me:5001` adresini açın. DSM, sertifika uyarısı
-olmadan açılmalı.
-
-### Adım 5. Paketi kurmak
-
-En kolay yol **bir paket kaynağı eklemek**; böylece kurulum ve güncellemeler
-doğrudan Paket Merkezi'nden gider:
-
-1. **Paket Merkezi → Ayarlar → Paket Kaynakları → Ekle**.
-2. Ad: `dsm-mini`. Adres, mimarinize göre:
-   - Intel ve AMD (modellerin çoğu): `https://alexlnos.github.io/dsm-mini/amd64.json`
-   - ARM (giriş seviyesi modeller): `https://alexlnos.github.io/dsm-mini/arm64.json`
-3. Üçüncü taraf paketlere izin verin: **Ayarlar → Genel → Güven Düzeyi →
-   Herhangi bir yayıncı**.
-4. Solda **Topluluk** bölümü, içinde de **DSM mini (Telegram Mini App)** görünür. Kur'a basın — sonra
-   sihirbaz ayarları sorar.
-
-Mimarinizi bilmiyorsanız `amd64`'ü deneyin: uymayan bir paketi DSM zaten kurmayı
-reddeder, bununla bir şey bozulmaz.
-
-**Ya da kaynak olmadan, elle:**
-
-1. `.spk` dosyasını
-   [sürümler](https://github.com/alexlnos/dsm-mini/releases) sayfasından indirin:
-   Intel ve AMD modelleri için `-amd64` (DS918+, DS923+, DS1522+, SA6400 ve
-   benzerleri), ARM'li giriş seviyesi modeller için `-arm64` (DS223, DS124).
-   Emin değilseniz `amd64` alın: uymayan bir paketi DSM zaten kurmayı reddeder.
-2. **Paket Merkezi → Elle Yükleme → Gözat** ve indirdiğiniz dosyayı seçin.
-3. DSM yayıncının bilinmediğini söyler. Üçüncü taraf bir paket için bu normal:
-   **Paket Merkezi → Ayarlar → Genel → Güven Düzeyi → Herhangi bir yayıncı**
-   ile bir kereliğine izin verin.
-
-#### Sihirbaz ne soruyor
-
-Yükleyicide iki ekran ve yedi alan var. Bunlar için gereken her şey 1–4.
-adımlarda toplandı.
-
-| Alan | Ne yazılacak |
-|---|---|
-| DSM adresi | Zaten dolu: `https://localhost:5001`. Servis NAS'ın kendisinde çalışıyor, olduğu gibi bırakın |
-| DSM kullanıcısı | 3. adımdaki kullanıcının adı, örneğin `dsm-mini` |
-| DSM parolası | O kullanıcının parolası |
-| Bot belirteci | 1. adımdaki belirteç |
-| İzin verilen Telegram kimlikleri | 2. adımdaki numaranız. Birkaç kişi: virgülle ayrılmış |
-| Genel HTTPS adresi | 4. adımdaki adresiniz, örneğin `https://alex-nas.synology.me` |
-| Yerel bağlantı noktası | `8080` kalsın. Yalnızca NAS'ta bu bağlantı noktası doluysa değiştirin |
-
-**Burada gerçekten yapılan hatalar:**
-
-| Yazılan | Doğrusu |
-|---|---|
-| `alex-nas.synology.me` | `https://alex-nas.synology.me` — protokolüyle |
-| `https://alex-nas.synology.me/` | sonunda eğik çizgi olmadan |
-| Boş kimlik listesi | boş, **hiç kimse** demek; numaranızı yazın |
-| Genel adresin DSM adresi alanına yazılması | DSM adresi `https://localhost:5001` olarak kalır |
-| Parola yerine tek kullanımlık 2FA kodu | hesapta iki aşamalı doğrulama hiç olmamalı (3. adım) |
-
-Kurulumdan sonra paket kendi başlar ve NAS ile birlikte açılır. Ayarlar
-`/var/packages/dsm-mini/var/config.env` dosyasında (izinler `600`), günlük ise
-yanında, `dsm-mini.log` dosyasında durur.
-
-Servis başlayamazsa — yanlış belirteç, yanlış parola, ağ yok — bunu nedeniyle
-birlikte **DSM bildirim merkezinde** söyler. Günlüğün tamamı Paket Merkezi'nde,
-paketin sayfasındadır.
-
-### Adım 6. Adresi servise yönlendirmek
-
-Şu anda servis yalnızca NAS'ın içinde, 8080 numaralı bağlantı noktasını
-dinliyor. Ters proxy, internetten gelen istekleri HTTPS üzerinden alıp ona
-aktarır.
-
-1. **Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy → Oluştur**.
-   (DSM 7.0–7.1'de bu **Denetim Masası → Uygulama Portalı → Ters Proxy**.)
-2. **Kaynak**: protokol `HTTPS`, ana bilgisayar adı `alex-nas.synology.me`,
-   bağlantı noktası `443`.
-3. **Hedef**: protokol `HTTP`, ana bilgisayar adı `localhost`, bağlantı noktası
-   `8080`.
-4. Kaydedin.
-
-> **Bu ad için 80 numaralı bağlantı noktasını proxy'lemeyin**: DSM Let's Encrypt
-> sertifikasını oradan yeniliyor, araya girmek yenilemeyi üç ay sonra bozar.
-
-### Adım 7. Denemek
-
-Tarayıcıda `https://alex-nas.synology.me/healthz` adresini açın. Şöyle yanıt
-vermeli:
-
-```json
-{"status":"ok"}
-```
-
-Yanıt verdiyse servis ayakta ve dışarıdan erişilebilir. Bunu yaparken veri de
-vermez: Telegram imzası olmayan her istek reddedilir.
-
-### Adım 8. Uygulamayı açmak
-
-1. Botunuzu Telegram'da 1. adımdaki kullanıcı adıyla bulun.
-2. **Start**'a basın.
-3. Aşağıda, yazma alanının yanında bir **İndirmeler** düğmesi belirir —
-   uygulamayı o açar. Düğmeyi bot açılışta kendi koyar, elle bir şey ayarlamak
-   gerekmez.
-4. Bota herhangi bir magnet bağlantısı gönderin — klasörleri düğmelerle önerir.
-
-Hazır.
-
----
+**8. Uygulamayı açmak.** Botu kullanıcı adından bulun, Start'a basın — yazma
+alanının yanında bir **İndirmeler** düğmesi belirir. Ona herhangi bir magnet
+bağlantısı gönderin, klasörleri düğmelerle önerir.
 
 ## Bir şeyler ters gittiyse
 

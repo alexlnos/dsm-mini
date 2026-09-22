@@ -912,6 +912,10 @@ h1 {
 
 .bays-row { display: flex; gap: 7px; margin-top: 9px; }
 
+/* The M.2 label follows the SATA grid and would otherwise sit right on top of
+   it, reading as part of the row above. */
+.bays-grid + .bays-label { margin-top: 16px; }
+
 .bay {
   /* Three lines fit: the bay number, the capacity and the temperature. */
   height: 58px;

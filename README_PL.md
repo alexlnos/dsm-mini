@@ -60,184 +60,68 @@ polski. Nieznany język dostaje angielski.
 
 ## Instalacja
 
-Dalej idzie krok po kroku. Nie trzeba nic wiedzieć wcześniej, ale zarezerwuj pół
-godziny: większość czasu pochłania certyfikat, a nie sama usługa.
+Pół godziny, z czego większość pochłania certyfikat, a nie sama usługa.
+Potrzebny jest NAS Synology z DSM 7 i Download Station; niczego więcej nie
+trzeba instalować wcześniej.
 
-### Co będzie potrzebne
+> **Po co publiczny adres.** Telegram otwiera Mini App tylko po `https://` z
+> prawdziwym certyfikatem: lokalny `192.168.…` ani samopodpisany się nie
+> otworzą. Sam bot działa i bez adresu, tylko bez przycisku.
 
-- **NAS Synology** z DSM 7. Niczego nie trzeba instalować wcześniej: usługa
-  przychodzi jako pakiet DSM i działa na samym NAS-ie.
-- **Download Station** — zainstaluj z Centrum pakietów, jeśli jeszcze go nie ma.
-- **Telegram** w telefonie.
-- **Dostęp do routera** — trzeba będzie przekierować dwa porty.
+**1. Utworzyć bota.** [@BotFather](https://t.me/BotFather) → `/newbot` → nazwa
+i login kończący się na `bot`. W odpowiedzi przyjdzie token; zachowaj go, to
+hasło do twojego bota.
 
-> **Dlaczego potrzebny jest publiczny adres.** Telegram otwiera Mini App
-> wyłącznie po `https://` z prawdziwym certyfikatem. Samopodpisany, lokalny
-> `192.168.…` i adres w rodzaju `nas:5001` nie wystarczą: aplikacja po prostu się
-> nie otworzy. Bot działa i bez adresu — tylko bez przycisku.
+**2. Poznać swój numer.** [@userinfobot](https://t.me/userinfobot) → Start.
+Odpowie linią `Id`.
 
----
+**3. Założyć użytkownika DSM dla usługi.** Panel sterowania → Użytkownik i
+grupa → Utwórz. Dostęp tylko do Download Station i File Station, bez
+weryfikacji dwuetapowej: kod jednorazowy nie ma jak trafić z pliku
+konfiguracyjnego. Nie dawaj administratora: usługa potrafi kasować pliki.
 
-### Krok 1. Utworzyć bota
+**4. Zdobyć adres i certyfikat.** Pomiń, jeśli NAS ma już domenę z ważnym
+certyfikatem.
 
-1. Otwórz w Telegramie [@BotFather](https://t.me/BotFather) i naciśnij **Start**.
-2. Wyślij `/newbot`.
-3. Wpisz **nazwę** bota — dowolną, widać ją w nagłówku czatu. Na przykład:
-   `Mój NAS`.
-4. Wpisz **login** bota — łacińskimi literami i koniecznie kończący się na `bot`.
-   Na przykład: `alex_home_nas_bot`. Jeśli zajęty, BotFather poprosi o inny.
-5. W odpowiedzi przyjdzie linia w rodzaju
-   `1234567890:AAExampleTokenReplaceThisWithYours0`. To **token**. Skopiuj go —
-   przyda się w kroku 5.
+- Panel sterowania → Dostęp zewnętrzny → DDNS → Dodaj, usługodawca `Synology`:
+  wyjdzie coś w rodzaju `alex-nas.synology.me`.
+- Na routerze przekieruj na NAS porty **80** i **443**. Bez 80 nie wystawi się
+  certyfikat, bez 443 nie otworzy się aplikacja.
+- Panel sterowania → Zabezpieczenia → Certyfikat → Dodaj → z Let's Encrypt, na
+  tę samą nazwę.
 
-> Token to hasło do bota. Kto go ma, ten steruje botem. Nie wrzucaj go na czaty
-> ani na GitHuba.
+Sprawdź z telefonu przez internet mobilny:
+`https://alex-nas.synology.me:5001` powinien otworzyć DSM bez ostrzeżeń.
 
-### Krok 2. Poznać swoje Telegram ID
+**5. Zainstalować pakiet.** Centrum pakietów → Ustawienia → Źródła pakietów →
+Dodaj, nazwa `dsm-mini` i adres według twojej architektury:
 
-To liczba, po której usługa pozna, że piszesz właśnie ty, a nie ktoś obcy.
+- Intel i AMD, większość modeli: `https://alexlnos.github.io/dsm-mini/amd64.json`
+- ARM, modele budżetowe: `https://alexlnos.github.io/dsm-mini/arm64.json`
 
-1. Otwórz [@userinfobot](https://t.me/userinfobot) i naciśnij **Start**.
-2. Odpowie liczbą w wierszu `Id`, na przykład `123456789`. Zapisz.
+Dalej Ustawienia → Ogólne → Poziom zaufania → **Dowolny wydawca**, i
+zainstaluj **DSM mini (Telegram Mini App)** z sekcji **Społeczność**. Nie masz
+pewności co do architektury? Spróbuj `amd64`: niepasujący pakiet po prostu
+zostanie odrzucony.
 
-### Krok 3. Założyć osobnego użytkownika na NAS-ie
+Instalator pyta o siedem wartości i przy każdej tłumaczy, czym jest —
+wszystko do nich zebrano w krokach powyżej. Albo zainstaluj `.spk` z
+[wydań](https://github.com/alexlnos/dsm-mini/releases) ręcznie, przez Centrum
+pakietów → Instalacja ręczna.
 
-Usługa potrafi kasować pliki, więc dawanie jej administratora to zły pomysł.
+**6. Skierować adres na usługę.** Panel sterowania → Portal logowania →
+Zaawansowane → Zwrotny serwer proxy → Utwórz. Źródło: `HTTPS`, twoja nazwa,
+port `443`. Miejsce docelowe: `HTTP`, `localhost`, port `8080`.
 
-1. W DSM: **Panel sterowania → Użytkownik i grupa → Użytkownik → Utwórz**.
-2. Nazwa: `dsm-mini`. Hasło długie i losowe; zapisz je.
-3. **Nie włączaj weryfikacji dwuetapowej.** Kodu jednorazowego nie ma skąd wziąć
-   i logowanie po prostu nie przejdzie.
-4. Grupy: zostaw `users`.
-5. Foldery współdzielone: daj dostęp **tylko** do tych, do których będziesz
-   pobierać (zwykle `download` albo `Media`). Reszcie — „Brak dostępu”.
-6. Aplikacje: pozwól na **Download Station** i **File Station**, resztę zabroń.
+> Portu **80** dla tej nazwy nie przepuszczaj przez proxy: przez niego DSM
+> odnawia certyfikat, a przechwycenie zepsuje odnowienie trzy miesiące później.
 
-> Jeśli w kroku 5 w dzienniku pojawi się `authentication with DSM failed` —
-> wróć tutaj i pozwól temu użytkownikowi jeszcze na aplikację **DSM**: na części
-> wersji bez niej logowanie nie przechodzi nawet przez API.
+**7. Sprawdzić.** `https://twoj-adres/healthz` w przeglądarce powinno
+odpowiedzieć `{"status":"ok"}`. Bez podpisu Telegrama nic nie jest wydawane.
 
-### Krok 4. Zdobyć adres i certyfikat
-
-Jeśli masz już domenę z ważnym certyfikatem na NAS-ie — pomiń krok.
-
-1. **Nazwa.** Panel sterowania → **Dostęp zewnętrzny → DDNS → Dodaj**.
-   Usługodawca `Synology`, nazwa hosta dowolna wolna, na przykład `alex-nas`.
-   Wyjdzie adres `alex-nas.synology.me`. Zapisz.
-2. **Porty na routerze.** W ustawieniach routera przekieruj na wewnętrzny adres
-   NAS-a **port 80** i **port 443**. Bez 80 nie wystawi się certyfikat, bez 443
-   nie otworzy się aplikacja.
-3. **Certyfikat.** Panel sterowania → **Zabezpieczenia → Certyfikat → Dodaj →
-   Uzyskaj certyfikat z Let's Encrypt**. Nazwa domeny to ten sam
-   `alex-nas.synology.me`, e-mail twój. Wystawienie trwa minutę.
-
-Sprawdź: otwórz `https://alex-nas.synology.me:5001` z telefonu przez internet
-mobilny (nie przez domowe Wi-Fi). DSM powinien się otworzyć bez ostrzeżeń o
-certyfikacie.
-
-### Krok 5. Zainstalować pakiet
-
-Najprostsza droga to **dodać źródło pakietów**, wtedy instalacja i aktualizacje
-idą prosto z Centrum pakietów:
-
-1. **Centrum pakietów → Ustawienia → Źródła pakietów → Dodaj**.
-2. Nazwa: `dsm-mini`. Adres według twojej architektury:
-   - Intel i AMD (większość modeli): `https://alexlnos.github.io/dsm-mini/amd64.json`
-   - ARM (modele budżetowe): `https://alexlnos.github.io/dsm-mini/arm64.json`
-3. Pozwól na pakiety z zewnątrz: **Ustawienia → Ogólne → Poziom zaufania →
-   Dowolny wydawca**.
-4. Po lewej pojawi się sekcja **Społeczność**, a w niej **DSM mini (Telegram Mini App)**. Naciśnij
-   Zainstaluj — dalej kreator zapyta o ustawienia.
-
-Nie znasz swojej architektury — spróbuj `amd64`: niepasującego pakietu DSM po
-prostu nie zainstaluje, niczego się tym nie zepsuje.
-
-**Albo ręcznie, bez źródła:**
-
-1. Pobierz `.spk` ze strony
-   [wydań](https://github.com/alexlnos/dsm-mini/releases): `-amd64` dla modeli na
-   Intelu i AMD (DS918+, DS923+, DS1522+, SA6400 i podobne), `-arm64` dla
-   budżetowych na ARM (DS223, DS124). Nie masz pewności — bierz `amd64`:
-   niepasującego pakietu DSM po prostu nie zainstaluje.
-2. **Centrum pakietów → Instalacja ręczna → Przeglądaj** i wybierz pobrany plik.
-3. DSM powie, że wydawca jest nieznany. To normalne przy pakiecie z zewnątrz:
-   pozwól raz w **Centrum pakietów → Ustawienia → Ogólne → Poziom zaufania →
-   Dowolny wydawca**.
-
-#### O co pyta kreator
-
-Instalator ma dwa ekrany i siedem pól. Wszystko, czego one potrzebują, zebrano w
-krokach od 1 do 4.
-
-| Pole | Co wpisać |
-|---|---|
-| Adres DSM | Już wpisany: `https://localhost:5001`. Usługa działa na samym NAS-ie, więc zostaw tak |
-| Użytkownik DSM | Nazwa użytkownika z kroku 3, na przykład `dsm-mini` |
-| Hasło DSM | Hasło tego użytkownika |
-| Token bota | Token z kroku 1 |
-| Dozwolone identyfikatory Telegrama | Twoja liczba z kroku 2. Kilka osób — po przecinku |
-| Publiczny adres HTTPS | Twój adres z kroku 4, na przykład `https://alex-nas.synology.me` |
-| Port lokalny | Zostaw `8080`. Zmieniaj tylko wtedy, gdy ten port na NAS-ie jest już zajęty |
-
-**Błędy, które naprawdę się tu zdarzają:**
-
-| Napisane | Poprawnie |
-|---|---|
-| `alex-nas.synology.me` | `https://alex-nas.synology.me` — z protokołem |
-| `https://alex-nas.synology.me/` | bez ukośnika na końcu |
-| Pusta lista identyfikatorów | puste znaczy **nikomu**; wpisz swoją liczbę |
-| Publiczny adres w polu adresu DSM | adres DSM zostaje `https://localhost:5001` |
-| Jednorazowy kod 2FA zamiast hasła | konto w ogóle nie może mieć weryfikacji dwuetapowej (krok 3) |
-
-Po instalacji pakiet uruchomi się sam i będzie wstawał razem z NAS-em.
-Ustawienia wylądują w `/var/packages/dsm-mini/var/config.env` (uprawnienia
-`600`), dziennik obok, w `dsm-mini.log`.
-
-Jeśli usługa nie zdoła wystartować — zły token, złe hasło, brak sieci — powie o
-tym w **centrum powiadomień DSM** i poda przyczynę. Pełny dziennik leży w
-Centrum pakietów, na stronie pakietu.
-
-### Krok 6. Skierować adres na usługę
-
-Teraz usługa słucha tylko wewnątrz NAS-a, na porcie 8080. Zwrotny serwer proxy
-przyjmuje żądania z internetu po HTTPS i przekazuje je do niej.
-
-1. **Panel sterowania → Portal logowania → Zaawansowane → Zwrotny serwer proxy →
-   Utwórz**.
-   (W DSM 7.0–7.1 to **Panel sterowania → Portal aplikacji → Zwrotny serwer
-   proxy**.)
-2. **Źródło**: protokół `HTTPS`, nazwa hosta `alex-nas.synology.me`, port `443`.
-3. **Miejsce docelowe**: protokół `HTTP`, nazwa hosta `localhost`, port `8080`.
-4. Zapisz.
-
-> **Portu 80 dla tej nazwy nie przepuszczaj przez proxy**: przez niego DSM
-> odnawia certyfikat Let's Encrypt, a przechwycenie zepsuje odnowienie trzy
-> miesiące później.
-
-### Krok 7. Sprawdzić
-
-Otwórz w przeglądarce `https://alex-nas.synology.me/healthz`. Powinno
-odpowiedzieć:
-
-```json
-{"status":"ok"}
-```
-
-Odpowiedziało — czyli usługa żyje i jest dostępna z zewnątrz. Danych przy tym nie
-oddaje: każde żądanie bez podpisu Telegrama dostaje odmowę.
-
-### Krok 8. Otworzyć aplikację
-
-1. Znajdź swojego bota w Telegramie po loginie z kroku 1.
-2. Naciśnij **Start**.
-3. Na dole, obok pola wpisywania, pojawi się przycisk **Pobierania** — to on
-   otwiera aplikację. Przycisk bot stawia sam przy starcie, ręcznie nie trzeba
-   nic ustawiać.
-4. Wyślij botowi dowolny link magnet — zaproponuje folder przyciskami.
-
-Gotowe.
-
----
+**8. Otworzyć aplikację.** Znajdź bota po loginie, naciśnij Start — obok pola
+wpisywania pojawi się przycisk **Pobierania**. Wyślij mu dowolny link magnet,
+zaproponuje foldery przyciskami.
 
 ## Jeśli coś poszło nie tak
 
