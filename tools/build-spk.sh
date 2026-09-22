@@ -48,6 +48,14 @@ CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -C "$ROOT" -trimpath \
 echo "→ package.tgz"
 ( cd "$WORK/staging" && tar cpzf "$WORK/package.tgz" --owner=root --group=root . )
 
+# The md5 of package.tgz goes into INFO as `checksum`. Package Center verifies
+# it when installing from a package source, and a package without the field is
+# refused as "not a package" — error 4521, which says nothing about a missing
+# checksum. Installing the very same .spk by hand skips the check, so the
+# package looked fine for months. Both third-party packages that do install
+# from a source — SynoCommunity's and Xpenology's — carry it.
+PKG_CHECKSUM="$(md5 -q "$WORK/package.tgz" 2>/dev/null || md5sum "$WORK/package.tgz" | cut -d" " -f1)"
+
 echo "→ INFO"
 cat > "$WORK/INFO" <<EOF
 # package is the identifier, not the name: /var/packages/dsm-mini, the upgrade
@@ -56,6 +64,7 @@ cat > "$WORK/INFO" <<EOF
 package="dsm-mini"
 version="$SPK_VERSION"
 os_min_ver="7.0-40000"
+checksum="$PKG_CHECKSUM"
 displayname="DSM mini (Telegram Mini App)"
 maintainer="alexlnos"
 maintainer_url="https://github.com/alexlnos/dsm-mini"

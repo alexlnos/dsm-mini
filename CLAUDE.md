@@ -219,6 +219,12 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   identifier, so it stays `dsm-mini` whatever the visible name becomes. The
   visible name lives in three places that have to agree: `displayname` in
   INFO, `dname` in the catalogue and `DISPLAY_NAME` in the spksrc recipe.
+- INFO carries **`checksum`, the md5 of `package.tgz`**. Without it Package
+  Center refuses to install from a package source — error 4521, shown as
+  "Invalid file format" — while installing the same `.spk` by hand works,
+  because that path does not check it. The package looked healthy for a month
+  that way. `build-spk.sh` computes it; details and the two third-party
+  packages it was verified against are in `docs/synology-api.md`.
 - The `arch` values in INFO are **Synology platform names**, not processors
   (`epyc7002`, `rtd1296`). One package covers every model of the same
   architecture.
