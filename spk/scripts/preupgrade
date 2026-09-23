@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs before an upgrade, ahead of the old package being stopped and removed.
+#
+# There is nothing to check: the settings and the database live in the package
+# var, which an upgrade leaves alone. The file exists because Package Center
+# refuses the package without it. An upgrade from a package source stops at the
+# "prepare" stage with
+#
+#   {"code":261,"description":"package does not have preupgrade / postupgrade script"}
+#
+# in /var/log/synopkgmgr.log, and the person is shown "Invalid file format,
+# contact the package developer" — which says nothing about scripts. Installing
+# the very same .spk works and only logs a harmless
+# {"code":289,"description":"spk is not from synology"}, so the gap stays
+# invisible until somebody presses Update.
+exit 0

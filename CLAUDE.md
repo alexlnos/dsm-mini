@@ -219,12 +219,22 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   identifier, so it stays `dsm-mini` whatever the visible name becomes. The
   visible name lives in three places that have to agree: `displayname` in
   INFO, `dname` in the catalogue and `DISPLAY_NAME` in the spksrc recipe.
-- INFO carries **`checksum`, the md5 of `package.tgz`**. Without it Package
-  Center refuses to install from a package source — error 4521, shown as
-  "Invalid file format" — while installing the same `.spk` by hand works,
-  because that path does not check it. The package looked healthy for a month
-  that way. `build-spk.sh` computes it; details and the two third-party
-  packages it was verified against are in `docs/synology-api.md`.
+- The package ships **`scripts/preupgrade` and `scripts/postupgrade`**, and
+  they may do nothing at all. Without them an upgrade from a package source
+  is refused at the `prepare` stage with
+  `{"code":261,"description":"package does not have preupgrade / postupgrade
+  script"}` in `/var/log/synopkgmgr.log`, and the person is shown "Invalid
+  file format, contact the package developer" — which says nothing about
+  scripts. **Installing the same .spk works**, logging only a harmless
+  `{"code":289,"description":"spk is not from synology"}`, so the gap is
+  invisible until somebody presses Update. This cost a month and seven
+  releases of guessing; the answer was in a log the Web API does not expose.
+  The whole account, including what was wrongly blamed first, is in
+  `docs/synology-api.md`.
+- INFO carries **`checksum`, the md5 of `package.tgz`** because the developer
+  guide documents it. It was **not** the cause of "Invalid file format",
+  though this file said so for a while: 1.0.0-1 had no `checksum` at all and
+  installed from a source without complaint.
 - The version in INFO ends with a **build number**, pinned at `-0`. A Synology
   version is `major.minor.build-buildnumber`, and every package that installs
   from a source on a live DSM carries one; ours did while it was `1.0.0-1` and
@@ -280,15 +290,13 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   `SYNO.Core.Package.Installation` `upgrade`/`install` call. `make-feed.py`
   takes them from the file itself and refuses to build a catalogue without it,
   so an entry cannot describe a package that is not there.
-- The `link` in the catalogue must point at a host that **does not compress**
-  what it serves. GitHub Pages does: asked with `Accept-Encoding: gzip` it
-  returns the .spk as a gzip stream, and no `md5` in the catalogue can describe
-  both that and the file. Release assets are served as they are, so the link
-  goes there and the redirect it answers with is harmless. `make-feed.py
-  --verify` downloads its own link and refuses to publish a catalogue that
-  describes something else. Whether this is what Package Center tripped over is
-  **not established** — `docs/synology-api.md` lists what has been ruled out and
-  says plainly that the cause of "Invalid file format" is still open.
+- The `link` in the catalogue points at a host that **does not compress** what
+  it serves. GitHub Pages does: asked with `Accept-Encoding: gzip` it returns
+  the .spk as a gzip stream, and no `md5` in the catalogue can describe both
+  that and the file. Release assets are served as they are, and the redirect
+  they answer with is harmless. `make-feed.py --verify` downloads its own link
+  and refuses to publish a catalogue that describes something else. This was
+  also blamed for "Invalid file format" and was **not** the cause.
 - The package is built with `COPYFILE_DISABLE=1` and `--format=ustar`. macOS
   tar writes an AppleDouble companion beside every file (`._INFO` next to
   `INFO`) and hides them again when listing the archive, so a package built on

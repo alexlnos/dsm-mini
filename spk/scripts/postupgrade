@@ -1,0 +1,7 @@
+#!/bin/sh
+# Runs after an upgrade. Nothing to do here: postinst has already run by this
+# point and corrected what needed correcting, and the settings in the package
+# var were never touched.
+#
+# Required for the same reason as preupgrade — the comment is there.
+exit 0
