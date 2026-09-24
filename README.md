@@ -50,6 +50,12 @@ on the disks and how the NAS is feeling.
 - Virtual machines and containers: start and stop
 - The DSM event log
 
+**Notifications and settings**
+
+- What DSM announces itself — the security advisor, disks, updates — reaches the chat
+- A choice of what the bot may send: nothing, downloads only, everything
+- A screen of its own in the DSM main menu: every setting, without editing a file over SSH
+
 **Language**
 
 The app and the bot speak the language chosen in Telegram: English, Russian,
@@ -103,7 +109,7 @@ Then Settings → General → Trust Level → **Any publisher**, and install
 **DSM mini (Telegram Mini App)** from the **Community** section. Not sure about
 the architecture? Try `amd64`: a package that does not fit is simply refused.
 
-The installer asks for seven values and explains each one as it asks —
+The installer asks for five values and explains each one as it asks —
 everything for them was collected in the steps above. Or install the `.spk`
 from the [releases](https://github.com/alexlnos/dsm-mini/releases) by hand,
 through Package Center → Manual Install.
@@ -147,7 +153,12 @@ Everything the wizard asked for lives in one file on the NAS,
 
 Installing the package over itself will **not** ask again: the wizard runs on
 installation, and an upgrade deliberately leaves the file alone — that is why
-settings survive an update. So there are two ways:
+settings survive an update. So there are three ways:
+
+- **Open DSM mini in the DSM main menu** — the settings screen changes any of
+  them, and the password and the token are write-only there: leave a field empty
+  and it keeps what it had. Restart the package afterwards; the notification
+  setting applies at once.
 
 - **Edit the file over SSH** (Control Panel → Terminal & SNMP → Enable SSH),
   then restart the package in Package Center. This keeps everything:

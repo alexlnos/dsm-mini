@@ -52,6 +52,12 @@ le NAS.
 - Machines virtuelles et conteneurs : démarrage et arrêt
 - Le journal des événements DSM
 
+**Notifications et réglages**
+
+- Ce que DSM annonce lui-même — conseiller de sécurité, disques, mises à jour — arrive dans le chat
+- Le choix de ce que le bot peut envoyer : rien, seulement les téléchargements, tout
+- Un écran à lui dans le menu principal de DSM : tous les réglages, sans modifier un fichier en SSH
+
 **Langue**
 
 L'application et le bot parlent la langue choisie dans Telegram : anglais, russe,
@@ -108,7 +114,7 @@ et installez **DSM mini (Telegram Mini App)** depuis la section
 **Communauté**. Un doute sur l'architecture ? Essayez `amd64` : un paquet qui
 ne convient pas est simplement refusé.
 
-L'installateur demande sept valeurs et explique chacune au passage — tout ce
+L'installateur demande cinq valeurs et explique chacune au passage — tout ce
 qu'il faut a été rassemblé aux étapes ci-dessus. Ou installez le `.spk` des
 [versions](https://github.com/alexlnos/dsm-mini/releases) à la main, par Centre
 de paquets → Installation manuelle.
@@ -154,7 +160,12 @@ Tout ce que l'assistant a demandé tient dans un fichier sur le NAS,
 
 Installer le paquet par-dessus lui-même ne redemande **rien** : l'assistant
 tourne à l'installation, et une mise à jour laisse le fichier exprès — c'est
-pour cela que les réglages survivent. Restent deux voies :
+pour cela que les réglages survivent. Restent trois voies :
+
+- **Ouvrez DSM mini dans le menu principal de DSM** — l'écran de réglages
+  change n'importe lequel, et le mot de passe et le jeton y sont en écriture
+  seule : un champ laissé vide garde l'ancienne valeur. Redémarrez ensuite le
+  paquet ; le réglage des notifications prend effet aussitôt.
 
 - **Modifier le fichier en SSH** (Panneau de configuration → Terminal et SNMP
   → activer SSH), puis redémarrer le paquet dans le Centre de paquets. Tout le

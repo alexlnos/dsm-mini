@@ -50,6 +50,12 @@ olduğunu ve NAS'ın durumunu görürsünüz.
 - Sanal makineler ve kapsayıcılar: başlatma ve durdurma
 - DSM olay günlüğü
 
+**Bildirimler ve ayarlar**
+
+- DSM'nin kendi bildirdikleri — güvenlik danışmanı, diskler, güncellemeler — sohbete ulaşır
+- Botun ne gönderebileceğinin seçimi: hiçbir şey, yalnızca indirmeler, her şey
+- DSM ana menüsünde kendi ekranı: her ayar, SSH ile dosya düzenlemeden
+
 **Dil**
 
 Uygulama ve bot, Telegram'da seçilen dili konuşur: İngilizce, Rusça, İspanyolca,
@@ -103,7 +109,7 @@ Sonra Ayarlar → Genel → Güven Düzeyi → **Herhangi bir yayıncı**, ve
 **Topluluk** bölümünden **DSM mini (Telegram Mini App)** kurun. Mimariden emin
 değil misiniz? `amd64` deneyin: uymayan bir paket zaten reddedilir.
 
-Yükleyici yedi değer sorar ve her birini sorarken açıklar — hepsi için gereken
+Yükleyici beş değer sorar ve her birini sorarken açıklar — hepsi için gereken
 yukarıdaki adımlarda toplandı. Ya da `.spk` dosyasını
 [sürümlerden](https://github.com/alexlnos/dsm-mini/releases) elle kurun, Paket
 Merkezi → Elle Yükleme ile.
@@ -148,7 +154,12 @@ Sihirbazın sorduğu her şey NAS'ta tek bir dosyada:
 
 Paketi kendi üzerine kurmak yeniden **sormaz**: sihirbaz kurulumda çalışır ve
 bir güncelleme dosyaya bilerek dokunmaz — ayarların güncellemeyi atlatmasının
-nedeni budur. Geriye iki yol kalıyor:
+nedeni budur. Geriye üç yol kalıyor:
+
+- **DSM ana menüsünden DSM mini'yi açın** — ayarlar ekranı bunlardan
+  herhangi birini değiştirir, parola ve jeton orada yalnızca yazılır: boş
+  bırakılan alan eskisini korur. Sonra paketi yeniden başlatın; bildirim
+  ayarı hemen geçerli olur.
 
 - **Dosyayı SSH ile düzenlemek** (Denetim Masası → Terminal ve SNMP → SSH'i
   açın), sonra paketi Paket Merkezi'nden yeniden başlatmak. Böylece geri kalan

@@ -50,6 +50,12 @@ discos e como o NAS está se sentindo.
 - Máquinas virtuais e contêineres: iniciar e parar
 - O registro de eventos do DSM
 
+**Notificações e configurações**
+
+- O que o próprio DSM anuncia — consultor de segurança, discos, atualizações — chega ao chat
+- A escolha do que o bot pode enviar: nada, apenas downloads, tudo
+- Uma tela própria no menu principal do DSM: qualquer configuração, sem editar um arquivo por SSH
+
 **Idioma**
 
 O aplicativo e o bot falam o idioma escolhido no Telegram: inglês, russo,
@@ -104,7 +110,7 @@ instale **DSM mini (Telegram Mini App)** na seção **Comunidade**. Na dúvida
 sobre a arquitetura? Tente `amd64`: um pacote que não serve é simplesmente
 recusado.
 
-O instalador pergunta sete valores e explica cada um na hora — tudo para eles
+O instalador pergunta cinco valores e explica cada um na hora — tudo para eles
 foi reunido nos passos acima. Ou instale o `.spk` das
 [versões](https://github.com/alexlnos/dsm-mini/releases) na mão, pela Central
 de Pacotes → Instalação manual.
@@ -149,7 +155,12 @@ Tudo o que o assistente perguntou fica num único arquivo do NAS,
 
 Instalar o pacote sobre ele mesmo **não** pergunta de novo: o assistente roda
 na instalação, e uma atualização deixa o arquivo de propósito — é por isso que
-as configurações sobrevivem. Restam dois caminhos:
+as configurações sobrevivem. Restam três caminhos:
+
+- **Abra o DSM mini no menu principal do DSM** — a tela de configurações muda
+  qualquer uma delas, e a senha e o token são apenas de escrita ali: um campo
+  vazio mantém o que havia. Reinicie o pacote depois; a configuração de
+  notificações vale de imediato.
 
 - **Editar o arquivo por SSH** (Painel de Controle → Terminal e SNMP → ligar o
   SSH) e reiniciar o pacote na Central de Pacotes. Assim o resto fica:

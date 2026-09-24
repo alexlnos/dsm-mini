@@ -52,6 +52,12 @@ geht.
 - Virtuelle Maschinen und Container: starten und stoppen
 - Das DSM-Ereignisprotokoll
 
+**Benachrichtigungen und Einstellungen**
+
+- Was DSM selbst meldet — Sicherheitsberater, Platten, Updates — kommt in den Chat
+- Die Wahl, was der Bot schicken darf: nichts, nur Downloads, alles
+- Ein eigener Bildschirm im DSM-Hauptmenü: jede Einstellung, ohne eine Datei über SSH zu ändern
+
 **Sprache**
 
 App und Bot sprechen die in Telegram gewählte Sprache: Englisch, Russisch,
@@ -107,7 +113,7 @@ und **DSM mini (Telegram Mini App)** aus dem Bereich **Community** installieren.
 Unsicher bei der Architektur? Probieren Sie `amd64`: ein unpassendes Paket wird
 einfach abgelehnt.
 
-Der Installationsassistent fragt sieben Werte ab und erklärt jeden davon —
+Der Installationsassistent fragt fünf Werte ab und erklärt jeden davon —
 alles dafür wurde in den Schritten oben zusammengetragen. Oder die `.spk` aus
 den [Veröffentlichungen](https://github.com/alexlnos/dsm-mini/releases) von
 Hand installieren, über Paket-Zentrum → Manuelle Installation.
@@ -153,7 +159,12 @@ Alles, was der Assistent gefragt hat, steht auf dem NAS in einer Datei:
 Das Paket über sich selbst zu installieren fragt **nicht** erneut: der
 Assistent läuft bei der Installation, und eine Aktualisierung lässt die Datei
 absichtlich in Ruhe — darum überstehen die Einstellungen ein Update. Bleiben
-zwei Wege:
+drei Wege:
+
+- **Öffnen Sie DSM mini im DSM-Hauptmenü** — der Einstellungsbildschirm ändert
+  jede davon, und Passwort und Token sind dort nur schreibbar: ein leeres Feld
+  behält den alten Wert. Starten Sie danach das Paket neu; die
+  Benachrichtigungseinstellung gilt sofort.
 
 - **Die Datei über SSH bearbeiten** (Systemsteuerung → Terminal & SNMP → SSH
   einschalten) und das Paket im Paket-Zentrum neu starten. So bleibt alles
