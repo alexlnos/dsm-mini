@@ -9,27 +9,6 @@
             "type": "textfield",
             "subitems": [
                {
-                  "key": "wizard_dsm_url",
-                  "desc": "Dirección de DSM",
-                  "defaultValue": "https://localhost:5001",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Campo obligatorio",
-                     "regex": {
-                        "expr": "/^https?:\\/\\/[^\\/]+$/",
-                        "errorText": "Debe empezar por https:// y no llevar barra al final"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "Déjala como está. El servicio corre en este mismo NAS y llega a DSM por la propia máquina; 5001 es el puerto HTTPS y 5000 el HTTP."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
                   "key": "wizard_dsm_user",
                   "desc": "Usuario de DSM para el servicio",
                   "defaultValue": "",
@@ -130,27 +109,6 @@
          },
          {
             "desc": "Telegram abre una Mini App solo por https con un certificado de verdad: una dirección local o uno autofirmado no abrirán. Apunta este nombre al NAS y añade Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso desde él hacia localhost y el puerto de abajo. Sin barra al final."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
-                  "key": "wizard_port",
-                  "desc": "Puerto local en el NAS",
-                  "defaultValue": "8080",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Campo obligatorio",
-                     "regex": {
-                        "expr": "/^[0-9]{2,5}$/",
-                        "errorText": "Solo un número de puerto"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "El servicio escucha en este puerto para el propio NAS, no hacia fuera. Cámbialo solo si algo aquí ya ocupa el 8080."
          }
       ]
    }

@@ -259,6 +259,14 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - DSM 7 runs package scripts as the package user, not as root (`conf/privilege`
   with `run-as: package`). Writing is only possible into the package's `var` —
   which is also what survives an upgrade, unlike `target`.
+- The wizard asks **five** things, and every one of them is something only the
+  person installing knows: the DSM user and password, the bot token, the list
+  of ids and the public address. The DSM address and the service port used to
+  be there and are not any more — the service runs on the NAS, so the address
+  is always loopback, and 8080 is free unless somebody made it otherwise.
+  `postinst` still writes both with its own defaults, and the settings screen
+  inside DSM edits them for the installation where they are wrong. A question
+  whose answer is the same for everyone is not a question.
 - Each wizard field carries three things: a short label, an example shown in
   the empty field (`emptyText`) and a line underneath saying what the setting
   is for. Whoever fills this in has never seen the project and is being asked

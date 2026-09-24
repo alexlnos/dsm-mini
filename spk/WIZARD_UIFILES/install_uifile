@@ -9,27 +9,6 @@
             "type": "textfield",
             "subitems": [
                {
-                  "key": "wizard_dsm_url",
-                  "desc": "DSM address",
-                  "defaultValue": "https://localhost:5001",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "This field is required",
-                     "regex": {
-                        "expr": "/^https?:\\/\\/[^\\/]+$/",
-                        "errorText": "Must start with https:// and have no trailing slash"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "Leave this as it is. The service runs on this NAS and reaches DSM through the machine itself; 5001 is the HTTPS port, 5000 the HTTP one."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
                   "key": "wizard_dsm_user",
                   "desc": "DSM user for the service",
                   "defaultValue": "",
@@ -130,27 +109,6 @@
          },
          {
             "desc": "Telegram opens a Mini App only over https with a real certificate: a local address or a self-signed one will not open. Point this name at the NAS, then add Control Panel → Login Portal → Advanced → Reverse Proxy from it to localhost and the port below. No slash at the end."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
-                  "key": "wizard_port",
-                  "desc": "Local port on the NAS",
-                  "defaultValue": "8080",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "This field is required",
-                     "regex": {
-                        "expr": "/^[0-9]{2,5}$/",
-                        "errorText": "Port number only"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "The service listens on this port for the NAS itself, not for the outside world. Change it only if something here already holds 8080."
          }
       ]
    }

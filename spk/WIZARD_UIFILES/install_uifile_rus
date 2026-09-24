@@ -9,27 +9,6 @@
             "type": "textfield",
             "subitems": [
                {
-                  "key": "wizard_dsm_url",
-                  "desc": "Адрес DSM",
-                  "defaultValue": "https://localhost:5001",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Поле обязательно",
-                     "regex": {
-                        "expr": "/^https?:\\/\\/[^\\/]+$/",
-                        "errorText": "Должно начинаться с https:// и быть без слеша в конце"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "Оставьте как есть. Служба работает на этом же NAS и обращается к DSM через саму машину; 5001 — порт HTTPS, 5000 — HTTP."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
                   "key": "wizard_dsm_user",
                   "desc": "Пользователь DSM для службы",
                   "defaultValue": "",
@@ -130,27 +109,6 @@
          },
          {
             "desc": "Telegram открывает Mini App только по https с настоящим сертификатом: локальный адрес и самоподписанный не откроются. Направьте это имя на NAS, потом добавьте Панель управления → Портал входа → Дополнительно → Обратный прокси-сервер с него на localhost и порт ниже. Без слеша в конце."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
-                  "key": "wizard_port",
-                  "desc": "Локальный порт на NAS",
-                  "defaultValue": "8080",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Поле обязательно",
-                     "regex": {
-                        "expr": "/^[0-9]{2,5}$/",
-                        "errorText": "Только номер порта"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "Служба слушает этот порт для самого NAS, а не наружу. Менять только если 8080 здесь уже кем-то занят."
          }
       ]
    }

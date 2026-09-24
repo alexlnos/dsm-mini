@@ -32,6 +32,10 @@ put() {
 umask 077
 : > "$ENV_FILE"
 
+# The DSM address and the service port are not asked for: the service runs on
+# this NAS, so the address is always the loopback one, and 8080 is free unless
+# somebody made it otherwise. Both are still written, with the defaults below,
+# and the settings screen inside DSM edits them if an installation needs it.
 put DSM_URL "${wizard_dsm_url:-https://localhost:5001}"
 put DSM_USER "$wizard_dsm_user"
 put DSM_PASSWORD "$wizard_dsm_password"

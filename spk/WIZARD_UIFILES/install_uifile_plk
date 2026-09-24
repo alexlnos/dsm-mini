@@ -9,27 +9,6 @@
             "type": "textfield",
             "subitems": [
                {
-                  "key": "wizard_dsm_url",
-                  "desc": "Adres DSM",
-                  "defaultValue": "https://localhost:5001",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Pole wymagane",
-                     "regex": {
-                        "expr": "/^https?:\\/\\/[^\\/]+$/",
-                        "errorText": "Musi zaczynać się od https:// i nie kończyć ukośnikiem"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "Zostaw tak, jak jest. Usługa działa na tym samym NAS-ie i sięga do DSM przez samą maszynę; 5001 to port HTTPS, 5000 — HTTP."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
                   "key": "wizard_dsm_user",
                   "desc": "Użytkownik DSM dla usługi",
                   "defaultValue": "",
@@ -130,27 +109,6 @@
          },
          {
             "desc": "Telegram otwiera Mini App tylko po https z prawdziwym certyfikatem: adres lokalny ani samopodpisany się nie otworzą. Skieruj tę nazwę na NAS-a, a potem dodaj Panel sterowania → Portal logowania → Zaawansowane → Zwrotny serwer proxy z niej na localhost i port poniżej. Bez ukośnika na końcu."
-         },
-         {
-            "type": "textfield",
-            "subitems": [
-               {
-                  "key": "wizard_port",
-                  "desc": "Port lokalny na NAS-ie",
-                  "defaultValue": "8080",
-                  "validator": {
-                     "allowBlank": false,
-                     "errorText": "Pole wymagane",
-                     "regex": {
-                        "expr": "/^[0-9]{2,5}$/",
-                        "errorText": "Tylko numer portu"
-                     }
-                  }
-               }
-            ]
-         },
-         {
-            "desc": "Usługa słucha na tym porcie dla samego NAS-a, nie na zewnątrz. Zmieniaj tylko wtedy, gdy coś tutaj już zajmuje 8080."
          }
       ]
    }
