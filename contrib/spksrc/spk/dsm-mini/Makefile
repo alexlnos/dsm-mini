@@ -1,32 +1,59 @@
 SPK_NAME = dsm-mini
 SPK_VERS = 1.0.11
-SPK_REV = 0
+SPK_REV = 1
 SPK_ICON = src/dsm-mini.png
 
 DEPENDS = cross/dsm-mini
 
-# Go does not build for PowerPC and ARMv5.
-UNSUPPORTED_ARCHS = $(PPC_ARCHS) $(ARMv5_ARCHS)
+UNSUPPORTED_ARCHS = $(ARMv5_ARCHS)
+# not supported by go:
+UNSUPPORTED_ARCHS += $(PPC_ARCHS)
 
 MAINTAINER = alexlnos
-MAINTAINER_URL = https://github.com/alexlnos
-DESCRIPTION = Telegram bot with a Mini App to manage your Synology NAS: Download Station, File Station, disks, virtual machines and containers.
-DESCRIPTION_RUS = Телеграм-бот с Mini App для управления Synology: загрузки, файлы, диски, виртуальные машины и контейнеры.
-DESCRIPTION_GER = Telegram-Bot mit Mini App zur Verwaltung Ihres Synology NAS: Downloads, Dateien, Festplatten, virtuelle Maschinen und Container.
-DESCRIPTION_FRE = Bot Telegram avec Mini App pour gérer votre NAS Synology : téléchargements, fichiers, disques, machines virtuelles et conteneurs.
-DISPLAY_NAME = DSM mini (Telegram Mini App)
-CHANGELOG = "1. First release."
+DESCRIPTION = Run your Synology NAS from Telegram: send the bot a magnet link or a .torrent file, follow Download Station tasks, browse File Station folders, and check disks, virtual machines and containers from the Mini App. Only the Telegram accounts you list get in.
+DESCRIPTION_RUS = Управление NAS Synology из Telegram: пришлите боту magnet-ссылку или файл .torrent, следите за задачами Download Station, открывайте папки File Station и смотрите диски, виртуальные машины и контейнеры в Mini App. Доступ только у перечисленных вами аккаунтов.
+DESCRIPTION_GER = Ihr Synology-NAS aus Telegram bedienen: Schicken Sie dem Bot einen Magnet-Link oder eine .torrent-Datei, verfolgen Sie Download-Station-Aufgaben, durchsuchen Sie File-Station-Ordner und prüfen Sie Platten, virtuelle Maschinen und Container in der Mini App. Nur die von Ihnen aufgeführten Konten haben Zugang.
+DESCRIPTION_FRE = Piloter votre NAS Synology depuis Telegram : envoyez au bot un lien magnet ou un fichier .torrent, suivez les tâches de Download Station, parcourez les dossiers de File Station et surveillez disques, machines virtuelles et conteneurs dans la Mini App. Seuls les comptes que vous listez y ont accès.
+DESCRIPTION_ITA = Governa il NAS Synology da Telegram: manda al bot un link magnet o un file .torrent, segui le attività di Download Station, sfoglia le cartelle di File Station e controlla dischi, macchine virtuali e contenitori nella Mini App. Entrano solo gli account che elenchi.
+DESCRIPTION_SPN = Gobierna tu NAS Synology desde Telegram: envía al bot un enlace magnet o un archivo .torrent, sigue las tareas de Download Station, explora las carpetas de File Station y revisa discos, máquinas virtuales y contenedores en la Mini App. Solo entran las cuentas que enumeres.
+DESCRIPTION_PTB = Comande seu NAS Synology pelo Telegram: mande ao bot um link magnet ou um arquivo .torrent, acompanhe as tarefas do Download Station, navegue pelas pastas do File Station e confira discos, máquinas virtuais e contêineres no Mini App. Entram apenas as contas que você listar.
+DESCRIPTION_PLK = Steruj swoim NAS-em Synology z Telegrama: wyślij botowi link magnet albo plik .torrent, śledź zadania Download Station, przeglądaj foldery File Station i sprawdzaj dyski, maszyny wirtualne i kontenery w Mini App. Wchodzą tylko konta, które wypiszesz.
+DESCRIPTION_TRK = Synology NAS\'ınızı Telegram\'dan yönetin: bota bir magnet bağlantısı ya da .torrent dosyası gönderin, Download Station görevlerini izleyin, File Station klasörlerine göz atın ve Mini App\'te diskleri, sanal makineleri ve kapsayıcıları denetleyin. Yalnızca listelediğiniz hesaplar girer.
+DISPLAY_NAME = DSM mini — Telegram Mini App
+CHANGELOG = "1. Initial release."
+
 HOMEPAGE = https://github.com/alexlnos/dsm-mini
 LICENSE = MIT
-STARTABLE = yes
 
-# The service listens locally only: the DSM reverse proxy exposes it, because
-# Telegram opens a Mini App over HTTPS alone.
-SERVICE_PORT = 8080
-SERVICE_PORT_TITLE = dsm-mini
-
-SERVICE_USER = auto
 SERVICE_SETUP = src/service-setup.sh
-WIZARDS_DIR = src/wizard/
+
+STARTABLE = yes
+SERVICE_USER = auto
+
+# No SERVICE_PORT on purpose. The service listens on loopback only — the DSM
+# reverse proxy is what publishes it, because Telegram opens a Mini App over
+# HTTPS alone — and SERVICE_PORT would generate a firewall rule for a port
+# nobody outside should reach, plus a desktop shortcut to an address a browser
+# cannot open. The port lives in the wizard instead (default 58080).
+
+# The settings window in the DSM main menu, instead of a generated shortcut.
+# Same arrangement as spk/gentoo-chroot: an Ext JS app declared in app/config.
+DSM_UI_DIR = app
+DSM_UI_CONFIG = src/app/config
+DSM_APP_NAME = SYNOCOMMUNITY.DsmMini.AppInstance
+
+WIZARDS_TEMPLATES_DIR = src/wizard_templates
+
+POST_STRIP_TARGET = dsm-mini_extra_install
 
 include ../../mk/spksrc.spk.mk
+
+# The settings window: a page, its script and dictionary, the Ext JS wrapper
+# DSM loads from its menu, and the CGI bridge to the service. DSM serves this
+# folder at /webman/3rdparty/dsm-mini/.
+.PHONY: dsm-mini_extra_install
+dsm-mini_extra_install:
+	@install -d -m 755 $(STAGING_DIR)/app/images
+	@install -m 644 src/app/index.html src/app/app.js src/app/i18n.js src/app/dsm-mini.js $(STAGING_DIR)/app/
+	@install -m 755 src/app/api.cgi $(STAGING_DIR)/app/
+	@install -m 644 src/app/images/*.png $(STAGING_DIR)/app/images/

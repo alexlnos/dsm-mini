@@ -70,7 +70,7 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
     return {
         "package": "dsm-mini",
         "version": f"{version}-{BUILD}",
-        "dname": "DSM mini (Telegram Mini App)",
+        "dname": "DSM mini — Telegram Mini App",
         "desc": DESC,
         # The release asset, and the redirect it answers with is fine — it was
         # never the problem. What refused the package was its own contents:

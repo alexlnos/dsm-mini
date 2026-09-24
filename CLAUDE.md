@@ -340,9 +340,22 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   regenerates them and fails if the result differs. The same goes for the ten
   READMEs: a check compares the language links, because a translation nothing
   links to looks perfectly fine on its own.
-- The recipe for SynoCommunity is in `contrib/spksrc/`: they build from source
-  with their own toolchain, our `build-spk.sh` does not suit them. On a release
-  the version numbers and checksums are updated there.
+- The recipe for SynoCommunity is in `contrib/spksrc/`, written **their** way
+  rather than ported from ours: their generic installer, their templated
+  wizard, their package user `sc-dsm-mini`, modelled on `spk/ddns-go` and
+  `spk/gentoo-chroot`, and built in their container before being committed.
+  Its README lists where it differs from our package and why — the port
+  (58080: 8080 is SABnzbd's in their list), no `SERVICE_PORT` for a loopback
+  service, the kept log. On a release: `PKG_VERS`, `SPK_VERS`, `make digests`,
+  and `SPK_REV` goes up — it never resets.
+- **The two builds are not interchangeable on one NAS.** Same package id,
+  different package users: moving from one to the other looks like an upgrade
+  to DSM, and the new service cannot read settings or database owned by the
+  other user.
+- **No brackets in the display name.** spksrc writes it into INFO unquoted
+  through the shell, so brackets are a syntax error, and elsewhere quoted into
+  `jq`, so escaping them leaks a backslash. The name is "DSM mini — Telegram
+  Mini App" in every place it lives.
 
 ## Notifications from DSM
 

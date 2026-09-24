@@ -56,7 +56,7 @@ const (
 	// The field that carries it is `provider`, not `target_name` — the latter
 	// is accepted by create and silently dropped, which left the entry
 	// nameless.
-	providerName = "DSM mini (Telegram Mini App)"
+	providerName = "DSM mini — Telegram Mini App"
 )
 
 // Caller is the part of the DSM client this package needs.

@@ -107,7 +107,7 @@ paquetes → Añadir, nombre `dsm-mini` y la dirección de tu arquitectura:
 - ARM, modelos básicos: `https://alexlnos.github.io/dsm-mini/arm64.json`
 
 Luego Configuración → General → Nivel de confianza → **Cualquier editor**, e
-instala **DSM mini (Telegram Mini App)** desde la sección **Comunidad**. ¿Dudas
+instala **DSM mini — Telegram Mini App** desde la sección **Comunidad**. ¿Dudas
 con la arquitectura? Prueba `amd64`: un paquete que no encaja simplemente se
 rechaza.
 
@@ -134,7 +134,7 @@ magnet: te ofrecerá carpetas con botones.
 
 | Qué ves | De qué se trata | Qué hacer |
 |---|---|---|
-| El bot calla ante `/start` | Token incorrecto, o el paquete no está en marcha | Centro de paquetes → **DSM mini (Telegram Mini App)** → el registro |
+| El bot calla ante `/start` | Token incorrecto, o el paquete no está en marcha | Centro de paquetes → **DSM mini — Telegram Mini App** → el registro |
 | «El acceso a este bot está cerrado» | Tu ID no está en la lista | Pon el número del paso 2 en los IDs permitidos (ver «Cambiar los ajustes» abajo) |
 | No hay botón de la aplicación | La dirección pública está vacía o no es `https://` | En el mismo sitio: el archivo de ajustes, luego reinicia el paquete |
 | El botón está, la aplicación no abre | El proxy inverso o el certificado no funcionan | Abre `https://tu-direccion/healthz` en un navegador |

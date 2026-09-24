@@ -92,7 +92,7 @@ package="dsm-mini"
 version="$SPK_INFO_VERSION"
 os_min_ver="7.0-40000"
 checksum="$PKG_CHECKSUM"
-displayname="DSM mini (Telegram Mini App)"
+displayname="DSM mini — Telegram Mini App"
 # The settings screen inside DSM. dsmuidir names the folder under target that
 # DSM serves at /webman/3rdparty/dsm-mini/, dsmappname the entry it registers
 # in the main menu — it has to match the key in ui/config.

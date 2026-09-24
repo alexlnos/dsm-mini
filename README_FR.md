@@ -110,7 +110,7 @@ Vérifiez depuis un téléphone en données mobiles :
 - ARM, modèles d'entrée de gamme : `https://alexlnos.github.io/dsm-mini/arm64.json`
 
 Ensuite Paramètres → Général → Niveau de confiance → **N'importe quel éditeur**,
-et installez **DSM mini (Telegram Mini App)** depuis la section
+et installez **DSM mini — Telegram Mini App** depuis la section
 **Communauté**. Un doute sur l'architecture ? Essayez `amd64` : un paquet qui
 ne convient pas est simplement refusé.
 
@@ -138,7 +138,7 @@ Envoyez-lui n'importe quel lien magnet, il proposera des dossiers en boutons.
 
 | Ce que vous voyez | De quoi il s'agit | Que faire |
 |---|---|---|
-| Le bot reste muet sur `/start` | Mauvais jeton, ou le paquet ne tourne pas | Centre de paquets → **DSM mini (Telegram Mini App)** → le journal |
+| Le bot reste muet sur `/start` | Mauvais jeton, ou le paquet ne tourne pas | Centre de paquets → **DSM mini — Telegram Mini App** → le journal |
 | « L'accès à ce bot est fermé » | Votre identifiant n'est pas dans la liste | Mettez le numéro de l'étape 2 dans les identifiants autorisés (voir « Changer les réglages » plus bas) |
 | Il n'y a pas de bouton d'application | L'adresse publique est vide ou pas en `https://` | Au même endroit : le fichier de réglages, puis redémarrez le paquet |
 | Le bouton est là, l'application ne s'ouvre pas | Le proxy inversé ou le certificat ne fonctionnent pas | Ouvrez `https://votre-adresse/healthz` dans un navigateur |

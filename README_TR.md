@@ -106,7 +106,7 @@ uyarısız açmalı.
 - ARM, giriş seviyesi modeller: `https://alexlnos.github.io/dsm-mini/arm64.json`
 
 Sonra Ayarlar → Genel → Güven Düzeyi → **Herhangi bir yayıncı**, ve
-**Topluluk** bölümünden **DSM mini (Telegram Mini App)** kurun. Mimariden emin
+**Topluluk** bölümünden **DSM mini — Telegram Mini App** kurun. Mimariden emin
 değil misiniz? `amd64` deneyin: uymayan bir paket zaten reddedilir.
 
 Yükleyici beş değer sorar ve her birini sorarken açıklar — hepsi için gereken
@@ -132,7 +132,7 @@ bağlantısı gönderin, klasörleri düğmelerle önerir.
 
 | Gördüğünüz | Sorun ne | Ne yapmalı |
 |---|---|---|
-| Bot `/start` komutuna susuyor | Yanlış belirteç ya da paket çalışmıyor | Paket Merkezi → **DSM mini (Telegram Mini App)** → günlük |
+| Bot `/start` komutuna susuyor | Yanlış belirteç ya da paket çalışmıyor | Paket Merkezi → **DSM mini — Telegram Mini App** → günlük |
 | «Bu bota erişim kapalı» | Kimliğiniz listede değil | 2. adımdaki numarayı izin verilen kimliklere ekleyin (aşağıda «Ayarları değiştirmek») |
 | Uygulama düğmesi yok | Genel adres boş ya da `https://` değil | Aynı yer: ayar dosyası, sonra paketi yeniden başlatın |
 | Düğme var, uygulama açılmıyor | Ters proxy ya da sertifika çalışmıyor | Tarayıcıda `https://adresiniz/healthz` açın |
