@@ -31,6 +31,7 @@ type Server struct {
 	settings   *store.Store
 	static     fs.FS
 	dsmNotify  http.Handler
+	dsmAdmin   http.Handler
 	log        *slog.Logger
 
 	// Caches with different lifetimes: device details barely change, the load
@@ -65,7 +66,9 @@ type Options struct {
 	// served at all rather than answering, which is one fewer thing for a
 	// scanner to find on an installation that does not use it.
 	DSMNotify http.Handler
-	Logger    *slog.Logger
+	// DSMAdmin serves the settings screen that lives inside DSM. May be nil.
+	DSMAdmin http.Handler
+	Logger   *slog.Logger
 }
 
 // New assembles the server.
@@ -98,6 +101,7 @@ func New(o Options) *Server {
 		settings:   o.Settings,
 		static:     o.Static,
 		dsmNotify:  o.DSMNotify,
+		dsmAdmin:   o.DSMAdmin,
 		log:        o.Logger,
 	}
 }
@@ -151,6 +155,12 @@ func (s *Server) Handler() http.Handler {
 	// see internal/dsmnotify.
 	if s.dsmNotify != nil {
 		root.Handle("POST /dsm/notify", s.dsmNotify)
+	}
+	// The settings screen inside DSM. Also outside /api/: its caller is a
+	// browser logged into DSM, and it proves that with DSM's own session
+	// cookie rather than with Telegram's initData.
+	if s.dsmAdmin != nil {
+		root.Handle("/dsm/admin/", s.dsmAdmin)
 	}
 	root.Handle("/", s.staticHandler())
 

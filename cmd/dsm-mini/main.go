@@ -25,6 +25,7 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm/system"
 	"github.com/alexlnos/dsm-mini/internal/dsm/vmm"
 	"github.com/alexlnos/dsm-mini/internal/dsmnotify"
+	"github.com/alexlnos/dsm-mini/internal/dsmui"
 	"github.com/alexlnos/dsm-mini/internal/httpapi"
 	"github.com/alexlnos/dsm-mini/internal/store"
 	"github.com/alexlnos/dsm-mini/internal/web"
@@ -124,6 +125,18 @@ func run() error {
 		}
 	}()
 
+	// The settings screen inside DSM. It authorises itself against DSM's own
+	// session cookie: /webman/3rdparty/ is served to anyone, checked against a
+	// live NAS, so the path guards nothing.
+	admin := dsmui.New(dsmui.Options{
+		StateDir:   stateDir(),
+		Store:      settings,
+		DSM:        client,
+		ListenAddr: cfg.ListenAddr,
+		Auth:       dsmui.NewAuth(dsmui.NewVerifier(cfg.DSMURL, cfg.DSMInsecure), log),
+		Logger:     log,
+	})
+
 	static, err := web.Assets()
 	if err != nil {
 		log.Warn("mini app is not embedded in the binary — only the bot will be available", "err", err)
@@ -141,6 +154,7 @@ func run() error {
 		Settings:       settings,
 		Static:         static,
 		DSMNotify:      receiver,
+		DSMAdmin:       admin.Handler(),
 		Logger:         log,
 	})
 
