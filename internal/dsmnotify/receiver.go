@@ -106,7 +106,9 @@ func (r *Receiver) deliver(text string) {
 		return
 	}
 	if mode != "all" {
-		r.log.Debug("dsm notification dropped", "mode", mode)
+		// Info, not debug: "DSM called and nothing arrived" has to be
+		// answerable from the log without changing the log level first.
+		r.log.Info("dsm notification not forwarded: the mode says otherwise", "mode", mode)
 		return
 	}
 
@@ -115,9 +117,15 @@ func (r *Receiver) deliver(text string) {
 		r.log.Warn("dsm notification dropped: the bot is not connected yet")
 		return
 	}
+	sent := 0
 	for _, chat := range r.chats {
 		if err := n.Notify(ctx, chat, text); err != nil {
 			r.log.Error("cannot forward a dsm notification", "chat", chat, "err", err)
+			continue
 		}
+		sent++
 	}
+	// The text is not logged: it is DSM's, and may name users, addresses and
+	// files. How many people got it is enough to tell delivery from silence.
+	r.log.Info("dsm notification forwarded", "chats", sent, "of", len(r.chats))
 }

@@ -483,6 +483,19 @@ NAS отдаёт все пять картинок по 100–130 КБ.
 
 Ловушки:
 
+- **Метод — строчными: `post`, не `POST`.** Проверка при `create` пропускает
+  `POST` и сохраняет его, а отправитель потом отказывается каждый раз. API на
+  `send_test` отвечает голым `4682`, до получателя ничего не доходит, а
+  причина видна только в `/var/log/synoscgi.log` (root):
+
+  ```
+  curl.cpp:177 Invalid HTTP method: [POST]. Only 'get' and 'post' accepted.
+  webhook_send_message.cpp:573 Failed to send webhook DSM mini.
+  notification_webhook_v2.cpp:70 Webapi [WebhookProvider_send_test_v2] operation fail
+  ```
+
+  Провайдер при этом выглядит безупречно в любом списке.
+- **Имя провайдера — поле `provider`.** Его и показывает список вебхуков DSM.
 - `target_name` в `create` **не сохраняется** — в `list` он приходит пустым.
   Искать свой провайдер надо по `url`, а не по имени.
 - Удаление — по `profile_id` из `list`.

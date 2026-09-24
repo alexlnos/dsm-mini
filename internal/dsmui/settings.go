@@ -104,10 +104,13 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Notifications != nil {
-		if _, err := s.store.SetNotifyMode(r.Context(), *req.Notifications); err != nil {
+		mode, err := s.store.SetNotifyMode(r.Context(), *req.Notifications)
+		if err != nil {
 			s.fail(w, r, err, "cannot save the notification mode")
 			return
 		}
+		who, _ := SessionFrom(r.Context())
+		s.log.Info("notification mode set from the dsm screen", "mode", mode, "by", who.User)
 	}
 
 	writeJSON(w, http.StatusOK, s.view(current, changed))

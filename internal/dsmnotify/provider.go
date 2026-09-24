@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 )
 
 const (
@@ -37,6 +36,27 @@ const (
 
 	// The message itself. DSM substitutes the notification text here.
 	bodyTemplate = `{"text":"@@TEXT@@"}`
+
+	// The method has to be lower case. DSM's own check on create accepts
+	// "POST", stores it, and then the sender refuses it every time:
+	//
+	//   curl.cpp:177 Invalid HTTP method: [POST]. Only 'get' and 'post' accepted.
+	//
+	// in /var/log/synoscgi.log, while the API answers send_test with a bare
+	// 4682 and nothing reaches the service. Read off a live NAS; the provider
+	// looked perfect in every listing.
+	reqMethod = "post"
+
+	// providerName is what DSM shows in its list of webhooks, next to the
+	// owner's phone and whatever else sends there — so it is the package's own
+	// visible name, the one Package Center shows, and says whose webhook this
+	// is without anyone having to open it. It has to agree with `displayname`
+	// in INFO, `dname` in the catalogue and DISPLAY_NAME in the spksrc recipe.
+	//
+	// The field that carries it is `provider`, not `target_name` — the latter
+	// is accepted by create and silently dropped, which left the entry
+	// nameless.
+	providerName = "DSM mini (Telegram Mini App)"
 )
 
 // Caller is the part of the DSM client this package needs.
@@ -52,6 +72,7 @@ type providerList struct {
 			ReqHeader string `json:"req_header"`
 			ReqParam  string `json:"req_param"`
 			ReqMethod string `json:"req_method"`
+			Provider  string `json:"provider"`
 		} `json:"target_config"`
 	} `json:"list"`
 }
@@ -75,9 +96,13 @@ func Ensure(ctx context.Context, c Caller, url, secret string, log *slog.Logger)
 		if p.TargetConfig.URL != url {
 			continue
 		}
+		// The method is compared exactly, not case-insensitively: a provider an
+		// earlier version registered with "POST" looks right and never sends,
+		// and this is where it gets corrected on the next start.
 		if p.TargetConfig.ReqHeader == header &&
 			p.TargetConfig.ReqParam == bodyTemplate &&
-			strings.EqualFold(p.TargetConfig.ReqMethod, "POST") {
+			p.TargetConfig.ReqMethod == reqMethod &&
+			p.TargetConfig.Provider == providerName {
 			log.Debug("dsm notification webhook already registered", "profile", p.ProfileID)
 			return nil
 		}
@@ -101,7 +126,7 @@ func payload(url, header string) map[string]any {
 	return map[string]any{
 		"type":             "webhook",
 		"url":              url,
-		"req_method":       "POST",
+		"req_method":       reqMethod,
 		"req_header":       header,
 		"req_param":        bodyTemplate,
 		"template_id":      templateAll,
@@ -111,6 +136,6 @@ func payload(url, header string) map[string]any {
 		"prefix":           "",
 		"sepchar":          "",
 		"port":             0,
-		"provider":         "",
+		"provider":         providerName,
 	}
 }

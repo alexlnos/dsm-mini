@@ -228,8 +228,10 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - `package` in INFO is the **identifier**, `displayname` is what people see.
   `/var/packages/dsm-mini`, the upgrade path and every API call go by the
   identifier, so it stays `dsm-mini` whatever the visible name becomes. The
-  visible name lives in three places that have to agree: `displayname` in
-  INFO, `dname` in the catalogue and `DISPLAY_NAME` in the spksrc recipe.
+  visible name lives in four places that have to agree: `displayname` in
+  INFO, `dname` in the catalogue, `DISPLAY_NAME` in the spksrc recipe and the
+  name of the notification webhook in `internal/dsmnotify`, which is what DSM
+  lists next to the owner's phone.
 - The package ships **`scripts/preupgrade` and `scripts/postupgrade`**, and
   they may do nothing at all. Without them an upgrade from a package source
   is refused at the `prepare` stage with
@@ -341,6 +343,26 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - The recipe for SynoCommunity is in `contrib/spksrc/`: they build from source
   with their own toolchain, our `build-spk.sh` does not suit them. On a release
   the version numbers and checksums are updated there.
+
+## Notifications from DSM
+
+DSM has no API for reading its notification feed (`SYNO.Core.DSMNotify`
+answers 103), so the service registers itself as a **webhook provider** and
+DSM calls it on every notification, over loopback.
+
+- **The method is `post`, lower case.** DSM's check on create accepts `POST`
+  and stores it; the sender then refuses it on every send, `send_test` answers
+  a bare 4682, and nothing reaches the service. The reason is only in
+  `/var/log/synoscgi.log`: `Invalid HTTP method: [POST]. Only 'get' and 'post'
+  accepted.` The provider looks perfect in every listing meanwhile.
+- The name DSM lists it under is the field `provider`; `target_name` is
+  accepted by create and dropped. It is the package's visible name.
+- `Ensure` compares the method, the name, the headers and the body **exactly**
+  on every start and corrects what differs — that is how a provider an older
+  version registered wrongly gets fixed without anyone touching it.
+- A forwarded notification is logged, and so is one that was not forwarded
+  because of the mode. Without both, "DSM called and nothing arrived" cannot
+  be answered from the log — and for an hour it could not be.
 
 ## The settings screen inside DSM
 
