@@ -90,6 +90,14 @@ jobs:
           done
           tar xOf "$spk" package.tgz | tar tzf - | grep -qx './bin/dsm-mini' \
             || { echo "::error::package.tgz has no binary"; exit 1; }
+          # The settings screen ships inside the payload, because DSM serves it
+          # from target/<dsmuidir>. Missing, the package installs perfectly and
+          # the menu entry simply opens nothing.
+          for entry in ./ui/index.html ./ui/app.js ./ui/i18n.js ./ui/config \
+                       ./ui/dsm-wrapper.js ./ui/api.cgi ./ui/images/dsm-mini-72.png; do
+            tar xOf "$spk" package.tgz | tar tzf - | grep -qx "$entry" \
+              || { echo "::error::package.tgz lacks $entry"; exit 1; }
+          done
           echo "the package contents are fine"
 
   docs:
@@ -150,6 +158,17 @@ jobs:
           if ! git diff --quiet -- spk/WIZARD_UIFILES; then
             echo "::error::spk/WIZARD_UIFILES differs from the generator result. Run 'python3 tools/make-wizard.py' and commit it."
             git diff --stat -- spk/WIZARD_UIFILES
+            exit 1
+          fi
+
+      # Same arrangement for the settings screen inside DSM: its dictionary is
+      # generated and committed, because the page is served straight out of the
+      # package and there is nothing to build it at install time.
+      - name: The settings screen dictionary matches the generator
+        run: |
+          python3 tools/make-dsmui-i18n.py
+          if ! git diff --quiet -- spk/ui/i18n.js; then
+            echo "::error::spk/ui/i18n.js differs from the generator result. Run 'python3 tools/make-dsmui-i18n.py' and commit it."
             exit 1
           fi
 

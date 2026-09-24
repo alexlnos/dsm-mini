@@ -1,0 +1,19 @@
+{
+    "dsm-wrapper.js": {
+        "DSMMINI.Settings.AppInstance": {
+            "type": "app",
+            "title": "DSM mini",
+            "desc": "Settings for the Telegram bot and Mini App",
+            "icon": "images/dsm-mini-{0}.png",
+            "allUsers": false,
+            "allowMultiInstance": false,
+            "appWindow": "DSMMINI.Settings.AppWindow",
+            "depend": ["DSMMINI.Settings.AppWindow"]
+        },
+        "DSMMINI.Settings.AppWindow": {
+            "type": "lib",
+            "title": "DSM mini",
+            "icon": "images/dsm-mini-{0}.png"
+        }
+    }
+}

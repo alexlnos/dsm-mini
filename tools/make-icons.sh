@@ -42,6 +42,12 @@ render 512 "$ROOT/internal/bot/avatar.png"
 render 192 "$ROOT/web/public/icon-192.png"
 render 512 "$ROOT/web/public/icon-512.png"
 
+# The settings screen registered in the DSM main menu. Synology asks for one
+# file per size, named with the size, and picks by the desktop's zoom level.
+for size in 16 24 32 48 64 72 256; do
+    render "$size" "$ROOT/spk/ui/images/dsm-mini-${size}.png"
+done
+
 # For the README pages and the catalogue page.
 render 128 "$ROOT/docs/icon.png"
 

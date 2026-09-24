@@ -35,6 +35,18 @@ start_service() {
     set -a
     . "$ENV_FILE"
     set +a
+
+    # The settings screen in DSM is served by DSM's own web server, under a
+    # different user that cannot read config.env (0600). It still has to know
+    # which port to reach the service on, so the port — and only the port —
+    # is written next to the page, where that user may read it.
+    port="${LISTEN_ADDR##*:}"
+    case "$port" in
+        ''|*[!0-9]*) port=8080 ;;
+    esac
+    if [ -d "$TARGET/ui" ]; then
+        printf 'PORT=%s\n' "$port" > "$TARGET/ui/backend.conf" 2>/dev/null || true
+    fi
     STATE_DIR="$VAR"
     export STATE_DIR
 

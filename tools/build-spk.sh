@@ -63,6 +63,11 @@ CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -C "$ROOT" -trimpath \
     -ldflags "-s -w -X main.version=$SPK_INFO_VERSION" \
     -o "$WORK/staging/bin/dsm-mini" ./cmd/dsm-mini
 
+# The settings screen lives in the package payload, not beside INFO: DSM
+# serves it from target/<dsmuidir>, and target is what package.tgz unpacks to.
+cp -r "$ROOT/spk/ui" "$WORK/staging/ui"
+chmod 755 "$WORK/staging/ui/api.cgi"
+
 echo "→ package.tgz"
 ( cd "$WORK/staging" && tar cpzf "$WORK/package.tgz" --format=ustar --owner=root --group=root . )
 
@@ -88,6 +93,11 @@ version="$SPK_INFO_VERSION"
 os_min_ver="7.0-40000"
 checksum="$PKG_CHECKSUM"
 displayname="DSM mini (Telegram Mini App)"
+# The settings screen inside DSM. dsmuidir names the folder under target that
+# DSM serves at /webman/3rdparty/dsm-mini/, dsmappname the entry it registers
+# in the main menu — it has to match the key in ui/config.
+dsmuidir="ui"
+dsmappname="DSMMINI.Settings.AppInstance"
 maintainer="alexlnos"
 maintainer_url="https://github.com/alexlnos/dsm-mini"
 support_url="https://github.com/alexlnos/dsm-mini/issues"
