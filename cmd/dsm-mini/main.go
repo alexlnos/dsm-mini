@@ -37,6 +37,27 @@ import (
 var version = "dev"
 
 func main() {
+	// Called by the package's uninstall script, not by people: the one thing
+	// that has to happen when the package goes away and that nothing else
+	// would do. See internal/dsmnotify.Remove.
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "unregister-webhook":
+			if err := unregisterWebhook(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return
+		default:
+			// Anything unknown is refused rather than ignored. An older binary
+			// ignored its arguments, so a script asking it for a one-off job
+			// would have started the whole service instead — during an
+			// uninstall, that is an uninstall that never finishes.
+			fmt.Fprintf(os.Stderr, "unknown command %q; run without arguments to start the service\n", os.Args[1])
+			os.Exit(2)
+		}
+	}
+
 	if err := run(); err != nil {
 		// Printed directly rather than through the logger: a configuration
 		// error is multi-line, and squeezed into a single line with \n it
@@ -216,6 +237,35 @@ func newLogger(level string) *slog.Logger {
 		l = slog.LevelInfo
 	}
 	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: l}))
+}
+
+// unregisterWebhook removes the DSM notification webhook this service
+// registered. It signs in with the same settings the service uses — the
+// uninstall script loads config.env before calling it — and does nothing else.
+func unregisterWebhook() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	log := newLogger(cfg.LogLevel)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	client := dsm.New(dsm.Options{
+		BaseURL:     cfg.DSMURL,
+		User:        cfg.DSMUser,
+		Password:    cfg.DSMPassword,
+		OTP:         cfg.DSMOTP,
+		InsecureTLS: cfg.DSMInsecure,
+		Logger:      log,
+	})
+	if err := client.Login(ctx); err != nil {
+		return err
+	}
+	defer func() { _ = client.Logout(context.Background()) }()
+
+	return dsmnotify.Remove(ctx, client, log)
 }
 
 // webhookURL is where DSM should call. It is built from the address the

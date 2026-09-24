@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 )
 
 const (
@@ -64,6 +65,12 @@ type Caller interface {
 	Call(ctx context.Context, api, method string, version int, params map[string]any, out any) error
 }
 
+// ours recognises a webhook this service registered, whatever port it was on:
+// loopback, and the path nothing else on a NAS would use. It is what lets a
+// provider left behind by an earlier port, or by an uninstalled package, be
+// told apart from somebody's own webhook to a chat or a phone.
+var ours = regexp.MustCompile(`^http://127\.0\.0\.1:[0-9]+/dsm/notify$`)
+
 type providerList struct {
 	List []struct {
 		ProfileID    int `json:"profile_id"`
@@ -83,6 +90,12 @@ type providerList struct {
 // It is safe to call on every start: an entry that already says the right
 // thing is left alone, so restarts do not pile up providers or rewrite
 // settings somebody may be looking at.
+//
+// It also removes this service's providers on any other port. The port can
+// change — the SynoCommunity build moved it from 8080 to 58080 — and a
+// provider pointing at the old one stays in DSM's list forever otherwise,
+// with DSM calling an address nothing answers on every notification. One
+// such orphan was found on a live NAS and had to be deleted by hand.
 func Ensure(ctx context.Context, c Caller, url, secret string, log *slog.Logger) error {
 	var list providerList
 	if err := c.Call(ctx, providerAPI, "list", 2, nil, &list); err != nil {
@@ -92,10 +105,27 @@ func Ensure(ctx context.Context, c Caller, url, secret string, log *slog.Logger)
 	header := "Content-Type:application/json" + headerSep +
 		SecretHeader + ":" + secret + headerSep
 
-	for _, p := range list.List {
-		if p.TargetConfig.URL != url {
+	current := -1
+	for i, p := range list.List {
+		if !ours.MatchString(p.TargetConfig.URL) {
 			continue
 		}
+		if p.TargetConfig.URL != url || current >= 0 {
+			// Another port, or a second entry for this one.
+			if err := remove(ctx, c, p.ProfileID); err != nil {
+				log.Warn("cannot remove a stale dsm notification webhook",
+					"profile", p.ProfileID, "url", p.TargetConfig.URL, "err", err)
+				continue
+			}
+			log.Info("stale dsm notification webhook removed",
+				"profile", p.ProfileID, "url", p.TargetConfig.URL)
+			continue
+		}
+		current = i
+	}
+
+	if current >= 0 {
+		p := list.List[current]
 		// The method is compared exactly, not case-insensitively: a provider an
 		// earlier version registered with "POST" looks right and never sends,
 		// and this is where it gets corrected on the next start.
@@ -120,6 +150,37 @@ func Ensure(ctx context.Context, c Caller, url, secret string, log *slog.Logger)
 	}
 	log.Info("dsm notification webhook registered", "url", url)
 	return nil
+}
+
+// Remove deletes every provider this service registered. It is what the
+// package calls on a real uninstall: nothing else would, and the entry would
+// outlive the package, with DSM calling a port nobody listens on.
+//
+// Not on an upgrade — the uninstall hook runs then too, and removing the
+// provider there would only have the next start create it again under a new
+// number, losing whatever was changed in DSM's notification rules meanwhile.
+// The package scripts check SYNOPKG_PKG_STATUS before calling this.
+func Remove(ctx context.Context, c Caller, log *slog.Logger) error {
+	var list providerList
+	if err := c.Call(ctx, providerAPI, "list", 2, nil, &list); err != nil {
+		return fmt.Errorf("cannot read the notification providers: %w", err)
+	}
+	removed := 0
+	for _, p := range list.List {
+		if !ours.MatchString(p.TargetConfig.URL) {
+			continue
+		}
+		if err := remove(ctx, c, p.ProfileID); err != nil {
+			return fmt.Errorf("cannot remove the notification provider %d: %w", p.ProfileID, err)
+		}
+		removed++
+	}
+	log.Info("dsm notification webhooks removed", "count", removed)
+	return nil
+}
+
+func remove(ctx context.Context, c Caller, profileID int) error {
+	return c.Call(ctx, providerAPI, "delete", 2, map[string]any{"profile_id": profileID}, nil)
 }
 
 func payload(url, header string) map[string]any {

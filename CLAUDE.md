@@ -373,6 +373,21 @@ DSM calls it on every notification, over loopback.
 - `Ensure` compares the method, the name, the headers and the body **exactly**
   on every start and corrects what differs — that is how a provider an older
   version registered wrongly gets fixed without anyone touching it.
+- **The webhook lives and dies with the package.** It is registered on every
+  start; on a real uninstall `preuninst` calls `dsm-mini unregister-webhook`,
+  because nothing else removes it and DSM would go on calling a port nobody
+  listens on. Only when `SYNOPKG_PKG_STATUS` is `UNINSTALL`: DSM runs the old
+  version's `preuninst` during an upgrade too, and removing it there would
+  only have the next start recreate it under a new number. The uninstall never
+  waits on this — a failure is swallowed.
+- `Ensure` also removes this service's providers on **other ports**, recognised
+  by `http://127.0.0.1:<port>/dsm/notify`. The SynoCommunity build moved the
+  port, and the provider on the old one stayed in DSM's list as an orphan
+  until it was deleted by hand. Anybody else's webhook is never touched.
+- **The binary refuses unknown arguments** and starts the service only with
+  none. Older builds ignored them, so a script asking one for a one-off job
+  would have started the whole service instead — inside an uninstall, an
+  uninstall that never finishes.
 - A forwarded notification is logged, and so is one that was not forwarded
   because of the mode. Without both, "DSM called and nothing arrived" cannot
   be answered from the log — and for an hour it could not be.

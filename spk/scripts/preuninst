@@ -1,0 +1,29 @@
+#!/bin/sh
+# Runs before the package is removed.
+#
+# One thing to do: take the DSM notification webhook away with the package.
+# Nothing else would, and it would outlive the package, with DSM calling a port
+# nobody listens on after every notification — found that way on a live NAS.
+#
+# Only on a real uninstall. DSM runs the old version's preuninst during an
+# upgrade too (step 4 of the upgrade sequence in the developer guide), and
+# removing the webhook there would only have the next start create it again
+# under a new number, losing whatever was changed in DSM's rules meanwhile.
+[ "${SYNOPKG_PKG_STATUS}" = "UNINSTALL" ] || exit 0
+
+TARGET="${SYNOPKG_PKGDEST:-/var/packages/dsm-mini/target}"
+VAR="${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}"
+BIN="$TARGET/bin/dsm-mini"
+ENV_FILE="$VAR/config.env"
+
+[ -x "$BIN" ] && [ -r "$ENV_FILE" ] || exit 0
+
+# The uninstall must go through whatever happens here: a NAS that cannot be
+# reached is no reason to keep a package somebody asked to remove.
+(
+    set -a
+    . "$ENV_FILE"
+    set +a
+    "$BIN" unregister-webhook
+) >/dev/null 2>&1 || true
+exit 0

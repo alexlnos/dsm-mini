@@ -78,3 +78,17 @@ service_prestart ()
     esac
     printf 'PORT=%s\n' "${port}" > "${SYNOPKG_PKGDEST}/app/backend.conf"
 }
+
+service_preuninst ()
+{
+    # Take the DSM notification webhook away with the package: nothing else
+    # would, and DSM would keep calling a port nobody listens on. Only on a
+    # real uninstall — the framework calls this during an upgrade as well, and
+    # the next start would just create the webhook again under a new number.
+    if [ "${SYNOPKG_PKG_STATUS}" != "UNINSTALL" ] || [ ! -r "${CONFIG}" ]; then
+        return 0
+    fi
+    # A NAS that cannot be reached is no reason to keep a package somebody
+    # asked to remove, so a failure here is logged and nothing more.
+    ( set -a; . "${CONFIG}"; set +a; "${DSM_MINI}" unregister-webhook ) || true
+}
