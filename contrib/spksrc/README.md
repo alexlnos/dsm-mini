@@ -73,6 +73,15 @@ If `maintainer=""` turns up in the INFO, the build could not reach the GitHub
 API at that moment: the framework asks it for the maintainer's name. Remove the
 INFO in `spk/dsm-mini/work-*` and build again.
 
+## Go newer than their toolchain
+
+Our `go.mod` asks for Go 1.27.1; spksrc ships 1.26.8 as `native/go`. The build
+still works — the framework does not set `GOTOOLCHAIN`, so Go fetches the
+newer version itself (`go: downloading go1.27.1 (linux/amd64)` in the build
+log) — but it depends on the build being able to reach the internet. Their CI
+can; worth saying in the pull request in case a reviewer would rather the
+package did not outrun their toolchain.
+
 ## On a new release
 
 Update `PKG_VERS` in `cross/dsm-mini/Makefile` and `SPK_VERS` in
