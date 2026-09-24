@@ -138,6 +138,14 @@ export const de: Record<Key, Phrase> = {
   'folders.alreadyPinned': 'Dieser Ordner ist schon angeheftet',
   'folders.loadFailed': 'Einstellungen ließen sich nicht laden',
   'folders.saveFailed': 'Speichern fehlgeschlagen',
+  'notify.title': 'Benachrichtigungen',
+  'notify.hint': 'Was der Bot Ihnen ungefragt schreiben darf.',
+  'notify.off': 'Nichts',
+  'notify.offHint': 'Der Bot antwortet, schreibt aber nie zuerst',
+  'notify.downloads': 'Nur Downloads',
+  'notify.downloadsHint': 'Eine Nachricht, wenn ein Download endet oder scheitert',
+  'notify.all': 'Alles',
+  'notify.allHint': 'Auch was das NAS selbst meldet: Platten, Sicherheit, Updates',
 
   'files.shares': 'Freigegebene Ordner',
   'files.objects': {

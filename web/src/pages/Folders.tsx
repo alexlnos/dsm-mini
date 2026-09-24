@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, errorText } from '../api'
 import { alertMessage, backButton, haptic } from '../telegram'
 import { t } from '../i18n'
-import type { Settings, SettingsView } from '../types'
+import type { NotifyMode, Settings, SettingsView } from '../types'
 
 interface Props {
   /** The path typed by hand: held above so it survives leaving the screen. */
@@ -42,9 +42,10 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
 
   const pinned = view?.pinned_folders ?? []
   const showRecent = view?.show_recent ?? true
+  const notify = view?.notifications ?? 'downloads'
 
   const apply = useCallback(
-    async (next: Partial<Settings>) => {
+    async (next: Partial<Settings>, notifications?: NotifyMode) => {
       if (!view) return
       const previous = view
       const payload: Settings = {
@@ -53,9 +54,9 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
         last_used: view.last_used,
       }
       // Show the result at once, without waiting for the server.
-      setView({ ...view, ...payload })
+      setView({ ...view, ...payload, ...(notifications ? { notifications } : {}) })
       try {
-        setView(await api.saveSettings(payload))
+        setView(await api.saveSettings(payload, notifications))
         setError(null)
         onChanged()
       } catch (e) {
@@ -206,9 +207,36 @@ export function Folders({ manual, onManualChange, onBack, onChanged, onPickOnNas
           />
         </label>
       </div>
+
+      <div className="section-head"><span className="section-title">{t('notify.title')}</span></div>
+      <div className="card">
+        <div className="muted small notify-hint">{t('notify.hint')}</div>
+        {NOTIFY_MODES.map((mode, i) => (
+          <div key={mode}>
+            {i > 0 && <div className="divider" />}
+            <label className="settings-row pick" htmlFor={`notify-${mode}`}>
+              <span className="settings-text">
+                <span>{t(`notify.${mode}` as const)}</span>
+                <span className="muted small">{t(`notify.${mode}Hint` as const)}</span>
+              </span>
+              <input
+                id={`notify-${mode}`}
+                type="radio"
+                name="notify"
+                checked={notify === mode}
+                onChange={() => void apply({}, mode)}
+              />
+            </label>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
+
+// The order is deliberate: least to most. A person scanning the list stops at
+// the first thing that sounds right, and "everything" should not be it.
+const NOTIFY_MODES = ['off', 'downloads', 'all'] as const
 
 function describe(e: unknown, fallback: string): string {
   if (e instanceof ApiError) return errorText(e, fallback)

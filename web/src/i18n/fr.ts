@@ -138,6 +138,14 @@ export const fr: Record<Key, Phrase> = {
   'folders.alreadyPinned': 'Ce dossier est déjà épinglé',
   'folders.loadFailed': 'Impossible de charger les réglages',
   'folders.saveFailed': 'Impossible d’enregistrer',
+  'notify.title': 'Notifications',
+  'notify.hint': 'Ce que le bot peut vous écrire sans qu\'on le lui demande.',
+  'notify.off': 'Rien',
+  'notify.offHint': 'Le bot répond, mais n\'écrit jamais le premier',
+  'notify.downloads': 'Téléchargements seulement',
+  'notify.downloadsHint': 'Un message quand un téléchargement se termine ou échoue',
+  'notify.all': 'Tout',
+  'notify.allHint': 'Aussi ce que le NAS annonce lui-même : disques, sécurité, mises à jour',
 
   'files.shares': 'Dossiers partagés',
   'files.objects': {

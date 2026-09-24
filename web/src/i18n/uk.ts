@@ -139,6 +139,14 @@ export const uk: Record<Key, Phrase> = {
   'folders.alreadyPinned': 'Таку теку вже закріплено',
   'folders.loadFailed': 'Не вдалося завантажити налаштування',
   'folders.saveFailed': 'Не вдалося зберегти',
+  'notify.title': 'Сповіщення',
+  'notify.hint': 'Що бот може написати вам без запиту.',
+  'notify.off': 'Нічого',
+  'notify.offHint': 'Бот відповідає, але першим не пише',
+  'notify.downloads': 'Лише завантаження',
+  'notify.downloadsHint': 'Повідомлення, коли завантаження завершилось або впало',
+  'notify.all': 'Усе',
+  'notify.allHint': 'І те, про що повідомляє сам NAS: диски, безпека, оновлення',
 
   'files.shares': 'Спільні теки',
   'files.objects': {

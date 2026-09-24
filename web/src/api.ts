@@ -1,6 +1,6 @@
 import { t } from './i18n'
 import type {
-  Container, Entry, FilePriority, Guest, LogEntry, Overview, Settings, SettingsView,
+  Container, Entry, FilePriority, Guest, LogEntry, NotifyMode, Overview, Settings, SettingsView,
   StorageOverview, SystemOverview, Task, TaskDetails, VMHost,
 } from './types'
 
@@ -160,10 +160,12 @@ export const api = {
 
   settings: () => request<SettingsView>('/api/settings'),
 
-  saveSettings: (settings: Settings) =>
+  // notifications is left out unless it changed: the server treats a missing
+  // field as "leave it alone", so one screen cannot reset what another set.
+  saveSettings: (settings: Settings, notifications?: NotifyMode) =>
     request<SettingsView>('/api/settings', {
       method: 'PUT',
-      body: JSON.stringify(settings),
+      body: JSON.stringify(notifications ? { ...settings, notifications } : settings),
     }),
 
   copy: (paths: string[], destination: string, overwrite: boolean) =>

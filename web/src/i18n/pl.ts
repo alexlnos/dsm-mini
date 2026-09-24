@@ -139,6 +139,14 @@ export const pl: Record<Key, Phrase> = {
   'folders.alreadyPinned': 'Ten folder jest już przypięty',
   'folders.loadFailed': 'Nie udało się wczytać ustawień',
   'folders.saveFailed': 'Nie udało się zapisać',
+  'notify.title': 'Powiadomienia',
+  'notify.hint': 'Co bot może do ciebie napisać bez pytania.',
+  'notify.off': 'Nic',
+  'notify.offHint': 'Bot odpowiada, ale nigdy nie pisze pierwszy',
+  'notify.downloads': 'Tylko pobierania',
+  'notify.downloadsHint': 'Wiadomość, gdy pobieranie się kończy lub nie udaje',
+  'notify.all': 'Wszystko',
+  'notify.allHint': 'Także to, co zgłasza sam NAS: dyski, bezpieczeństwo, aktualizacje',
 
   'files.shares': 'Foldery udostępnione',
   'files.objects': {

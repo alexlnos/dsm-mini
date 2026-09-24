@@ -138,6 +138,14 @@ export const en: Record<Key, Phrase> = {
   'folders.alreadyPinned': 'That folder is already pinned',
   'folders.loadFailed': 'Could not load settings',
   'folders.saveFailed': 'Could not save',
+  'notify.title': 'Notifications',
+  'notify.hint': 'What the bot may write to you without being asked.',
+  'notify.off': 'Nothing',
+  'notify.offHint': 'The bot answers, but never writes first',
+  'notify.downloads': 'Downloads only',
+  'notify.downloadsHint': 'A message when a download finishes or fails',
+  'notify.all': 'Everything',
+  'notify.allHint': 'Also what the NAS announces itself: disks, security, updates',
 
   'files.shares': 'Shared folders',
   'files.objects': {

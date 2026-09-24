@@ -451,6 +451,16 @@ h1 {
 }
 
 .settings-row.toggle { justify-content: space-between; cursor: pointer; }
+
+/* A row where the control is a radio rather than a switch. The class is named
+   after the component, not after "choice" alone: a bare .choice would be the
+   next thing to collide with something, as .empty already did. */
+.settings-row.pick { justify-content: space-between; cursor: pointer; }
+.settings-row.pick input { flex: none; width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* Sits above the first row, so its padding matches the row's and the text
+   lines up with the labels underneath. */
+.notify-hint { padding: 12px 14px 4px; }
 .settings-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .small { font-size: 12px; line-height: 1.4; }
 

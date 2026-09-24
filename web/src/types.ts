@@ -49,8 +49,14 @@ export interface Settings {
   last_used: string
 }
 
+/** What the service may send unprompted. Belongs to the installation, not
+ * to the person reading it: the settings screen inside DSM edits the same
+ * value, and there it has no Telegram user to attach it to. */
+export type NotifyMode = 'off' | 'downloads' | 'all'
+
 export interface SettingsView extends Settings {
   suggested: string[] | null
+  notifications: NotifyMode
 }
 
 export interface Overview {

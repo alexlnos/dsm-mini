@@ -138,6 +138,14 @@ export const tr: Record<Key, Phrase> = {
   'folders.alreadyPinned': 'Bu klasör zaten sabitlenmiş',
   'folders.loadFailed': 'Ayarlar yüklenemedi',
   'folders.saveFailed': 'Kaydedilemedi',
+  'notify.title': 'Bildirimler',
+  'notify.hint': 'Botun sormadan size ne yazabileceği.',
+  'notify.off': 'Hiçbir şey',
+  'notify.offHint': 'Bot yanıt verir ama ilk yazan olmaz',
+  'notify.downloads': 'Yalnızca indirmeler',
+  'notify.downloadsHint': 'Bir indirme bittiğinde veya başarısız olduğunda mesaj',
+  'notify.all': 'Her şey',
+  'notify.allHint': 'NAS\'ın kendi bildirdikleri de: diskler, güvenlik, güncellemeler',
 
   'files.shares': 'Paylaşılan klasörler',
   'files.objects': {
