@@ -15,6 +15,17 @@ The Synology Web API behaves differently from its documentation in places, and
 Explaining API behaviour with a guess is not allowed: this project has already
 seen a wrong cause given for a failure that way (see "limit = -1" in the same file).
 
+**When DSM refuses something, read its own logs on the NAS before theorising.**
+Over SSH: `/var/log/synopkgmgr.log` carries the verdict of every package check
+with a code and an English description, `/var/log/synopkg.log` the install
+step by step. Both are `system:log`, mode 660 — root only, and the Web API
+does not expose them: `SYNO.Core.SyslogClient.Log` shows "package installed"
+and nothing about a refusal. The message in Package Center is written for
+somebody else's problem and names neither the stage nor the reason. A month
+went into guessing why an upgrade failed while one line of that log named the
+cause from the first attempt (see "preupgrade / postupgrade" in
+`docs/synology-api.md`).
+
 Known traps that specific lines of code exist for:
 
 - Batch actions answer in **three different shapes**, and in two of them a
