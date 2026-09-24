@@ -446,5 +446,10 @@ the language links at the top of every one of them are kept in step.
 Commit messages stay in Russian: the history has been written that way from the
 first commit, and mixing the two would make it unreadable either way.
 
+**No `Co-Authored-By` trailer.** Commits carry the author and nothing else. The
+first ninety-one keep theirs — rewriting them would change every hash, move
+eleven release tags and break the commit links in the merged pull request, for
+a line in a message. New commits simply do not have it.
+
 Text for people is written for people, not for developers: "the folder does not
 exist" instead of "code 403" — in any language.
