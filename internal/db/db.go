@@ -1,8 +1,9 @@
 // Package db is the SQLite storage.
 //
 // The driver is the pure Go one (modernc.org/sqlite) rather than the usual
-// mattn/go-sqlite3: the latter needs CGO, and with CGO the static build the
-// distroless image relies on is gone.
+// mattn/go-sqlite3: the latter needs CGO, and with CGO the static binary the
+// package ships is gone — and with it the reason no toolchain is needed to
+// build the .spk.
 package db
 
 import (

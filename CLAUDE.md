@@ -416,7 +416,8 @@ cd .. && go build ./cmd/dsm-mini         # a single binary with the frontend emb
 
 The SQLite driver is `modernc.org/sqlite`, pure Go. Swapping it for
 `mattn/go-sqlite3` is not allowed: that one needs CGO, and with CGO the static
-build the distroless image relies on is gone.
+binary the package ships is gone — and with it the reason `build-spk.sh` needs
+no Synology toolchain.
 
 ## Language of the project
 

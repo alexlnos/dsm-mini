@@ -123,10 +123,10 @@ func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Stat
 
 // notifyDSM writes to the DSM notification centre.
 //
-// It only works when the service runs as a package on the NAS itself: inside a
-// container and during local runs the tool simply is not there, and that is
-// not an error. Permission may also be missing — then we stay quiet, as a
-// notification is not worth stopping the service over.
+// It only works when the service runs as a package on the NAS itself: during a
+// local run the tool simply is not there, and that is not an error. Permission
+// may also be missing — then we stay quiet, as a notification is not worth
+// stopping the service over.
 func notifyDSM(title, message string) {
 	const tool = "/usr/syno/bin/synodsmnotify"
 	if _, err := os.Stat(tool); err != nil {

@@ -1,7 +1,9 @@
 // Package config loads and validates the service configuration.
 //
-// Everything is configured through environment variables — neither the image
-// nor the repository may contain a single value tied to a particular NAS.
+// Everything is configured through environment variables — neither the binary
+// nor the repository may contain a single value tied to a particular NAS. The
+// installer writes them into the package's config.env, and the settings screen
+// inside DSM edits that file afterwards.
 package config
 
 import (

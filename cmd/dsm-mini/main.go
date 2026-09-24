@@ -96,8 +96,8 @@ func run() error {
 	machines := vmm.New(client)
 	boxes := containers.New(client)
 
-	// Database with settings and watcher state. It lives in a volume that
-	// survives recreating the container.
+	// Database with settings and watcher state. It lives in the package var,
+	// which is what survives an upgrade — unlike target.
 	database, err := db.Open(databaseFile())
 	if err != nil {
 		return err

@@ -167,7 +167,7 @@ func (s *Server) Handler() http.Handler {
 	return s.recoverMiddleware(securityHeaders(root))
 }
 
-// handleHealth answers without authorisation: it is how the container is
+// handleHealth answers without authorisation: it is how the service is
 // watched. It tells nothing about the NAS.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
