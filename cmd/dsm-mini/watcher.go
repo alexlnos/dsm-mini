@@ -23,7 +23,9 @@ func newWatcher(cfg *config.Config, ds downloadstation.Station, b *bot.Bot,
 		Store:     st,
 		// Recipient language: a notification is sent on our own initiative,
 		// so there is nobody to ask at that moment.
-		Langs:    st,
+		Langs: st,
+		// What the installation agreed to receive: "off" silences these too.
+		Modes:    st,
 		ChatIDs:  cfg.AllowedUserIDs,
 		Interval: cfg.WatchInterval,
 		Logger:   log,

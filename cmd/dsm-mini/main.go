@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,6 +24,7 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/dsm/storage"
 	"github.com/alexlnos/dsm-mini/internal/dsm/system"
 	"github.com/alexlnos/dsm-mini/internal/dsm/vmm"
+	"github.com/alexlnos/dsm-mini/internal/dsmnotify"
 	"github.com/alexlnos/dsm-mini/internal/httpapi"
 	"github.com/alexlnos/dsm-mini/internal/store"
 	"github.com/alexlnos/dsm-mini/internal/web"
@@ -103,6 +105,25 @@ func run() error {
 	log.Info("database opened", "path", databaseFile())
 	settings := store.New(database)
 
+	// What DSM itself announces goes through a webhook it calls on this
+	// machine. The secret is made on first start and never typed by anyone.
+	secret, err := settings.WebhookSecret(ctx)
+	if err != nil {
+		return err
+	}
+	receiver := dsmnotify.NewReceiver(secret, settings, cfg.AllowedUserIDs, log)
+
+	// Registering it is not worth failing the start over: the service is still
+	// a working bot and Mini App without DSM's notifications, and the next
+	// restart tries again.
+	go func() {
+		regCtx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		if err := dsmnotify.Ensure(regCtx, client, webhookURL(cfg.ListenAddr), secret, log); err != nil {
+			log.Warn("dsm notifications will not arrive", "err", err)
+		}
+	}()
+
 	static, err := web.Assets()
 	if err != nil {
 		log.Warn("mini app is not embedded in the binary — only the bot will be available", "err", err)
@@ -119,6 +140,7 @@ func run() error {
 		Containers:     boxes,
 		Settings:       settings,
 		Static:         static,
+		DSMNotify:      receiver,
 		Logger:         log,
 	})
 
@@ -150,7 +172,7 @@ func run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runBot(ctx, cfg, ds, settings, log)
+		runBot(ctx, cfg, ds, settings, receiver, log)
 	}()
 
 	// Keep the NAS state warm: otherwise the first person to open the app
@@ -180,6 +202,17 @@ func newLogger(level string) *slog.Logger {
 		l = slog.LevelInfo
 	}
 	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: l}))
+}
+
+// webhookURL is where DSM should call. It is built from the address the
+// service listens on rather than configured: DSM runs on the same machine, so
+// the call goes over loopback whatever interface the service was bound to.
+func webhookURL(listenAddr string) string {
+	_, port, err := net.SplitHostPort(listenAddr)
+	if err != nil || port == "" {
+		port = "8080"
+	}
+	return "http://127.0.0.1:" + port + "/dsm/notify"
 }
 
 func databaseFile() string {

@@ -30,6 +30,7 @@ type Server struct {
 	containers *containers.Service
 	settings   *store.Store
 	static     fs.FS
+	dsmNotify  http.Handler
 	log        *slog.Logger
 
 	// Caches with different lifetimes: device details barely change, the load
@@ -60,7 +61,11 @@ type Options struct {
 	// Static is the built Mini App. May be nil: then a stub is served, which
 	// is handy when developing the backend apart from the frontend.
 	Static fs.FS
-	Logger *slog.Logger
+	// DSMNotify takes what DSM announces. May be nil: then the path is not
+	// served at all rather than answering, which is one fewer thing for a
+	// scanner to find on an installation that does not use it.
+	DSMNotify http.Handler
+	Logger    *slog.Logger
 }
 
 // New assembles the server.
@@ -92,6 +97,7 @@ func New(o Options) *Server {
 		containers: o.Containers,
 		settings:   o.Settings,
 		static:     o.Static,
+		dsmNotify:  o.DSMNotify,
 		log:        o.Logger,
 	}
 }
@@ -140,6 +146,12 @@ func (s *Server) Handler() http.Handler {
 	root := http.NewServeMux()
 	root.Handle("/api/", s.authMiddleware(api))
 	root.HandleFunc("GET /healthz", s.handleHealth)
+	// Outside /api/: the caller is DSM on this machine, not a person in
+	// Telegram, so there is no initData to check. Its own secret guards it —
+	// see internal/dsmnotify.
+	if s.dsmNotify != nil {
+		root.Handle("POST /dsm/notify", s.dsmNotify)
+	}
 	root.Handle("/", s.staticHandler())
 
 	return s.recoverMiddleware(securityHeaders(root))

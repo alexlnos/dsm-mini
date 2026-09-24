@@ -12,6 +12,7 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/bot"
 	"github.com/alexlnos/dsm-mini/internal/config"
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
+	"github.com/alexlnos/dsm-mini/internal/dsmnotify"
 	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
@@ -27,12 +28,16 @@ const botRetry = 30 * time.Second
 // its traffic bypasses the VPN. The bot connects on its own once the link is
 // back.
 func runBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
-	settings *store.Store, log *slog.Logger) {
+	settings *store.Store, receiver *dsmnotify.Receiver, log *slog.Logger) {
 
 	tgBot := waitForBot(ctx, cfg, ds, settings, log)
 	if tgBot == nil {
 		return
 	}
+
+	// The HTTP server has been up since before Telegram answered, so the
+	// endpoint DSM calls had nowhere to send anything. It does now.
+	receiver.SetNotifier(tgBot)
 
 	var wg sync.WaitGroup
 

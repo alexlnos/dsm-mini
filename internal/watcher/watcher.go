@@ -37,6 +37,7 @@ type Watcher struct {
 	notifier Notifier
 	store    StateStore
 	langs    LangSource
+	modes    ModeSource
 	chatIDs  []int64
 	interval time.Duration
 	log      *slog.Logger
@@ -56,8 +57,16 @@ type Options struct {
 	// tasks that finished before a restart all over again.
 	Store StateStore
 	// Langs hints at the recipient's language. Without it we write in English.
-	Langs  LangSource
+	Langs LangSource
+	// Modes says what the installation agreed to receive. Without it the
+	// watcher keeps its old behaviour and reports every finished task.
+	Modes  ModeSource
 	Logger *slog.Logger
+}
+
+// ModeSource reports the installation's notification choice.
+type ModeSource interface {
+	NotifyMode(ctx context.Context) (string, error)
 }
 
 // New creates a watcher.
@@ -73,6 +82,7 @@ func New(o Options) *Watcher {
 		notifier: o.Notifier,
 		store:    o.Store,
 		langs:    o.Langs,
+		modes:    o.Modes,
 		chatIDs:  o.ChatIDs,
 		interval: o.Interval,
 		log:      o.Logger,
@@ -159,6 +169,18 @@ func (w *Watcher) check(ctx context.Context) {
 }
 
 func (w *Watcher) announce(ctx context.Context, t downloadstation.Task) {
+	// "off" means off for everything the service sends on its own, this
+	// included. The task state is still recorded, so switching notifications
+	// back on does not replay the whole history.
+	if w.modes != nil {
+		mode, err := w.modes.NotifyMode(ctx)
+		if err != nil {
+			w.log.Warn("cannot read the notification mode", "err", err)
+		} else if mode == "off" {
+			w.log.Debug("notification dropped", "task", t.ID, "mode", mode)
+			return
+		}
+	}
 	for _, chat := range w.chatIDs {
 		text := formatTask(w.langOf(ctx, chat), t)
 		if err := w.notifier.Notify(ctx, chat, text); err != nil {
