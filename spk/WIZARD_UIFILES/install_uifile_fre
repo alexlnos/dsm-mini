@@ -108,7 +108,7 @@
             ]
          },
          {
-            "desc": "Telegram n'ouvre une Mini App qu'en https avec un vrai certificat : une adresse locale ou un certificat auto-signé ne s'ouvriront pas. Faites pointer ce nom vers le NAS, puis ajoutez Panneau de configuration → Portail de connexion → Avancé → Proxy inversé depuis cette adresse vers localhost et le port ci-dessous. Sans barre oblique à la fin."
+            "desc": "Telegram n'ouvre une Mini App qu'en https avec un vrai certificat : une adresse locale ou un certificat auto-signé ne s'ouvriront pas. Faites pointer ce nom vers le NAS, puis ajoutez Panneau de configuration → Portail de connexion → Avancé → Proxy inversé depuis cette adresse vers localhost, port 8080 — ou laissez la fenêtre DSM mini du menu principal la créer après l'installation. Sans barre oblique à la fin."
          }
       ]
    }

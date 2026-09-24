@@ -61,7 +61,7 @@ TEXTS = {
         "allowed_ids": "Who may use the bot — numeric IDs, comma separated",
         "allowed_ids_note": "Your bot is public: anyone who finds it can press Start. This list is what decides whose messages are answered and who may open the app — everyone else is refused. Get your number from @userinfobot; it is the account id, not the @username. An empty list lets nobody in, not everybody.",
         "public_url": "Public HTTPS address of the app",
-        "public_url_note": "Telegram opens a Mini App only over https with a real certificate: a local address or a self-signed one will not open. Point this name at the NAS, then add Control Panel → Login Portal → Advanced → Reverse Proxy from it to localhost and the port below. No slash at the end.",
+        "public_url_note": "Telegram opens a Mini App only over https with a real certificate: a local address or a self-signed one will not open. Point this name at the NAS, then add Control Panel → Login Portal → Advanced → Reverse Proxy from it to localhost, port 8080 — or let the DSM mini window in the main menu create it after installation. No slash at the end.",
 
         "required": "This field is required",
         "url_error": "Must start with https:// and have no trailing slash",
@@ -83,7 +83,7 @@ TEXTS = {
         "allowed_ids": "Кому можно пользоваться ботом — числовые ID через запятую",
         "allowed_ids_note": "Ваш бот открыт: нажать «Старт» может любой, кто его найдёт. Именно этот список решает, кому отвечать и кого пускать в приложение, — остальные получат отказ. Свой номер узнайте у @userinfobot: это идентификатор учётной записи, а не @имя. Пустой список не пускает никого, а не всех.",
         "public_url": "Публичный HTTPS-адрес приложения",
-        "public_url_note": "Telegram открывает Mini App только по https с настоящим сертификатом: локальный адрес и самоподписанный не откроются. Направьте это имя на NAS, потом добавьте Панель управления → Портал входа → Дополнительно → Обратный прокси-сервер с него на localhost и порт ниже. Без слеша в конце.",
+        "public_url_note": "Telegram открывает Mini App только по https с настоящим сертификатом: локальный адрес и самоподписанный не откроются. Направьте это имя на NAS, потом добавьте Панель управления → Портал входа → Дополнительно → Обратный прокси-сервер с него на localhost, порт 8080, — или пусть его создаст окно DSM mini в главном меню после установки. Без слеша в конце.",
 
         "required": "Поле обязательно",
         "url_error": "Должно начинаться с https:// и быть без слеша в конце",
@@ -105,7 +105,7 @@ TEXTS = {
         "allowed_ids": "Wer den Bot benutzen darf — numerische IDs, durch Komma getrennt",
         "allowed_ids_note": "Ihr Bot ist offen: Start drücken kann jeder, der ihn findet. Erst diese Liste entscheidet, wem geantwortet wird und wer die App öffnen darf — alle anderen werden abgewiesen. Ihre Nummer nennt Ihnen @userinfobot; es ist die Konto-ID, nicht der @Name. Eine leere Liste lässt niemanden hinein, nicht jeden.",
         "public_url": "Öffentliche HTTPS-Adresse der App",
-        "public_url_note": "Telegram öffnet eine Mini App nur über https mit echtem Zertifikat: eine lokale Adresse oder ein selbstsigniertes geht nicht auf. Zeigen Sie diesen Namen auf das NAS und legen Sie dann unter Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy eine Weiterleitung auf localhost und den Port unten an. Ohne Schrägstrich am Ende.",
+        "public_url_note": "Telegram öffnet eine Mini App nur über https mit echtem Zertifikat: eine lokale Adresse oder ein selbstsigniertes geht nicht auf. Zeigen Sie diesen Namen auf das NAS und legen Sie dann unter Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy eine Weiterleitung auf localhost, Port 8080, an — oder lassen Sie sie nach der Installation vom DSM-mini-Fenster im Hauptmenü anlegen. Ohne Schrägstrich am Ende.",
 
         "required": "Pflichtfeld",
         "url_error": "Muss mit https:// beginnen, ohne Schrägstrich am Ende",
@@ -127,7 +127,7 @@ TEXTS = {
         "allowed_ids": "Qui peut utiliser le bot — identifiants numériques séparés par des virgules",
         "allowed_ids_note": "Votre bot est ouvert : n'importe qui le trouvant peut appuyer sur Démarrer. C'est cette liste qui décide à qui l'on répond et qui peut ouvrir l'application — les autres sont refusés. @userinfobot vous donne votre numéro ; c'est l'identifiant du compte, pas le @nom. Une liste vide ne laisse entrer personne, pas tout le monde.",
         "public_url": "Adresse HTTPS publique de l'application",
-        "public_url_note": "Telegram n'ouvre une Mini App qu'en https avec un vrai certificat : une adresse locale ou un certificat auto-signé ne s'ouvriront pas. Faites pointer ce nom vers le NAS, puis ajoutez Panneau de configuration → Portail de connexion → Avancé → Proxy inversé depuis cette adresse vers localhost et le port ci-dessous. Sans barre oblique à la fin.",
+        "public_url_note": "Telegram n'ouvre une Mini App qu'en https avec un vrai certificat : une adresse locale ou un certificat auto-signé ne s'ouvriront pas. Faites pointer ce nom vers le NAS, puis ajoutez Panneau de configuration → Portail de connexion → Avancé → Proxy inversé depuis cette adresse vers localhost, port 8080 — ou laissez la fenêtre DSM mini du menu principal la créer après l'installation. Sans barre oblique à la fin.",
 
         "required": "Champ obligatoire",
         "url_error": "Doit commencer par https:// et finir sans barre oblique",
@@ -149,7 +149,7 @@ TEXTS = {
         "allowed_ids": "Chi può usare il bot — ID numerici separati da virgole",
         "allowed_ids_note": "Il tuo bot è aperto: chiunque lo trovi può premere Avvia. È questo elenco a decidere a chi rispondere e chi può aprire l'applicazione — gli altri vengono respinti. Il tuo numero te lo dà @userinfobot; è l'id dell'account, non il @nome. Un elenco vuoto non fa entrare nessuno, non tutti.",
         "public_url": "Indirizzo HTTPS pubblico dell'applicazione",
-        "public_url_note": "Telegram apre una Mini App solo via https con un certificato vero: un indirizzo locale o uno autofirmato non si apriranno. Fai puntare questo nome al NAS, poi aggiungi Pannello di controllo → Portale di accesso → Avanzate → Proxy inverso da qui a localhost e alla porta qui sotto. Senza barra finale.",
+        "public_url_note": "Telegram apre una Mini App solo via https con un certificato vero: un indirizzo locale o uno autofirmato non si apriranno. Fai puntare questo nome al NAS, poi aggiungi Pannello di controllo → Portale di accesso → Avanzate → Proxy inverso da qui a localhost, porta 8080 — oppure lascia che la crei la finestra DSM mini nel menu principale dopo l'installazione. Senza barra finale.",
 
         "required": "Campo obbligatorio",
         "url_error": "Deve iniziare con https:// e non finire con una barra",
@@ -171,7 +171,7 @@ TEXTS = {
         "allowed_ids": "Quién puede usar el bot — ID numéricos separados por comas",
         "allowed_ids_note": "Tu bot está abierto: cualquiera que lo encuentre puede pulsar Iniciar. Es esta lista la que decide a quién se responde y quién puede abrir la aplicación; al resto se le niega. Tu número te lo da @userinfobot; es el id de la cuenta, no el @nombre. Una lista vacía no deja entrar a nadie, no a todos.",
         "public_url": "Dirección HTTPS pública de la aplicación",
-        "public_url_note": "Telegram abre una Mini App solo por https con un certificado de verdad: una dirección local o uno autofirmado no abrirán. Apunta este nombre al NAS y añade Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso desde él hacia localhost y el puerto de abajo. Sin barra al final.",
+        "public_url_note": "Telegram abre una Mini App solo por https con un certificado de verdad: una dirección local o uno autofirmado no abrirán. Apunta este nombre al NAS y añade Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso desde él hacia localhost, puerto 8080, o deja que lo cree la ventana DSM mini del menú principal tras la instalación. Sin barra al final.",
 
         "required": "Campo obligatorio",
         "url_error": "Debe empezar por https:// y no llevar barra al final",
@@ -193,7 +193,7 @@ TEXTS = {
         "allowed_ids": "Quem pode usar o bot — IDs numéricos separados por vírgula",
         "allowed_ids_note": "Seu bot é aberto: qualquer um que o encontre pode apertar Iniciar. É esta lista que decide para quem responder e quem pode abrir o aplicativo — os demais são recusados. Seu número vem do @userinfobot; é o id da conta, não o @nome. Uma lista vazia não deixa ninguém entrar, e não todo mundo.",
         "public_url": "Endereço HTTPS público do aplicativo",
-        "public_url_note": "O Telegram abre um Mini App só por https com certificado de verdade: um endereço local ou um autoassinado não abrem. Aponte este nome para o NAS e depois adicione Painel de Controle → Portal de login → Avançado → Proxy reverso dele para o localhost e a porta abaixo. Sem barra no fim.",
+        "public_url_note": "O Telegram abre um Mini App só por https com certificado de verdade: um endereço local ou um autoassinado não abrem. Aponte este nome para o NAS e depois adicione Painel de Controle → Portal de login → Avançado → Proxy reverso dele para o localhost, porta 8080 — ou deixe a janela DSM mini do menu principal criá-lo após a instalação. Sem barra no fim.",
 
         "required": "Campo obrigatório",
         "url_error": "Precisa começar com https:// e não terminar com barra",
@@ -215,7 +215,7 @@ TEXTS = {
         "allowed_ids": "Kto może używać bota — numeryczne ID po przecinku",
         "allowed_ids_note": "Twój bot jest otwarty: każdy, kto go znajdzie, może nacisnąć Start. To ta lista decyduje, komu odpowiadać i kto może otworzyć aplikację — reszta dostaje odmowę. Swój numer poznasz u @userinfobot; to identyfikator konta, nie @nazwa. Pusta lista nie wpuszcza nikogo, a nie wszystkich.",
         "public_url": "Publiczny adres HTTPS aplikacji",
-        "public_url_note": "Telegram otwiera Mini App tylko po https z prawdziwym certyfikatem: adres lokalny ani samopodpisany się nie otworzą. Skieruj tę nazwę na NAS-a, a potem dodaj Panel sterowania → Portal logowania → Zaawansowane → Zwrotny serwer proxy z niej na localhost i port poniżej. Bez ukośnika na końcu.",
+        "public_url_note": "Telegram otwiera Mini App tylko po https z prawdziwym certyfikatem: adres lokalny ani samopodpisany się nie otworzą. Skieruj tę nazwę na NAS-a, a potem dodaj Panel sterowania → Portal logowania → Zaawansowane → Zwrotny serwer proxy z niej na localhost, port 8080 — albo pozwól, by po instalacji utworzyło go okno DSM mini w menu głównym. Bez ukośnika na końcu.",
 
         "required": "Pole wymagane",
         "url_error": "Musi zaczynać się od https:// i nie kończyć ukośnikiem",
@@ -237,7 +237,7 @@ TEXTS = {
         "allowed_ids": "Botu kimler kullanabilir — virgülle ayrılmış sayısal kimlikler",
         "allowed_ids_note": "Botunuz açıktır: onu bulan herkes Başlat'a basabilir. Kime yanıt verileceğine ve uygulamayı kimin açabileceğine bu liste karar verir; geri kalanı reddedilir. Numaranızı @userinfobot söyler; bu, @adınız değil hesap kimliğidir. Boş liste herkesi değil, hiç kimseyi içeri almaz.",
         "public_url": "Uygulamanın genel HTTPS adresi",
-        "public_url_note": "Telegram bir Mini App'i yalnızca gerçek sertifikalı https üzerinden açar: yerel bir adres ya da kendinden imzalı bir sertifika açılmaz. Bu adı NAS'a yönlendirin, sonra Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy ile buradan localhost'a ve aşağıdaki bağlantı noktasına aktarın. Sonunda eğik çizgi olmasın.",
+        "public_url_note": "Telegram bir Mini App'i yalnızca gerçek sertifikalı https üzerinden açar: yerel bir adres ya da kendinden imzalı bir sertifika açılmaz. Bu adı NAS'a yönlendirin, sonra Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy ile buradan localhost'un 8080 bağlantı noktasına aktarın — ya da kurulumdan sonra ana menüdeki DSM mini penceresinin oluşturmasına bırakın. Sonunda eğik çizgi olmasın.",
 
         "required": "Bu alan zorunlu",
         "url_error": "https:// ile başlamalı ve sonunda eğik çizgi olmamalı",

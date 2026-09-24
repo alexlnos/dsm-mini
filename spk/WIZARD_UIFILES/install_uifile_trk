@@ -108,7 +108,7 @@
             ]
          },
          {
-            "desc": "Telegram bir Mini App'i yalnızca gerçek sertifikalı https üzerinden açar: yerel bir adres ya da kendinden imzalı bir sertifika açılmaz. Bu adı NAS'a yönlendirin, sonra Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy ile buradan localhost'a ve aşağıdaki bağlantı noktasına aktarın. Sonunda eğik çizgi olmasın."
+            "desc": "Telegram bir Mini App'i yalnızca gerçek sertifikalı https üzerinden açar: yerel bir adres ya da kendinden imzalı bir sertifika açılmaz. Bu adı NAS'a yönlendirin, sonra Denetim Masası → Oturum Açma Portalı → Gelişmiş → Ters Proxy ile buradan localhost'un 8080 bağlantı noktasına aktarın — ya da kurulumdan sonra ana menüdeki DSM mini penceresinin oluşturmasına bırakın. Sonunda eğik çizgi olmasın."
          }
       ]
    }

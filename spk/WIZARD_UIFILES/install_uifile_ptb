@@ -108,7 +108,7 @@
             ]
          },
          {
-            "desc": "O Telegram abre um Mini App só por https com certificado de verdade: um endereço local ou um autoassinado não abrem. Aponte este nome para o NAS e depois adicione Painel de Controle → Portal de login → Avançado → Proxy reverso dele para o localhost e a porta abaixo. Sem barra no fim."
+            "desc": "O Telegram abre um Mini App só por https com certificado de verdade: um endereço local ou um autoassinado não abrem. Aponte este nome para o NAS e depois adicione Painel de Controle → Portal de login → Avançado → Proxy reverso dele para o localhost, porta 8080 — ou deixe a janela DSM mini do menu principal criá-lo após a instalação. Sem barra no fim."
          }
       ]
    }
