@@ -350,6 +350,14 @@ wrapper (`dsm-wrapper.js`) whose only job is an iframe. Everything a person
 sees is a plain page — no framework, no build step, because it is served
 straight out of the package by DSM's own web server.
 
+- **A browser session needs `X-SYNO-TOKEN`; an API session does not.** DSM has
+  CSRF protection on by default (`SYNO.Core.Security.DSM`,
+  `enable_csrf_protection`), and with it the session cookie alone is refused —
+  with a plain `success: false`, not an HTTP error. A session made through
+  `SYNO.API.Auth` is not refused, so the check passed every test and failed for
+  the first person who opened the screen in DSM. The page reads the token from
+  `SYNO.SDS.Session.SynoToken` on the desktop around it — same origin — rather
+  than taking it through a URL, where it would land in logs and referrers.
 - **`/webman/3rdparty/` is served to anyone.** A request with no session gets
   200, checked against a live NAS. So the path guards nothing and `api.cgi`
   authorises nothing: it only carries the browser's `Cookie` header to the

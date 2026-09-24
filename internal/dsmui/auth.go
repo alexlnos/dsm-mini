@@ -25,8 +25,13 @@ type Session struct {
 
 // Verifier asks DSM to identify a session cookie.
 type Verifier interface {
-	Identify(ctx context.Context, cookie string) (Session, error)
+	Identify(ctx context.Context, cookie, token string) (Session, error)
 }
+
+// TokenHeader is where the page puts DSM's CSRF token. It reads it from the
+// desktop around it — the screen is an iframe of the same origin — and
+// api.cgi carries it here.
+const TokenHeader = "X-Syno-Token"
 
 // Auth guards the endpoints the screen calls.
 //
@@ -70,7 +75,7 @@ func (a *Auth) Middleware(next http.Handler) http.Handler {
 			a.refuse(w, r, "no dsm session cookie")
 			return
 		}
-		session, err := a.identify(r.Context(), cookie)
+		session, err := a.identify(r.Context(), cookie, r.Header.Get(TokenHeader))
 		if err != nil {
 			a.refuse(w, r, "dsm did not recognise the session: "+err.Error())
 			return
@@ -90,17 +95,20 @@ func (a *Auth) refuse(w http.ResponseWriter, r *http.Request, reason string) {
 	http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 }
 
-func (a *Auth) identify(ctx context.Context, cookie string) (Session, error) {
+func (a *Auth) identify(ctx context.Context, cookie, token string) (Session, error) {
 	now := time.Now()
+	// The token is part of the key: a cookie that stops being accepted when
+	// the token changes must not be answered from what the old pair earned.
+	key := cookie + "\x00" + token
 
 	a.mu.Lock()
-	if c, ok := a.recent[cookie]; ok && now.Before(c.until) {
+	if c, ok := a.recent[key]; ok && now.Before(c.until) {
 		a.mu.Unlock()
 		return c.session, nil
 	}
 	a.mu.Unlock()
 
-	session, err := a.verifier.Identify(ctx, cookie)
+	session, err := a.verifier.Identify(ctx, cookie, token)
 	if err != nil {
 		return Session{}, err
 	}
@@ -113,7 +121,7 @@ func (a *Auth) identify(ctx context.Context, cookie string) (Session, error) {
 			delete(a.recent, k)
 		}
 	}
-	a.recent[cookie] = cached{session: session, until: now.Add(cacheFor)}
+	a.recent[key] = cached{session: session, until: now.Add(cacheFor)}
 	a.mu.Unlock()
 	return session, nil
 }

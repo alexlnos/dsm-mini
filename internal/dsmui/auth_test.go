@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -14,11 +15,23 @@ type stubVerifier struct {
 	session Session
 	err     error
 	calls   atomic.Int32
+	// The last pair handed over, so a test can check what travelled.
+	mu            sync.Mutex
+	cookie, token string
 }
 
-func (s *stubVerifier) Identify(context.Context, string) (Session, error) {
+func (s *stubVerifier) Identify(_ context.Context, cookie, token string) (Session, error) {
 	s.calls.Add(1)
+	s.mu.Lock()
+	s.cookie, s.token = cookie, token
+	s.mu.Unlock()
 	return s.session, s.err
+}
+
+func (s *stubVerifier) seen() (string, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cookie, s.token
 }
 
 func guarded(v Verifier) (http.Handler, *atomic.Int32) {
@@ -105,6 +118,43 @@ func TestCacheIsPerSession(t *testing.T) {
 	h, _ := guarded(v)
 	request(h, "one")
 	request(h, "two")
+	if got := v.calls.Load(); got != 2 {
+		t.Fatalf("dsm was asked %d times, want 2", got)
+	}
+}
+
+// DSM has CSRF protection on by default, and with it a session made in a
+// browser is refused unless the call carries X-SYNO-TOKEN. The screen reads
+// the token from the desktop around it; this checks it gets that far.
+func TestTokenReachesTheVerifier(t *testing.T) {
+	v := &stubVerifier{session: Session{User: "alex", IsAdmin: true}}
+	a := NewAuth(v, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := a.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+
+	r := httptest.NewRequest(http.MethodGet, "/dsm/admin/settings", nil)
+	r.AddCookie(&http.Cookie{Name: "id", Value: "cookie-value"})
+	r.Header.Set(TokenHeader, "token-value")
+	h.ServeHTTP(httptest.NewRecorder(), r)
+
+	cookie, token := v.seen()
+	if cookie != "cookie-value" || token != "token-value" {
+		t.Fatalf("verifier saw cookie=%q token=%q", cookie, token)
+	}
+}
+
+// A different token is a different request context, so the cached verdict for
+// one must not answer for the other.
+func TestCacheIsPerToken(t *testing.T) {
+	v := &stubVerifier{session: Session{User: "alex", IsAdmin: true}}
+	a := NewAuth(v, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := a.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+
+	for _, token := range []string{"one", "two"} {
+		r := httptest.NewRequest(http.MethodGet, "/dsm/admin/settings", nil)
+		r.AddCookie(&http.Cookie{Name: "id", Value: "same"})
+		r.Header.Set(TokenHeader, token)
+		h.ServeHTTP(httptest.NewRecorder(), r)
+	}
 	if got := v.calls.Load(); got != 2 {
 		t.Fatalf("dsm was asked %d times, want 2", got)
 	}

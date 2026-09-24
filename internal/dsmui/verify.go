@@ -17,6 +17,12 @@ import (
 // load. Its Session block carries `user` and `is_admin` — checked against a
 // live NAS; there is no documented "who am I" call, and SYNO.Core.CurrentUser
 // answers 102, "no such API", on DSM 7.4.
+//
+// The cookie alone is not enough. DSM has CSRF protection on by default
+// (SYNO.Core.Security.DSM, enable_csrf_protection), and with it a session made
+// in a browser is refused unless the call also carries X-SYNO-TOKEN. A session
+// made through the API is not — which is why this worked in every test until
+// somebody opened the screen in DSM.
 type DSMVerifier struct {
 	baseURL string
 	client  *http.Client
@@ -36,7 +42,7 @@ func NewVerifier(baseURL string, insecureTLS bool) *DSMVerifier {
 	}
 }
 
-func (v *DSMVerifier) Identify(ctx context.Context, cookie string) (Session, error) {
+func (v *DSMVerifier) Identify(ctx context.Context, cookie, token string) (Session, error) {
 	q := url.Values{
 		"api":     {"SYNO.Core.Desktop.Initdata"},
 		"method":  {"get"},
@@ -48,6 +54,9 @@ func (v *DSMVerifier) Identify(ctx context.Context, cookie string) (Session, err
 		return Session{}, err
 	}
 	req.AddCookie(&http.Cookie{Name: "id", Value: cookie})
+	if token != "" {
+		req.Header.Set("X-SYNO-TOKEN", token)
+	}
 
 	resp, err := v.client.Do(req)
 	if err != nil {

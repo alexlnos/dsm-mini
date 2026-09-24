@@ -23,11 +23,27 @@
     return pack[key] || (DICT.en && DICT.en[key]) || key;
   }
 
+  // DSM's CSRF token. The screen is an iframe of the same origin as the
+  // desktop that opened it, so the token can be read from there rather than
+  // passed through a URL, where it would end up in logs and referrers.
+  //
+  // Opened on its own in a browser tab there is no desktop and no token, and
+  // DSM will refuse the session — which is the honest outcome: this screen is
+  // meant to be reached from the DSM menu.
+  function synoToken() {
+    try {
+      return (window.parent && window.parent.SYNO && window.parent.SYNO.SDS &&
+        window.parent.SYNO.SDS.Session && window.parent.SYNO.SDS.Session.SynoToken) || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function call(endpoint, method, body) {
     return fetch('api.cgi?p=' + endpoint, {
       method: method || 'GET',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Syno-Token': synoToken() },
       body: body ? JSON.stringify(body) : undefined
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (data) {

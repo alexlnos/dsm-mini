@@ -37,8 +37,12 @@ esac
 url="http://127.0.0.1:${PORT}/dsm/admin/${path}"
 method="${REQUEST_METHOD:-GET}"
 
+# The cookie proves who is asking; the token proves the request came from
+# DSM's own interface. DSM refuses a browser session without it whenever CSRF
+# protection is on, which it is by default.
 set -- -s -S -i --max-time 30 -X "$method" \
     -H "Cookie: ${HTTP_COOKIE:-}" \
+    -H "X-Syno-Token: ${HTTP_X_SYNO_TOKEN:-}" \
     -H "Content-Type: application/json"
 
 if [ "$method" != "GET" ] && [ "${CONTENT_LENGTH:-0}" -gt 0 ] 2>/dev/null; then
