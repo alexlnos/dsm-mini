@@ -62,6 +62,27 @@ var migrations = []string{
 	-- and there is nobody to ask at that moment — hence it is stored.
 	ALTER TABLE user_settings ADD COLUMN language TEXT NOT NULL DEFAULT '';
 	`,
+	`
+	-- Values that belong to the installation rather than to any one person.
+	--
+	-- 'notifications' is what the service may send unprompted — 'off',
+	-- 'downloads' or 'all'. It lives here rather than in user_settings because
+	-- the settings screen inside DSM has no Telegram user to attach it to, and
+	-- because a NAS tool with a handful of allowed accounts does not need a
+	-- separate feed per person. Absent means 'downloads', which is what the
+	-- service did before the choice existed: an upgrade must not start sending
+	-- people things they never asked for.
+	--
+	-- 'webhook_secret' is what DSM puts in a header when it calls the
+	-- notification webhook. The endpoint sits on the same server as everything
+	-- else and is therefore reachable through the reverse proxy like any other
+	-- path, so that header is the only thing separating DSM's call from
+	-- anyone else's.
+	CREATE TABLE service_meta (
+		key   TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	);
+	`,
 }
 
 // Open opens the database and brings its schema up to date.

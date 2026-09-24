@@ -18,6 +18,18 @@ import (
 // More than a dozen turns the choice into scrolling and loses its point.
 const maxPinned = 12
 
+// What the service may send a person without being asked.
+const (
+	// NotifyOff sends nothing at all.
+	NotifyOff = "off"
+	// NotifyDownloads sends only the end of a download — what the service did
+	// before there was a choice, and therefore the default.
+	NotifyDownloads = "downloads"
+	// NotifyAll adds what DSM itself announces: the security advisor, storage,
+	// updates. DSM delivers those to us over a webhook it calls on the NAS.
+	NotifyAll = "all"
+)
+
 // Settings are the settings of a single user.
 type Settings struct {
 	// PinnedFolders are the quick-pick folders, in display order.
@@ -31,6 +43,19 @@ type Settings struct {
 // Defaults returns the settings of a user who changed nothing.
 func Defaults() Settings {
 	return Settings{ShowRecent: true}
+}
+
+// cleanNotifications keeps the field to the three values that mean something.
+// Anything else — an old row, a hand-edited database, a newer client — reads
+// as the default rather than as "send nothing", because silence looks like a
+// broken service and is the harder failure to notice.
+func cleanNotifications(v string) string {
+	switch v {
+	case NotifyOff, NotifyDownloads, NotifyAll:
+		return v
+	default:
+		return NotifyDownloads
+	}
 }
 
 // Store gives access to the settings.
