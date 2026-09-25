@@ -102,7 +102,12 @@ internal/dsm/vmm/        virtual machines
 internal/dsm/containers/ Container Manager containers
 internal/store/      user settings on top of SQLite
 internal/db/         schema and migrations
+internal/config/     config.env: reading, defaults, what is still missing
+internal/dsmui/      the settings window's side: status, settings, address
+internal/dsmnotify/  DSM's own notifications through a webhook
 web/                 the React Mini App, built into internal/web/dist
+spk/                 the DSM package: scripts, privilege, the window (spk/ui)
+contrib/spksrc/      the SynoCommunity recipe, with its copy of the window
 docs/synology-api.md what has been learned about the API in practice
 ```
 
@@ -130,10 +135,10 @@ The service is exposed to the internet and can delete files on the NAS.
   owner, and the documented methods offer **no way to detach a manager** once
   it is set. So the price of saving one trip to @BotFather is a service that
   permanently holds the keys to every user's bot. Considered and declined in
-  September 2026; the installation wizard explains the BotFather step instead.
+  September 2026; the settings window explains the BotFather step instead.
 
-- **The service binds loopback only** (`127.0.0.1:8080`), because the DSM
-  reverse proxy reaches it through localhost. `:8080` would also publish it to
+- **The service binds loopback only** (`127.0.0.1:58080`), because the DSM
+  reverse proxy reaches it through localhost. `:58080` would also publish it to
   the whole local network — which is what the package actually did until
   September 2026, while the README claimed the opposite. A security claim in
   the documentation is worth checking against a live port, not against the
@@ -217,7 +222,8 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - There is **one way to install it: the DSM package.** Docker was dropped in
   September 2026 — a second path meant the same settings documented twice, in
   ten languages, and the two drifting apart. A new required setting is now
-  edited in one place: the wizard table in `tools/make-wizard.py`.
+  added in two places that CI keeps together: `config.Required` and the window
+  (`spk/ui/app.js`, its texts in `tools/make-dsmui-i18n.py`).
 - The `.gitignore` entry for the built binary is written with a leading slash
   (`/dsm-mini`): without it the pattern also matches the `cmd/dsm-mini`
   directory, and the entry point quietly drops out of the repository.
@@ -261,34 +267,40 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - DSM 7 runs package scripts as the package user, not as root (`conf/privilege`
   with `run-as: package`). Writing is only possible into the package's `var` —
   which is also what survives an upgrade, unlike `target`.
-- The wizard asks **five** things, and every one of them is something only the
+- **The package user is `sc-dsm-mini`, group `synocommunity`**, named in
+  `conf/privilege` (`username`/`groupname`, documented since DSM 6.0-5940)
+  rather than left to default to the package id. That is what the SynoCommunity
+  framework calls it, and the two builds have to agree: DSM hands the data
+  folder to the new package user on an upgrade — the folder, **not the files
+  in it**. When our build ran as `dsm-mini`, Package Center offered it as an
+  ordinary update over the SynoCommunity build, and a live NAS ended up with
+  `config.env` it could not read, a stopped package and a Repair button;
+  `/var/log/packages/dsm-mini.log` had the `Permission denied`. CI checks the
+  name. The port is the same in both for the same reason: 58080.
+- **There is no install wizard.** The package starts with no settings and is
+  set up in its window in the DSM main menu (see "The settings screen inside
+  DSM"). Every installation question the wizard had was also a setting the
+  window had to offer, so there were two forms, two sets of texts in ten
+  languages, and the wizard only ever ran once: installing the package over
+  itself re-asked nothing, and changing a setting meant the window, SSH, or an
+  uninstall that took the database along.
+- The window asks **five** things, and every one of them is something only the
   person installing knows: the DSM user and password, the bot token, the list
-  of ids and the public address. The DSM address and the service port used to
-  be there and are not any more — the service runs on the NAS, so the address
-  is always loopback, and 8080 is free unless somebody made it otherwise.
-  `postinst` still writes both with its own defaults, and the settings screen
-  inside DSM edits them for the installation where they are wrong. A question
-  whose answer is the same for everyone is not a question.
-- Each wizard field carries three things: a short label, an example shown in
-  the empty field (`emptyText`) and a line underneath saying what the setting
-  is for. Whoever fills this in has never seen the project and is being asked
-  for a password and a token — "DSM user" alone does not say which user, and
-  the list of allowed ids does not explain itself at all.
-- The wizard runs **only on installation**. There is no `upgrade_uifile` and no
-  upgrade script, so an update leaves `config.env` untouched — which is exactly
-  why settings survive one. The consequence is easy to get wrong: installing
-  the package over itself does **not** re-ask anything. Changing a setting
-  means editing `config.env` over SSH, or uninstalling and installing again,
-  which also takes the database next to it. The README said the opposite for a
-  while, contradicting its own paragraph two lines below.
-- Wizard settings arrive in `postinst` as environment variables named after the
-  keys from `WIZARD_UIFILES`. They are written to the file in single quotes: a
-  password with a space or a `$` would otherwise break the service start.
-- The wizard is translated in separate `install_uifile_<language>` files; the
-  suffixes are Synology's (`rus`, `ger`, `ptb`) and do not match Telegram's
-  codes. **Italian is `ita`** — `itn` was used here once, and a suffix DSM does
-  not know is not an error: the installer quietly shows English, so only an
-  Italian speaker would ever notice. The full list is in `docs/synology-api.md`.
+  of ids and the public address. The DSM address and the service port have
+  defaults and sit under "Advanced" — the service runs on the NAS, so the
+  address is loopback, on whatever HTTPS port DSM describes in
+  `/usr/syno/etc/www/DSM.json`. A question whose answer is the same for
+  everyone is not a question.
+- Each field carries three things: a short label, an example shown in the
+  empty field and a line underneath saying what the setting is for. Whoever
+  fills this in has never seen the project and is being asked for a password
+  and a token — "DSM user" alone does not say which user, and the list of
+  allowed ids does not explain itself at all.
+- DSM language codes (`rus`, `ger`, `ptb`) do not match Telegram's, and are what
+  `description_<lang>` in INFO uses. **Italian is `ita`** — `itn` was used here
+  once, and a suffix DSM does not know is not an error: DSM quietly shows
+  English, so only an Italian speaker would ever notice. The full list is in
+  `docs/synology-api.md`.
 - The listing text lives in **`assets/store.json`**, once: `build-spk.sh` writes
   it into INFO as `description` and `description_<lang>`, `make-feed.py` puts
   the English one into the catalogue. One paragraph, no line breaks and no
@@ -336,22 +348,25 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   the rule is: change the SVG, run the script, never touch a PNG by hand.
   The arrow in the mark is a cut-out, not a white shape on top: at 40 px, the
   size Package Center and Telegram really show, a thin outline disappears.
-- The wizard files in `spk/WIZARD_UIFILES/` are generated and committed; CI
-  regenerates them and fails if the result differs. The same goes for the ten
-  READMEs: a check compares the language links, because a translation nothing
-  links to looks perfectly fine on its own.
+- The window's dictionary `spk/ui/i18n.js` is generated by
+  `tools/make-dsmui-i18n.py` and committed; CI regenerates it and fails if the
+  result differs. The same goes for the ten READMEs: a check compares the
+  language links, because a translation nothing links to looks perfectly fine
+  on its own.
 - The recipe for SynoCommunity is in `contrib/spksrc/`, written **their** way
-  rather than ported from ours: their generic installer, their templated
-  wizard, their package user `sc-dsm-mini`, modelled on `spk/ddns-go` and
-  `spk/gentoo-chroot`, and built in their container before being committed.
-  Its README lists where it differs from our package and why — the port
-  (58080: 8080 is SABnzbd's in their list), no `SERVICE_PORT` for a loopback
-  service, the kept log. On a release: `PKG_VERS`, `SPK_VERS`, `make digests`,
-  and `SPK_REV` goes up — it never resets.
-- **The two builds are not interchangeable on one NAS.** Same package id,
-  different package users: moving from one to the other looks like an upgrade
-  to DSM, and the new service cannot read settings or database owned by the
-  other user.
+  rather than ported from ours: their generic installer, their package user
+  `sc-dsm-mini`, modelled on `spk/ddns-go` and `spk/gentoo-chroot`, and built in
+  their container before being committed. Its README lists where it differs
+  from our package and why — no `SERVICE_PORT` for a loopback service, the kept
+  log. It carries a **copy** of the window in `src/app/` (spksrc builds from its
+  own tree); CI fails when the copy differs from `spk/ui/`, and only the Ext JS
+  wrapper is its own, for the namespace. On a release: `PKG_VERS`, `SPK_VERS`,
+  `make digests`, and `SPK_REV` goes up — it never resets.
+- **The two builds replace each other**: same package id, same package user,
+  same port. So our own catalogue can serve betas and SynoCommunity the
+  releases, and moving between them is an ordinary update that keeps the
+  settings. Anything that makes the builds differ in where or as whom they keep
+  files breaks that — see the package user above.
 - **No brackets in the display name.** spksrc writes it into INFO unquoted
   through the shell, so brackets are a syntax error, and elsewhere quoted into
   `jq`, so escaping them leaks a backslash. The name is "DSM mini — Telegram
@@ -391,6 +406,14 @@ DSM calls it on every notification, over loopback.
 - A forwarded notification is logged, and so is one that was not forwarded
   because of the mode. Without both, "DSM called and nothing arrived" cannot
   be answered from the log — and for an hour it could not be.
+- **`sepchar` is a space.** It is what DSM puts in place of every space of the
+  message — an SMS gateway leftover, for text in a query string. Every preset
+  in DSM's own interface sets `" "`, JSON bodies included, and the field is only
+  shown for GET; ours was created empty, and "Test Message from NAS" reached
+  Telegram as "TestMessagefromNAS". Found by reading the provider back through
+  the API and `NotificationVueBundle.js` on the NAS, after the log said
+  "forwarded" and the person said "nothing arrived" — it had arrived, without
+  spaces.
 
 ## The settings screen inside DSM
 
@@ -399,6 +422,47 @@ The package registers a window in the DSM main menu: `dsmuidir="ui"` and
 wrapper (`dsm-wrapper.js`) whose only job is an iframe. Everything a person
 sees is a plain page — no framework, no build step, because it is served
 straight out of the package by DSM's own web server.
+
+It is also **where the package is set up**: there is no install wizard. The
+service starts with no settings at all, serves this window and nothing else,
+and starts the rest once the window has saved enough to start on.
+
+- **A save applies without restarting the package.** The service reads
+  `config.env` itself (not through the start script's environment, which would
+  keep the old values) and runs as a loop in one process: a save cancels the
+  current run with `errRestart`, the next one starts with the new file. The
+  window waits for the status's `since` to change — until it does, the answer
+  comes from the run that is about to stop. The notification mode lives in the
+  database and needs no restart at all.
+- **Nothing that is wrong in the settings stops the process.** Missing values,
+  a refused password, a refused token, a Download Station that is not running:
+  each is a state the window shows at the top, in the person's language, with
+  DSM's own code where there is one. A package that exits on a bad setting is
+  shown by Package Center as stopped, with a Repair button that repairs
+  nothing — that is what people used to get. Only a port somebody else holds
+  still stops it, because then even the window cannot be served.
+- A refused DSM sign-in is **not retried** by itself: repeating a wrong password
+  only adds failed sign-ins to DSM's log and to what its auto block counts.
+  DSM not answering at all is retried every half a minute — during boot it
+  comes up after the packages.
+- **The window talks to DSM as the administrator who opened it**, through the
+  browser's own session (cookie and SynoToken), never as the service's account.
+  That is what lets it read the reverse proxy rules and create one before the
+  service has an account at all — and the service's account is not an
+  administrator anyway. DSM accepts that session over loopback although it was
+  made on another machine, with its IP checking on (`skip_ip_checking: false`)
+  — checked on DSM 7.4.
+- **Files left by another package user** — the result of switching between
+  builds that ran as different users — are explained in the window, with the
+  one `chown` that hands them back. Saving new settings replaces `config.env`
+  anyway (a rename in a folder the service owns needs no permission on the old
+  file). A database that cannot be read is set aside as `*.unreadable` once
+  the service has settings to run on, and a log that cannot be appended to is
+  set aside by the start script, which would otherwise fail to start anything.
+- **DSM sends the window's files with no `Cache-Control`**, only `ETag` and
+  `Last-Modified`, so a browser may keep the previous version's page for hours
+  after an upgrade. The wrapper opens `index.html?v=<now>` and the page loads
+  its scripts with the same value.
 
 - **A browser session needs `X-SYNO-TOKEN`; an API session does not.** DSM has
   CSRF protection on by default (`SYNO.Core.Security.DSM`,
@@ -418,19 +482,20 @@ straight out of the package by DSM's own web server.
   edits the bot token and the NAS password.
 - **The CGI cannot read `config.env`**: the file is 0600 and owned by the
   package user, and DSM's web server runs as another. It still needs the
-  service's port, so `start-stop-status` writes that one value into
-  `ui/backend.conf`, which is world-readable and holds nothing else.
+  service's port, so the service writes that one value into `backend.conf` in
+  `UI_DIR` every time it starts listening — the window can move the port
+  without a package restart. The file is world-readable and holds nothing else.
 - **Secrets are write-only.** The password and the token are never sent to the
   browser; the screen shows "set" and an empty field. An empty field means
   "leave it alone" — treating it as "erase" would lock the service out of the
   NAS on the first save of an unrelated setting.
-- `config.env` is rewritten through a temporary file and values are quoted the
-  way `postinst` writes them: a half-written file is a service that will not
-  start, and an unquoted password with a space breaks the start script.
-- Everything except the notification mode needs a restart to take effect: the
-  service reads `config.env` once. The screen says so rather than pretending.
-- The dictionary is generated by `tools/make-dsmui-i18n.py` and committed, the
-  same arrangement as the installer wizard; CI fails if the two drift apart.
+- `config.env` is rewritten through a temporary file, with values in single
+  quotes and the shell's escaping: a half-written file is a service that starts
+  with half its settings, and whoever reads the file with `.` by hand should
+  not be tripped by a password with a space.
+- The dictionary is generated by `tools/make-dsmui-i18n.py` and committed; CI
+  fails if the two drift apart, and the generator refuses a translation that
+  lost a `{name}` placeholder.
 
 ## Languages
 
@@ -483,11 +548,11 @@ no Synology toolchain.
 text are in English: the project is open, and not only Russian speakers will
 read it.
 
-Russian lives in exactly three places, and all of them are **translations**:
-`internal/i18n/ru.go`, `web/src/i18n/ru.ts`,
-`spk/WIZARD_UIFILES/install_uifile_rus` (built by `tools/make-wizard.py`, which
-holds the text table) plus `DESCRIPTION_RUS` in the SynoCommunity recipe. The
-other nine languages live in the same places.
+Russian lives only in **translations**: `internal/i18n/ru.go`,
+`web/src/i18n/ru.ts`, the settings window's table in
+`tools/make-dsmui-i18n.py` (and the `spk/ui/i18n.js` built from it), the
+listing text in `assets/store.json`, plus `DESCRIPTION_RUS` in the
+SynoCommunity recipe. The other nine languages live in the same places.
 
 Documentation follows the same rule: `README.md` and this file are English,
 translations of the README are separate files (`README_RU.md` and the rest), and

@@ -54,7 +54,7 @@ on the disks and how the NAS is feeling.
 
 - What DSM announces itself — the security advisor, disks, updates — reaches the chat
 - A choice of what the bot may send: nothing, downloads only, everything
-- A screen of its own in the DSM main menu: every setting, without editing a file over SSH
+- A screen of its own in the DSM main menu: the package is set up there after installation, and every setting is changed there later, without a restart
 
 **Language**
 
@@ -109,17 +109,23 @@ Then Settings → General → Trust Level → **Any publisher**, and install
 **DSM mini — Telegram Mini App** from the **Community** section. Not sure about
 the architecture? Try `amd64`: a package that does not fit is simply refused.
 
-The installer asks for five values and explains each one as it asks —
-everything for them was collected in the steps above. Or install the `.spk`
-from the [releases](https://github.com/alexlnos/dsm-mini/releases) by hand,
-through Package Center → Manual Install.
+Nothing is asked during installation. Or install the `.spk` from the
+[releases](https://github.com/alexlnos/dsm-mini/releases) by hand, through
+Package Center → Manual Install.
 
-**6. Point the address at the service.** Control Panel → Login Portal →
-Advanced → Reverse Proxy → Create. Source: `HTTPS`, your name, port `443`.
-Destination: `HTTP`, `localhost`, port `8080`.
+**6. Set it up.** Open **DSM mini** from the DSM main menu, or press **Open** in
+Package Center. Fill in the five values — everything for them was collected in
+the steps above, and the window explains each one — and press **Save and
+start**. The status line at the top of the window says when DSM and the bot have
+answered, and what is wrong if they have not.
 
-> Do not proxy port **80** for this name: DSM renews the certificate through
-> it, and intercepting it breaks the renewal three months later.
+For the address, the window creates the reverse proxy rule itself: type your
+name under **Point a name at the service**. By hand it is Control Panel → Login
+Portal → Advanced → Reverse Proxy → Create. Source: `HTTPS`, your name, port
+`443`. Destination: `HTTP`, `localhost`, port `58080`.
+
+> Do not proxy port **80** for this name: DSM renews the certificate through it,
+> and intercepting it breaks the renewal three months later.
 
 **7. Check.** `https://your-address/healthz` in a browser should answer
 `{"status":"ok"}`. Nothing is given away without a Telegram signature.
@@ -132,45 +138,39 @@ it offers folders as buttons.
 
 | What you see | What it is | What to do |
 |---|---|---|
-| The bot is silent on `/start` | Wrong token, or the package is not running | Package Center → **DSM mini — Telegram Mini App** → the log |
-| "Access to this bot is closed" | Your ID is not on the list | Put the number from step 2 into the allowed IDs (see "Changing the settings" below) |
-| There is no app button | The public address is empty or not `https://` | Same place: the settings file, then restart the package |
+| The bot is silent on `/start` | The package is not set up, or the token is wrong | Open **DSM mini** in the DSM main menu: the status line at the top says which |
+| "Access to this bot is closed" | Your ID is not on the list | Add the number from step 2 to the allowed IDs in the **DSM mini** window |
+| There is no app button | The public address is empty or not `https://` | The **DSM mini** window, public address |
 | The button is there, the app does not open | The reverse proxy or the certificate is not working | Open `https://your-address/healthz` in a browser |
 | "Open the app through the bot" | The app was opened by a direct link in a browser | That is intended: open it from the bot |
 | "Access denied: your Telegram ID…" | The service did not recognise you | The allowed IDs take digits only, comma separated |
-| "authentication with DSM failed" in the log | The password, 2FA or the user's permissions | Step 3: password without typos, 2FA off, applications allowed |
-| "Could not get the task list" in the log | Download Station is not installed, or is denied to the user | Package Center and the permissions from step 3 |
-| The package stops right after starting | A setting is wrong — the log names which | The DSM notification centre shows the reason too |
+| The window says DSM refused the sign-in | The password, 2FA or the user's permissions | Step 3: password without typos, 2FA off, applications allowed |
+| The window says Download Station is not running | It is not installed, or is denied to the user | Package Center and the permissions from step 3 |
+| The package stops right after starting | Its port is taken by something else — the log says so | Change `LISTEN_ADDR` in `config.env` over SSH (see below) |
 
-The package log is the main source of truth: it names exactly what is missing.
-It lives at `/var/packages/dsm-mini/var/dsm-mini.log` and opens from Package
-Center.
+The first place to look is the status line at the top of the **DSM mini**
+window: it says whether DSM and Telegram have answered and, if not, why. The
+details are in the package log, `/var/packages/dsm-mini/var/dsm-mini.log`, which
+also opens from Package Center.
 
 ### Changing the settings
 
-Everything the wizard asked for lives in one file on the NAS,
-`/var/packages/dsm-mini/var/config.env`, mode `600`.
+**Open DSM mini in the DSM main menu** — every setting is there. The password
+and the token are write-only: leave a field empty and it keeps what it had. A
+save applies at once: the service starts again with it by itself, and the
+package does not have to be restarted.
 
-Installing the package over itself will **not** ask again: the wizard runs on
-installation, and an upgrade deliberately leaves the file alone — that is why
-settings survive an update. So there are three ways:
+The settings live in one file on the NAS,
+`/var/packages/dsm-mini/var/config.env`, mode `600`. It can also be edited over
+SSH (Control Panel → Terminal & SNMP → Enable SSH); restart the package
+afterwards:
 
-- **Open DSM mini in the DSM main menu** — the settings screen changes any of
-  them, and the password and the token are write-only there: leave a field empty
-  and it keeps what it had. Restart the package afterwards; the notification
-  setting applies at once.
+```bash
+sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='your-new-token'|" /var/packages/dsm-mini/var/config.env
+sudo synopkg restart dsm-mini
+```
 
-- **Edit the file over SSH** (Control Panel → Terminal & SNMP → Enable SSH),
-  then restart the package in Package Center. This keeps everything:
-
-  ```bash
-  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='your-new-token'|" /var/packages/dsm-mini/var/config.env
-  sudo synopkg restart dsm-mini
-  ```
-
-- **Uninstall and install again** — the wizard asks for everything anew. This
-  also removes the database next to the settings, so the pinned folders, the
-  language and the last known task statuses are gone.
+An upgrade leaves the file alone, which is why the settings survive an update.
 
 ## Updating
 
@@ -186,7 +186,7 @@ The settings and the database survive either way: they live in the package's
 
 Everything is in `/var/packages/dsm-mini/var/`:
 
-- `config.env` — what the wizard asked for, mode `600`;
+- `config.env` — the settings from the DSM mini window, mode `600`;
 - `dsm-mini.db` — an SQLite database: the pinned folders, the language and the
   last known task statuses, from which the service knows what it has already
   reported;
@@ -225,11 +225,12 @@ go test ./...
 The frontend on its own, with hot reload:
 
 ```bash
-cd web && npm run dev    # talks to the backend on localhost:8080
+cd web && npm run dev    # talks to the backend on localhost:58080
 ```
 
-Running the backend locally reads the same variables the package wizard writes
-into `config.env`. It is convenient to keep them in a file:
+Running the backend locally reads `config.env` in `STATE_DIR`, the way the
+package does, and environment variables fill in what the file does not say. It
+is convenient to keep them in a file:
 
 ```bash
 cp .env.example .env     # fill it in

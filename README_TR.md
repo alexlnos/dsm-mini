@@ -54,7 +54,7 @@ olduğunu ve NAS'ın durumunu görürsünüz.
 
 - DSM'nin kendi bildirdikleri — güvenlik danışmanı, diskler, güncellemeler — sohbete ulaşır
 - Botun ne gönderebileceğinin seçimi: hiçbir şey, yalnızca indirmeler, her şey
-- DSM ana menüsünde kendi ekranı: her ayar, SSH ile dosya düzenlemeden
+- DSM ana menüsünde kendi ekranı: paket kurulumdan sonra orada ayarlanır, sonra her ayar yine orada, yeniden başlatmadan değiştirilir
 
 **Dil**
 
@@ -109,14 +109,20 @@ Sonra Ayarlar → Genel → Güven Düzeyi → **Herhangi bir yayıncı**, ve
 **Topluluk** bölümünden **DSM mini — Telegram Mini App** kurun. Mimariden emin
 değil misiniz? `amd64` deneyin: uymayan bir paket zaten reddedilir.
 
-Yükleyici beş değer sorar ve her birini sorarken açıklar — hepsi için gereken
-yukarıdaki adımlarda toplandı. Ya da `.spk` dosyasını
+Kurulum hiçbir şey sormaz. Ya da `.spk` dosyasını
 [sürümlerden](https://github.com/alexlnos/dsm-mini/releases) elle kurun, Paket
 Merkezi → Elle Yükleme ile.
 
-**6. Adresi servise yönlendirmek.** Denetim Masası → Oturum Açma Portalı →
-Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin adınız, bağlantı
-noktası `443`. Hedef: `HTTP`, `localhost`, bağlantı noktası `8080`.
+**6. Ayarlamak.** DSM ana menüsünden **DSM mini**'yi açın ya da Paket
+Merkezi'nde **Aç**'a basın. Beş değeri doldurun — hepsi için gereken yukarıdaki
+adımlarda toplandı, pencere de her birini açıklar — ve **Kaydet ve başlat**'a
+basın. Pencerenin üstündeki durum satırı DSM'nin ve botun ne zaman yanıt
+verdiğini, vermediyse neyin yanlış olduğunu gösterir.
+
+Adres için ters proxy kuralını pencere kendisi oluşturur: adınızı **Bir adı
+servise yönlendir** alanına yazın. Elle yapmak için Denetim Masası → Oturum Açma
+Portalı → Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin adınız,
+bağlantı noktası `443`. Hedef: `HTTP`, `localhost`, bağlantı noktası `58080`.
 
 > Bu ad için **80** numaralı bağlantı noktasını proxy'lemeyin: DSM sertifikayı
 > oradan yeniliyor, araya girmek yenilemeyi üç ay sonra bozar.
@@ -132,47 +138,40 @@ bağlantısı gönderin, klasörleri düğmelerle önerir.
 
 | Gördüğünüz | Sorun ne | Ne yapmalı |
 |---|---|---|
-| Bot `/start` komutuna susuyor | Yanlış belirteç ya da paket çalışmıyor | Paket Merkezi → **DSM mini — Telegram Mini App** → günlük |
-| «Bu bota erişim kapalı» | Kimliğiniz listede değil | 2. adımdaki numarayı izin verilen kimliklere ekleyin (aşağıda «Ayarları değiştirmek») |
-| Uygulama düğmesi yok | Genel adres boş ya da `https://` değil | Aynı yer: ayar dosyası, sonra paketi yeniden başlatın |
+| Bot `/start` komutuna susuyor | Paket ayarlanmamış ya da belirteç yanlış | DSM ana menüsünden **DSM mini**'yi açın: üstteki durum satırı hangisi olduğunu söyler |
+| «Bu bota erişim kapalı» | Kimliğiniz listede değil | 2. adımdaki numarayı **DSM mini** penceresinde izin verilen kimliklere ekleyin |
+| Uygulama düğmesi yok | Genel adres boş ya da `https://` değil | **DSM mini** penceresi, genel adres |
 | Düğme var, uygulama açılmıyor | Ters proxy ya da sertifika çalışmıyor | Tarayıcıda `https://adresiniz/healthz` açın |
 | «Uygulamayı bot üzerinden açın» | Uygulama tarayıcıda doğrudan bağlantıyla açıldı | Böyle olması gerekiyor: bottan açın |
 | «Erişim reddedildi: Telegram kimliğiniz…» | Servis sizi tanımadı | İzin verilen kimliklerde yalnızca rakamlar, virgülle ayrılmış |
-| Günlükte `authentication with DSM failed` | Parola, 2FA ya da kullanıcının yetkileri | 3. adım: parola yazım hatasız, 2FA kapalı, uygulamalara izinli |
-| Günlükte `Could not get the task list` | Download Station kurulu değil ya da kullanıcıya yasak | Paket Merkezi ve 3. adımdaki yetkiler |
-| Paket başlar başlamaz duruyor | Bir ayar yanlış — günlük hangisi olduğunu söyler | Neden DSM bildirim merkezine de düşer |
+| Pencere, DSM'nin oturum açmayı reddettiğini söylüyor | Parola, 2FA ya da kullanıcının yetkileri | 3. adım: parola yazım hatasız, 2FA kapalı, uygulamalara izinli |
+| Pencere, Download Station'ın çalışmadığını söylüyor | Kurulu değil ya da kullanıcıya yasak | Paket Merkezi ve 3. adımdaki yetkiler |
+| Paket başlar başlamaz duruyor | Bağlantı noktasını başka bir şey tutuyor — günlük bunu söyler | `config.env` içindeki `LISTEN_ADDR` değerini SSH ile değiştirin (aşağıya bakın) |
 
-Paketin günlüğü ana doğruluk kaynağıdır: neyin eksik olduğunu açıkça söyler.
-`/var/packages/dsm-mini/var/dsm-mini.log` dosyasında durur ve Paket
-Merkezi'nden açılır. Günlük İngilizce tutulur, arayüz ve bot mesajları sizin
-dilinizde olur.
+İlk bakılacak yer **DSM mini** penceresinin üstündeki durum satırıdır: DSM'nin
+ve Telegram'ın yanıt verip vermediğini, vermediyse nedenini söyler. Ayrıntılar
+paketin günlüğündedir, `/var/packages/dsm-mini/var/dsm-mini.log`; Paket
+Merkezi'nden de açılır. Günlük İngilizce tutulur; pencere, arayüz ve bot
+mesajları sizin dilinizde olur.
 
 ### Ayarları değiştirmek
 
-Sihirbazın sorduğu her şey NAS'ta tek bir dosyada:
-`/var/packages/dsm-mini/var/config.env`, izinler `600`.
+**DSM ana menüsünden DSM mini'yi açın** — bütün ayarlar orada. Parola ve
+belirteç yalnızca yazılır: boş bırakılan alan eskisini korur. Kaydetmek hemen
+geçerli olur: servis yeni ayarlarla kendini yeniden başlatır, paketi yeniden
+başlatmak gerekmez.
 
-Paketi kendi üzerine kurmak yeniden **sormaz**: sihirbaz kurulumda çalışır ve
-bir güncelleme dosyaya bilerek dokunmaz — ayarların güncellemeyi atlatmasının
-nedeni budur. Geriye üç yol kalıyor:
+Ayarlar NAS'ta tek bir dosyada durur: `/var/packages/dsm-mini/var/config.env`,
+izinler `600`. Dosya SSH ile de düzenlenebilir (Denetim Masası → Terminal ve
+SNMP → SSH'i açın); ardından paketi yeniden başlatın:
 
-- **DSM ana menüsünden DSM mini'yi açın** — ayarlar ekranı bunlardan
-  herhangi birini değiştirir, parola ve jeton orada yalnızca yazılır: boş
-  bırakılan alan eskisini korur. Sonra paketi yeniden başlatın; bildirim
-  ayarı hemen geçerli olur.
+```bash
+sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='yeni-belirteciniz'|" /var/packages/dsm-mini/var/config.env
+sudo synopkg restart dsm-mini
+```
 
-- **Dosyayı SSH ile düzenlemek** (Denetim Masası → Terminal ve SNMP → SSH'i
-  açın), sonra paketi Paket Merkezi'nden yeniden başlatmak. Böylece geri kalan
-  her şey durur:
-
-  ```bash
-  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='yeni-belirteciniz'|" /var/packages/dsm-mini/var/config.env
-  sudo synopkg restart dsm-mini
-  ```
-
-- **Kaldırıp yeniden kurmak** — sihirbaz her şeyi baştan sorar. Ayarlarla
-  birlikte yanındaki veritabanı da gider: sabitlenen klasörler, dil ve
-  görevlerin son bilinen durumları.
+Bir güncelleme dosyaya dokunmaz; ayarların güncellemeyi atlatmasının nedeni
+budur.
 
 ## Güncelleme
 
@@ -188,7 +187,7 @@ güncelleme oraya dokunmuyor.
 
 Her şey `/var/packages/dsm-mini/var/` içinde:
 
-- `config.env` — sihirbazın sorduğu şeyler, izinler `600`;
+- `config.env` — DSM mini penceresindeki ayarlar, izinler `600`;
 - `dsm-mini.db` — bir SQLite veritabanı: sabitlenen klasörler, dil ve görevlerin
   son bilinen durumları; servis neyi bildirdiğini bunlardan anlıyor;
 - `dsm-mini.log` — günlük.
@@ -226,11 +225,12 @@ go test ./...
 Ön yüz ayrı, otomatik yenilemeyle:
 
 ```bash
-cd web && npm run dev    # localhost:8080 üzerindeki arka uçla konuşur
+cd web && npm run dev    # localhost:58080 üzerindeki arka uçla konuşur
 ```
 
-Arka ucu yerelde çalıştırmak, paket sihirbazının `config.env` içine yazdığı
-değişkenlerin aynısını okur. Bunları bir dosyada tutmak elverişli:
+Arka ucu yerelde çalıştırmak, paketin yaptığı gibi `STATE_DIR` içindeki
+`config.env` dosyasını okur; ortam değişkenleri dosyanın söylemediklerini
+tamamlar. Bunları bir dosyada tutmak elverişli:
 
 ```bash
 cp .env.example .env     # doldurun

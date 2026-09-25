@@ -5,6 +5,10 @@
 # requires it. So everything the service writes lives in the package var: it
 # has permission there, and that directory survives an upgrade.
 #
+# Nothing here reads the settings. The service reads config.env itself, and
+# starts without one: a fresh package is set up in its window in the DSM main
+# menu, and a save there applies without this script being involved.
+#
 # Messages going out are in English: they are read by whoever installs the
 # package, and they may be from anywhere.
 
@@ -13,7 +17,6 @@ TARGET="${SYNOPKG_PKGDEST:-/var/packages/$PKG/target}"
 VAR="${SYNOPKG_PKGVAR:-/var/packages/$PKG/var}"
 
 BIN="$TARGET/bin/$PKG"
-ENV_FILE="$VAR/config.env"
 PID_FILE="$VAR/$PKG.pid"
 LOG_FILE="$VAR/$PKG.log"
 
@@ -28,33 +31,29 @@ start_service() {
     running && return 0
 
     [ -x "$BIN" ] || { echo "Executable not found: $BIN" >&2; return 1; }
-    [ -r "$ENV_FILE" ] || { echo "Configuration not found: $ENV_FILE" >&2; return 1; }
 
-    # The settings live in a separate file rather than inside the package:
-    # they are edited after installation without reinstalling it.
-    set -a
-    . "$ENV_FILE"
-    set +a
-
-    # The settings screen in DSM is served by DSM's own web server, under a
-    # different user that cannot read config.env (0600). It still has to know
-    # which port to reach the service on, so the port — and only the port —
-    # is written next to the page, where that user may read it.
-    port="${LISTEN_ADDR##*:}"
-    case "$port" in
-        ''|*[!0-9]*) port=8080 ;;
-    esac
-    if [ -d "$TARGET/ui" ]; then
-        printf 'PORT=%s\n' "$port" > "$TARGET/ui/backend.conf" 2>/dev/null || true
+    # A log left by a build of the package that ran as another user cannot
+    # be appended to, and a redirection that fails means the service is never
+    # started at all. It is set aside rather than lost: it may be the only
+    # account of what happened before.
+    if [ -e "$LOG_FILE" ] && [ ! -w "$LOG_FILE" ]; then
+        mv -f "$LOG_FILE" "$LOG_FILE.unreadable" 2>/dev/null || true
     fi
+
+    # STATE_DIR is where config.env and the database live. UI_DIR is the
+    # settings window, which the service tells which port it listens on: the
+    # window's CGI runs as DSM's web server and cannot read config.env.
     STATE_DIR="$VAR"
-    export STATE_DIR
+    UI_DIR="$TARGET/ui"
+    export STATE_DIR UI_DIR
 
     "$BIN" >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
 
     # Give the service a moment to die: without this the Package Center would
-    # show "running" for a process that already exited on a wrong token.
+    # show "running" for a process that already exited. Settings that are
+    # missing or wrong no longer do that — the service stays up and says so in
+    # its window — but a port somebody else holds still does.
     sleep 2
     if ! running; then
         echo "Service exited on startup, see $LOG_FILE" >&2

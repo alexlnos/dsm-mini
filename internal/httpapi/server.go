@@ -31,7 +31,6 @@ type Server struct {
 	settings   *store.Store
 	static     fs.FS
 	dsmNotify  http.Handler
-	dsmAdmin   http.Handler
 	log        *slog.Logger
 
 	// Caches with different lifetimes: device details barely change, the load
@@ -66,9 +65,7 @@ type Options struct {
 	// served at all rather than answering, which is one fewer thing for a
 	// scanner to find on an installation that does not use it.
 	DSMNotify http.Handler
-	// DSMAdmin serves the settings screen that lives inside DSM. May be nil.
-	DSMAdmin http.Handler
-	Logger   *slog.Logger
+	Logger    *slog.Logger
 }
 
 // New assembles the server.
@@ -101,7 +98,6 @@ func New(o Options) *Server {
 		settings:   o.Settings,
 		static:     o.Static,
 		dsmNotify:  o.DSMNotify,
-		dsmAdmin:   o.DSMAdmin,
 		log:        o.Logger,
 	}
 }
@@ -156,15 +152,9 @@ func (s *Server) Handler() http.Handler {
 	if s.dsmNotify != nil {
 		root.Handle("POST /dsm/notify", s.dsmNotify)
 	}
-	// The settings screen inside DSM. Also outside /api/: its caller is a
-	// browser logged into DSM, and it proves that with DSM's own session
-	// cookie rather than with Telegram's initData.
-	if s.dsmAdmin != nil {
-		root.Handle("/dsm/admin/", s.dsmAdmin)
-	}
 	root.Handle("/", s.staticHandler())
 
-	return s.recoverMiddleware(securityHeaders(root))
+	return s.recoverMiddleware(SecurityHeaders(root))
 }
 
 // handleHealth answers without authorisation: it is how the service is
@@ -229,9 +219,10 @@ func trimLeadingSlash(p string) string {
 	return p
 }
 
-// securityHeaders sets headers suited to a page living inside
-// webview Telegram.
-func securityHeaders(next http.Handler) http.Handler {
+// SecurityHeaders sets headers suited to a page living inside Telegram's
+// webview. Exported for the settings screen, which the service serves beside
+// this API rather than through it.
+func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")

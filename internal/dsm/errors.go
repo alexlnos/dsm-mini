@@ -46,6 +46,23 @@ func (e *APIError) needsRelogin() bool {
 // account or a demand for a 2FA code. Repeating such a request is pointless.
 var ErrAuth = errors.New("authentication with DSM failed")
 
+// AuthError is a refused login together with DSM's code, so that whoever
+// shows it to a person can say which of the refusals it was. It matches
+// ErrAuth under errors.Is.
+type AuthError struct {
+	Code int
+}
+
+func (e *AuthError) Error() string {
+	msg, ok := authErrorText[e.Code]
+	if !ok {
+		msg = fmt.Sprintf("code %d", e.Code)
+	}
+	return ErrAuth.Error() + ": " + msg
+}
+
+func (e *AuthError) Is(target error) bool { return target == ErrAuth }
+
 // errorText holds the common DSM codes plus login and Download Station ones.
 //
 // Synology's 400+ range overlaps: 403 during login means "2FA code needed",

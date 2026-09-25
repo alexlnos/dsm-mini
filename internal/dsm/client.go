@@ -35,6 +35,11 @@ type Client struct {
 	http    *http.Client
 	log     *slog.Logger
 
+	// cookie and synoToken are set for a client borrowed from a browser
+	// session; see Options.
+	cookie    string
+	synoToken string
+
 	mu   sync.RWMutex
 	sid  string
 	apis map[string]apiInfo
@@ -60,6 +65,15 @@ type Options struct {
 	InsecureTLS bool
 	Timeout     time.Duration
 	Logger      *slog.Logger
+
+	// Cookie and SynoToken make the client act inside somebody else's browser
+	// session instead of signing in itself: the settings window inside DSM
+	// works as the administrator who opened it. A browser session is refused
+	// without the token whenever DSM's CSRF protection is on, which it is by
+	// default. Such a client never signs in, and cannot sign in again when
+	// the session ends.
+	Cookie    string
+	SynoToken string
 }
 
 // New creates a client. It makes no network requests — the login happens
@@ -82,6 +96,8 @@ func New(o Options) *Client {
 		user:        o.User,
 		pass:        o.Password,
 		otp:         o.OTP,
+		cookie:      o.Cookie,
+		synoToken:   o.SynoToken,
 		http:        &http.Client{Timeout: o.Timeout, Transport: transport},
 		log:         o.Logger,
 		apis:        make(map[string]apiInfo),
@@ -129,11 +145,7 @@ func (c *Client) Login(ctx context.Context) error {
 		if raw.Error != nil {
 			code = raw.Error.Code
 		}
-		msg, ok := authErrorText[code]
-		if !ok {
-			msg = fmt.Sprintf("code %d", code)
-		}
-		return fmt.Errorf("%w: %s", ErrAuth, msg)
+		return &AuthError{Code: code}
 	}
 
 	var out struct {
@@ -178,7 +190,7 @@ func (c *Client) Call(ctx context.Context, api, method string, version int, para
 
 	data, err := c.call(ctx, api, method, version, params)
 	var apiErr *APIError
-	if err != nil && asAPIError(err, &apiErr) && apiErr.needsRelogin() {
+	if err != nil && c.cookie == "" && asAPIError(err, &apiErr) && apiErr.needsRelogin() {
 		c.log.Debug("the DSM session is invalid, signing in again", "api", api)
 		if err := c.Login(ctx); err != nil {
 			return err
@@ -275,6 +287,11 @@ func (c *Client) APIMaxVersion(ctx context.Context, api string) int {
 }
 
 func (c *Client) ensureSession(ctx context.Context) error {
+	if c.cookie != "" {
+		// Borrowed: the session is the browser's, and it is DSM's job to say
+		// whether it is still good.
+		return nil
+	}
 	c.mu.RLock()
 	sid := c.sid
 	c.mu.RUnlock()
@@ -292,6 +309,12 @@ func (c *Client) post(ctx context.Context, path string, form url.Values) (*respo
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if c.cookie != "" {
+		req.AddCookie(&http.Cookie{Name: "id", Value: c.cookie})
+		if c.synoToken != "" {
+			req.Header.Set("X-SYNO-TOKEN", c.synoToken)
+		}
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

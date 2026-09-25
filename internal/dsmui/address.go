@@ -2,11 +2,12 @@ package dsmui
 
 import (
 	"encoding/json"
-
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/alexlnos/dsm-mini/internal/config"
 )
 
 // Telegram opens a Mini App only over a public HTTPS address with a real
@@ -46,9 +47,8 @@ type ddnsRecord struct {
 }
 
 func (s *Server) handleAddress(w http.ResponseWriter, r *http.Request) {
-	values, err := readEnv(settingsFile(s.stateDir))
-	if err != nil {
-		s.fail(w, r, err, "cannot read the settings file")
+	values, ok := s.readSettings(w, r)
+	if !ok {
 		return
 	}
 
@@ -60,20 +60,21 @@ func (s *Server) handleAddress(w http.ResponseWriter, r *http.Request) {
 	// Each of these is optional: a NAS with no DDNS and no rules is exactly
 	// the case the screen exists for, so one empty answer must not blank the
 	// whole page. Failures are logged and the section is simply left out.
-	view.Proxies = s.readProxies(r)
+	nas := s.session(r)
+	view.Proxies = s.readProxies(r, nas)
 	for i, p := range view.Proxies {
 		if isLoopback(p.BackendHost) && p.BackendPort == view.ListenPort {
 			view.Matching = &view.Proxies[i]
 			break
 		}
 	}
-	view.ExternalIP = s.readExternalIP(r)
-	view.DDNS = s.readDDNS(r)
+	view.ExternalIP = s.readExternalIP(r, nas)
+	view.DDNS = s.readDDNS(r, nas)
 
 	writeJSON(w, http.StatusOK, view)
 }
 
-func (s *Server) readProxies(r *http.Request) []proxyRule {
+func (s *Server) readProxies(r *http.Request, nas Caller) []proxyRule {
 	var body struct {
 		Entries []struct {
 			Description string `json:"description"`
@@ -88,7 +89,7 @@ func (s *Server) readProxies(r *http.Request) []proxyRule {
 			} `json:"backend"`
 		} `json:"entries"`
 	}
-	if err := s.dsm.Call(r.Context(), "SYNO.Core.AppPortal.ReverseProxy", "list", 1, nil, &body); err != nil {
+	if err := nas.Call(r.Context(), "SYNO.Core.AppPortal.ReverseProxy", "list", 1, nil, &body); err != nil {
 		s.log.Warn("cannot read the reverse proxy rules", "err", err)
 		return nil
 	}
@@ -107,12 +108,12 @@ func (s *Server) readProxies(r *http.Request) []proxyRule {
 	return out
 }
 
-func (s *Server) readExternalIP(r *http.Request) string {
+func (s *Server) readExternalIP(r *http.Request, nas Caller) string {
 	var body []struct {
 		IP   string `json:"ip"`
 		Type string `json:"type"`
 	}
-	if err := s.dsm.Call(r.Context(), "SYNO.Core.DDNS.ExtIP", "list", 1, nil, &body); err != nil {
+	if err := nas.Call(r.Context(), "SYNO.Core.DDNS.ExtIP", "list", 1, nil, &body); err != nil {
 		s.log.Warn("cannot read the external address", "err", err)
 		return ""
 	}
@@ -124,7 +125,7 @@ func (s *Server) readExternalIP(r *http.Request) string {
 	return ""
 }
 
-func (s *Server) readDDNS(r *http.Request) []ddnsRecord {
+func (s *Server) readDDNS(r *http.Request, nas Caller) []ddnsRecord {
 	var body struct {
 		Records []struct {
 			Hostname string `json:"hostname"`
@@ -132,7 +133,7 @@ func (s *Server) readDDNS(r *http.Request) []ddnsRecord {
 			Status   string `json:"status"`
 		} `json:"records"`
 	}
-	if err := s.dsm.Call(r.Context(), "SYNO.Core.DDNS.Record", "list", 1, nil, &body); err != nil {
+	if err := nas.Call(r.Context(), "SYNO.Core.DDNS.Record", "list", 1, nil, &body); err != nil {
 		s.log.Warn("cannot read the ddns records", "err", err)
 		return nil
 	}
@@ -165,9 +166,8 @@ func (s *Server) handleCreateProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	values, err := readEnv(settingsFile(s.stateDir))
-	if err != nil {
-		s.fail(w, r, err, "cannot read the settings file")
+	values, ok := s.readSettings(w, r)
+	if !ok {
 		return
 	}
 	port := listenPort(values["LISTEN_ADDR"], s.listenAddr)
@@ -182,28 +182,29 @@ func (s *Server) handleCreateProxy(w http.ResponseWriter, r *http.Request) {
 		"proxy_connect_timeout": 60, "proxy_read_timeout": 60, "proxy_send_timeout": 60,
 		"proxy_intercept_errors": false, "customize_headers": []any{},
 	}
-	if err := s.dsm.Call(r.Context(), "SYNO.Core.AppPortal.ReverseProxy", "create", 1,
+	if err := s.session(r).Call(r.Context(), "SYNO.Core.AppPortal.ReverseProxy", "create", 1,
 		map[string]any{"entry": entry}, nil); err != nil {
 		s.fail(w, r, err, "cannot create the reverse proxy rule")
 		return
 	}
 
 	values["PUBLIC_URL"] = "https://" + name
-	if err := writeEnv(settingsFile(s.stateDir), values); err != nil {
+	if err := config.WriteFile(SettingsFile(s.stateDir), values); err != nil {
 		s.fail(w, r, err, "the rule was created but the address was not saved")
 		return
 	}
 	who, _ := SessionFrom(r.Context())
 	s.log.Info("reverse proxy rule created", "fqdn", name, "port", port, "by", who.User)
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"public": values["PUBLIC_URL"], "restart_needed": true,
-	})
+	// The bot puts the address on its Mini App button, so it starts again
+	// with the new one, the same way a save from the form does.
+	writeJSON(w, http.StatusOK, map[string]any{"public": values["PUBLIC_URL"], "applying": true})
+	s.restart()
 }
 
 // listenPort is the port a rule has to point at. The file wins over the
-// address the service is actually on: a port changed on this screen has not
-// taken effect yet, and the rule should describe where it will be.
+// address the service is actually on: a port changed on this screen may not
+// have taken effect yet, and the rule should describe where it will be.
 func listenPort(fromFile, running string) int {
 	for _, addr := range []string{fromFile, running} {
 		if addr == "" {
@@ -217,7 +218,7 @@ func listenPort(fromFile, running string) int {
 			return n
 		}
 	}
-	return 8080
+	return config.DefaultPort
 }
 
 func isLoopback(host string) bool {

@@ -19,9 +19,10 @@ fail() {
 DIR=$(dirname "$0")
 
 # The port the service listens on. config.env is 0600 and owned by the package
-# user, so this script cannot read it; start-stop-status writes the port — and
-# only the port — here, where the web server may.
-PORT=8080
+# user, so this script cannot read it; the service writes the port — and only
+# the port — here, where the web server may, every time it starts listening.
+# 58080 until it has: the default in both builds of the package.
+PORT=58080
 if [ -r "$DIR/backend.conf" ]; then
     . "$DIR/backend.conf"
 fi
@@ -30,7 +31,7 @@ fi
 # for every DSM version, and a query parameter is.
 path=$(printf '%s' "${QUERY_STRING:-}" | tr '&' '\n' | sed -n 's/^p=//p' | head -n 1)
 case "$path" in
-    settings|address|address/proxy|whoami) ;;
+    status|settings|address|address/proxy|whoami) ;;
     *) fail "unknown endpoint" ;;
 esac
 

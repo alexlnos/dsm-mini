@@ -55,7 +55,7 @@ cosa c'è sui dischi e come sta il NAS.
 
 - Ciò che annuncia il DSM stesso — consulente di sicurezza, dischi, aggiornamenti — arriva in chat
 - La scelta di cosa il bot può mandare: niente, solo download, tutto
-- Una schermata propria nel menu principale di DSM: ogni impostazione, senza modificare un file via SSH
+- Una schermata propria nel menu principale di DSM: lì il pacchetto si configura dopo l'installazione e lì si cambia poi qualsiasi impostazione, senza riavvio
 
 **Lingua**
 
@@ -111,14 +111,20 @@ e installa **DSM mini — Telegram Mini App** dalla sezione **Community**. Dubbi
 sull'architettura? Prova `amd64`: un pacchetto che non va bene viene
 semplicemente rifiutato.
 
-L'installer chiede cinque valori e spiega ognuno mentre lo chiede: tutto quello
-che serve è stato raccolto nei passi qui sopra. Oppure installa lo `.spk` dalle
+L'installazione non chiede nulla. Oppure installa lo `.spk` dalle
 [versioni](https://github.com/alexlnos/dsm-mini/releases) a mano, da Centro
 pacchetti → Installazione manuale.
 
-**6. Puntare l'indirizzo sul servizio.** Pannello di controllo → Portale di
-accesso → Avanzate → Proxy inverso → Crea. Origine: `HTTPS`, il tuo nome, porta
-`443`. Destinazione: `HTTP`, `localhost`, porta `8080`.
+**6. Configurare.** Apri **DSM mini** dal menu principale di DSM, oppure premi
+**Apri** in Centro pacchetti. Compila i cinque valori — tutto quello che serve è
+stato raccolto nei passi qui sopra, e la finestra spiega ognuno — e premi
+**Salva e avvia**. La riga di stato in cima alla finestra dice quando DSM e il
+bot hanno risposto, e cosa non va se non l'hanno fatto.
+
+La regola di proxy inverso per l'indirizzo la crea la finestra stessa: scrivi il
+tuo nome in **Puntare un nome al servizio**. A mano è Pannello di controllo →
+Portale di accesso → Avanzate → Proxy inverso → Crea. Origine: `HTTPS`, il tuo
+nome, porta `443`. Destinazione: `HTTP`, `localhost`, porta `58080`.
 
 > Non passare per il proxy la porta **80** di questo nome: è da lì che DSM
 > rinnova il certificato, e intercettarla rompe il rinnovo tre mesi dopo.
@@ -134,47 +140,41 @@ link magnet qualsiasi: ti propone le cartelle con dei pulsanti.
 
 | Cosa vedi | Di cosa si tratta | Cosa fare |
 |---|---|---|
-| Il bot tace su `/start` | Token sbagliato, o il pacchetto non è in funzione | Centro pacchetti → **DSM mini — Telegram Mini App** → il registro |
-| «L'accesso a questo bot è chiuso» | Il tuo ID non è nell'elenco | Metti il numero del passo 2 negli ID consentiti (vedi «Cambiare le impostazioni» più sotto) |
-| Non c'è il pulsante dell'applicazione | L'indirizzo pubblico è vuoto o non è `https://` | Stesso posto: il file delle impostazioni, poi riavvia il pacchetto |
+| Il bot tace su `/start` | Il pacchetto non è configurato, o il token è sbagliato | Apri **DSM mini** nel menu principale di DSM: la riga di stato in cima dice quale |
+| «L'accesso a questo bot è chiuso» | Il tuo ID non è nell'elenco | Aggiungi il numero del passo 2 agli ID consentiti nella finestra **DSM mini** |
+| Non c'è il pulsante dell'applicazione | L'indirizzo pubblico è vuoto o non è `https://` | La finestra **DSM mini**, indirizzo pubblico |
 | Il pulsante c'è, l'applicazione non si apre | Il proxy inverso o il certificato non funzionano | Apri `https://tuo-indirizzo/healthz` in un browser |
 | «Apri l'applicazione dal bot» | L'applicazione è stata aperta con un link diretto nel browser | È voluto: aprila dal bot |
 | «Accesso negato: il tuo ID Telegram…» | Il servizio non ti ha riconosciuto | Negli ID consentiti solo cifre, separate da virgole |
-| `authentication with DSM failed` nel registro | La password, la 2FA o i diritti dell'utente | Passo 3: password senza errori di battitura, 2FA spenta, applicazioni consentite |
-| `Could not get the task list` nel registro | Download Station non è installato, o è negato all'utente | Centro pacchetti e i diritti del passo 3 |
-| Il pacchetto si ferma subito dopo l'avvio | Un'impostazione è sbagliata — il registro dice quale | Il centro notifiche di DSM riporta anche il motivo |
+| La finestra dice che DSM ha rifiutato l'accesso | La password, la 2FA o i diritti dell'utente | Passo 3: password senza errori di battitura, 2FA spenta, applicazioni consentite |
+| La finestra dice che Download Station non è avviato | Non è installato, o è negato all'utente | Centro pacchetti e i diritti del passo 3 |
+| Il pacchetto si ferma subito dopo l'avvio | La sua porta è occupata da altro — il registro lo dice | Cambia `LISTEN_ADDR` in `config.env` via SSH (vedi sotto) |
 
-Il registro del pacchetto è la fonte di verità principale: dice esattamente cosa
-manca. Sta in `/var/packages/dsm-mini/var/dsm-mini.log` e si apre dal Centro
-pacchetti. Il registro è in inglese, l'interfaccia e i messaggi del bot nella tua
-lingua.
+Il primo posto dove guardare è la riga di stato in cima alla finestra **DSM
+mini**: dice se DSM e Telegram hanno risposto e, se no, perché. I dettagli sono
+nel registro del pacchetto, `/var/packages/dsm-mini/var/dsm-mini.log`, che si
+apre anche dal Centro pacchetti. Il registro è in inglese; la finestra,
+l'interfaccia e i messaggi del bot nella tua lingua.
 
 ### Cambiare le impostazioni
 
-Tutto quello che ha chiesto la procedura guidata sta in un file sul NAS,
-`/var/packages/dsm-mini/var/config.env`, permessi `600`.
+**Apri DSM mini nel menu principale di DSM**: lì ci sono tutte le impostazioni.
+Password e token sono solo in scrittura: un campo lasciato vuoto mantiene quello
+di prima. Il salvataggio vale subito: il servizio si riavvia da solo con le
+nuove impostazioni, e il pacchetto non va riavviato.
 
-Installare il pacchetto sopra sé stesso **non** chiede di nuovo: la procedura
-guidata gira all'installazione, e un aggiornamento lascia il file apposta — è
-per questo che le impostazioni sopravvivono. Restano tre strade:
+Le impostazioni stanno in un file sul NAS,
+`/var/packages/dsm-mini/var/config.env`, permessi `600`. Si può modificare anche
+via SSH (Pannello di controllo → Terminale e SNMP → attivare SSH) e poi
+riavviare il pacchetto:
 
-- **Apri DSM mini nel menu principale di DSM** — la schermata delle
-  impostazioni cambia qualsiasi valore, e password e token lì sono solo in
-  scrittura: un campo lasciato vuoto mantiene quello di prima. Riavvia poi il
-  pacchetto; l'impostazione delle notifiche vale subito.
+```bash
+sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='il-tuo-nuovo-token'|" /var/packages/dsm-mini/var/config.env
+sudo synopkg restart dsm-mini
+```
 
-- **Modificare il file via SSH** (Pannello di controllo → Terminale e SNMP →
-  attivare SSH) e riavviare il pacchetto dal Centro pacchetti. Così resta
-  tutto il resto:
-
-  ```bash
-  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='il-tuo-nuovo-token'|" /var/packages/dsm-mini/var/config.env
-  sudo synopkg restart dsm-mini
-  ```
-
-- **Disinstallare e installare di nuovo**: la procedura guidata richiede tutto
-  daccapo. Insieme alle impostazioni sparisce il database lì accanto: cartelle
-  fissate, lingua e ultimi stati noti delle attività.
+Un aggiornamento non tocca il file, ed è per questo che le impostazioni
+sopravvivono.
 
 ## Aggiornare
 
@@ -189,7 +189,7 @@ Le impostazioni e il database restano in entrambi i casi: stanno nella cartella
 
 Tutto sta in `/var/packages/dsm-mini/var/`:
 
-- `config.env` — quello che ha chiesto la procedura guidata, permessi `600`;
+- `config.env` — le impostazioni della finestra DSM mini, permessi `600`;
 - `dsm-mini.db` — un database SQLite: le cartelle fissate, la lingua e gli ultimi
   stati noti delle attività, da cui il servizio capisce di cosa ha già riferito;
 - `dsm-mini.log` — il registro.
@@ -229,11 +229,12 @@ go test ./...
 Il frontend da solo, con ricaricamento automatico:
 
 ```bash
-cd web && npm run dev    # parla col backend su localhost:8080
+cd web && npm run dev    # parla col backend su localhost:58080
 ```
 
-Avviare il backend in locale legge le stesse variabili che la procedura guidata
-del pacchetto scrive in `config.env`. È comodo tenerle in un file:
+Avviare il backend in locale legge `config.env` in `STATE_DIR`, come fa il
+pacchetto, e le variabili d'ambiente completano quello che il file non dice. È
+comodo tenerle in un file:
 
 ```bash
 cp .env.example .env     # compilalo

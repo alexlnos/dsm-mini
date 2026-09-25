@@ -99,6 +99,16 @@ func (b *Bot) Start(ctx context.Context) {
 // API exposes the Telegram client for sending notifications.
 func (b *Bot) API() *tg.Bot { return b.api }
 
+// Username asks Telegram what the bot is called, for the settings window
+// inside DSM to show. Empty when Telegram does not say.
+func (b *Bot) Username(ctx context.Context) string {
+	me, err := b.api.GetMe(ctx)
+	if err != nil || me == nil {
+		return ""
+	}
+	return me.Username
+}
+
 func (b *Bot) isAllowed(id int64) bool {
 	for _, a := range b.allowed {
 		if a == id {

@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     // During development the frontend talks to the local backend.
     proxy: {
-      '/api': 'http://localhost:8080',
+      '/api': 'http://localhost:58080',
     },
   },
 })

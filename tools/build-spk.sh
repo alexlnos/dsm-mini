@@ -84,18 +84,20 @@ echo "→ INFO"
 # upgrade path and every API call go by it, so it stays as it is whatever the
 # visible name becomes — that one is `displayname`.
 #
-# No comments go into the file itself. Neither of the third-party packages that
-# install from a source on a live DSM has one, and INFO is being kept to their
-# shape while a parser in the upgrade path is under suspicion.
+# No comments go into the file itself — none of the third-party packages that
+# install from a source on a live DSM has one. For a while three did, written
+# inside this heredoc by mistake; DSM put up with them.
+#
+# dsmuidir names the folder under target that DSM serves at
+# /webman/3rdparty/dsm-mini/ — the settings window, which is also where the
+# package is set up, since there is no install wizard. dsmappname is the entry
+# it registers in the main menu, and it has to match the key in ui/config.
 cat > "$WORK/INFO" <<EOF
 package="dsm-mini"
 version="$SPK_INFO_VERSION"
 os_min_ver="7.0-40000"
 checksum="$PKG_CHECKSUM"
 displayname="DSM mini — Telegram Mini App"
-# The settings screen inside DSM. dsmuidir names the folder under target that
-# DSM serves at /webman/3rdparty/dsm-mini/, dsmappname the entry it registers
-# in the main menu — it has to match the key in ui/config.
 dsmuidir="ui"
 dsmappname="DSMMINI.Settings.AppInstance"
 maintainer="alexlnos"
@@ -125,7 +127,9 @@ store = json.load(open(sys.argv[1], encoding="utf-8"))
 print('description="%s"' % store["short"].replace('"', "'"))
 PYEOF
 
-cp -r "$ROOT/spk/scripts" "$ROOT/spk/conf" "$ROOT/spk/WIZARD_UIFILES" "$WORK/"
+# No WIZARD_UIFILES: nothing is asked at installation. The package starts
+# without settings and is set up in its window in the DSM main menu.
+cp -r "$ROOT/spk/scripts" "$ROOT/spk/conf" "$WORK/"
 cp "$ROOT/spk/PACKAGE_ICON.PNG" "$ROOT/spk/PACKAGE_ICON_256.PNG" "$WORK/"
 cp "$ROOT/LICENSE" "$WORK/LICENSE"
 chmod 755 "$WORK"/scripts/*
@@ -137,7 +141,7 @@ SPK="$OUT_DIR/dsm-mini-$SPK_VERSION-$ARCH.spk"
 # `--format=ustar` rather than whatever the local tar defaults to: BSD tar
 # writes pax, and a pax header is one more entry in front of the real one.
 ( cd "$WORK" && tar cpf "$SPK" --format=ustar --owner=root --group=root \
-    package.tgz INFO scripts PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG WIZARD_UIFILES conf LICENSE )
+    package.tgz INFO scripts PACKAGE_ICON.PNG PACKAGE_ICON_256.PNG conf LICENSE )
 
 # The archive is checked rather than trusted: the same tar that writes the
 # AppleDouble entries also hides them when listing, so the only way to see what
