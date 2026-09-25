@@ -47,6 +47,12 @@ upgrade to it from this build left a live NAS stopped with a Repair button:
 DSM hands the data folder to the new package user on an upgrade, but not the
 files inside it, and the new service could not read one of them.
 
+Checked on a live NAS (SA6400, DSM 7.4) with 1.0.13 on 25 September 2026: the
+repository's 1.0.13-0 was replaced by this build's 1.0.13-1 as an upgrade,
+with the settings and the database kept; an uninstall with "Uninstall only"
+removed the notification webhook and kept the files, and the next install
+started on the kept settings and registered the webhook again.
+
 ## Where it differs from the repository's package, and why
 
 - **No `SERVICE_PORT`.** In their framework it generates a firewall rule and a
@@ -67,25 +73,27 @@ files inside it, and the new service could not read one of them.
 
 ## Building it
 
-Their container, on macOS with the two flags their documentation requires:
+One command from the repository, with Docker running:
 
 ```bash
-git clone https://github.com/SynoCommunity/spksrc && cd spksrc
-cp -r /path/to/dsm-mini/contrib/spksrc/cross/dsm-mini cross/
-cp -r /path/to/dsm-mini/contrib/spksrc/spk/dsm-mini spk/
-docker run --rm -it --platform=linux/amd64 -v "$(pwd)":/spksrc -w /spksrc \
-  -e TAR_CMD="fakeroot tar" ghcr.io/synocommunity/spksrc /bin/bash
-make setup
-make -C cross/dsm-mini digests
-make -C spk/dsm-mini ARCH=x64 TCVERSION=7.2
+tools/build-spksrc.sh                # x64, DSM 7.2
+tools/build-spksrc.sh x64 aarch64    # their checklist asks for both
+tools/build-spksrc.sh digests        # after a version change, back into cross/dsm-mini/digests
 ```
 
-The result lands in `packages/`. The first build pulls the toolchain and, on an
-Apple Silicon Mac, runs under emulation — expect a while.
+The script keeps a clone of their framework as a cache in
+`~/Library/Caches/dsm-mini/spksrc` — over 3 GB with the toolchains and the
+source tarballs, somebody else's repository and no part of this one — copies
+this recipe into it afresh on every run, builds in their container with the two
+flags their documentation requires on macOS (`--platform=linux/amd64`,
+`TAR_CMD="fakeroot tar"`) and puts the package into `dist/`. The first run
+clones and pulls the toolchain and, on an Apple Silicon Mac, runs under
+emulation — expect a while. Their master moves on, so pull that clone before a
+build meant for a pull request to them.
 
 If `maintainer=""` turns up in the INFO, the build could not reach the GitHub
-API at that moment: the framework asks it for the maintainer's name. Remove the
-INFO in `spk/dsm-mini/work-*` and build again.
+API at that moment: the framework asks it for the maintainer's name. Build
+again.
 
 ## Go newer than their toolchain
 
@@ -99,6 +107,7 @@ package did not outrun their toolchain.
 ## On a new release
 
 Update `PKG_VERS` in `cross/dsm-mini/Makefile` and `SPK_VERS` in
-`spk/dsm-mini/Makefile`, **increment `SPK_REV`** — it only ever grows, even when
-the version changes — and regenerate the checksums with `make digests`. Copy
+`spk/dsm-mini/Makefile`, **increment `SPK_REV`** once the package is published
+there — it only ever grows, even when the version changes — and regenerate the
+checksums with `tools/build-spksrc.sh digests`. Copy
 `spk/ui/` over `src/app/` if the window changed; CI says so when it has.
