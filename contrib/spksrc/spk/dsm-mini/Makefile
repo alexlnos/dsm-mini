@@ -9,6 +9,10 @@ UNSUPPORTED_ARCHS = $(ARMv5_ARCHS)
 # not supported by go:
 UNSUPPORTED_ARCHS += $(PPC_ARCHS)
 
+# DSM 7 only: the package user, the settings window and the DSM APIs the
+# service calls are DSM 7's, and upstream's own package says 7.0 as well.
+REQUIRED_MIN_DSM = 7.0
+
 MAINTAINER = alexlnos
 DESCRIPTION = Run your Synology NAS from Telegram: send the bot a magnet link or a .torrent file, follow Download Station tasks, browse File Station folders, and check disks, virtual machines and containers from the Mini App. Only the Telegram accounts you list get in.
 DESCRIPTION_RUS = Управление NAS Synology из Telegram: пришлите боту magnet-ссылку или файл .torrent, следите за задачами Download Station, открывайте папки File Station и смотрите диски, виртуальные машины и контейнеры в Mini App. Доступ только у перечисленных вами аккаунтов.
