@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/config"
 	"github.com/alexlnos/dsm-mini/internal/dsm/downloadstation"
 	"github.com/alexlnos/dsm-mini/internal/dsmnotify"
+	"github.com/alexlnos/dsm-mini/internal/dsmui"
 	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
@@ -28,9 +27,9 @@ const botRetry = 30 * time.Second
 // its traffic bypasses the VPN. The bot connects on its own once the link is
 // back.
 func runBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
-	settings *store.Store, receiver *dsmnotify.Receiver, log *slog.Logger) {
+	settings *store.Store, receiver *dsmnotify.Receiver, status *dsmui.Status, log *slog.Logger) {
 
-	tgBot := waitForBot(ctx, cfg, ds, settings, log)
+	tgBot := waitForBot(ctx, cfg, ds, settings, status, log)
 	if tgBot == nil {
 		return
 	}
@@ -70,13 +69,14 @@ func runBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
 }
 
 // waitForBot creates the bot, retrying for as long as Telegram is out of
-// reach.
+// reach. How it is going is shown in the settings window inside DSM.
 //
 // Returns nil only when waiting is pointless: the service is shutting down or
 // the token was rejected.
 func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Station,
-	settings *store.Store, log *slog.Logger) *bot.Bot {
+	settings *store.Store, status *dsmui.Status, log *slog.Logger) *bot.Bot {
 
+	status.SetBot(dsmui.Link{State: dsmui.LinkWaiting})
 	warned := false
 	for {
 		tgBot, err := bot.New(bot.Options{
@@ -90,25 +90,26 @@ func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Stat
 		if err == nil {
 			if warned {
 				log.Info("telegram is reachable again")
-				notifyDSM("dsm-mini", "Telegram is reachable again, the bot is running.")
 			}
+			nameCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			status.SetBot(dsmui.Link{State: dsmui.LinkOK, Name: tgBot.Username(nameCtx)})
+			cancel()
 			return tgBot
 		}
 
 		// A rejected token is not cured by retrying.
 		if errors.Is(err, bot.ErrBadToken) {
+			status.SetBot(dsmui.Link{State: dsmui.LinkFailed, Reason: dsmui.ReasonToken})
 			log.Error("the bot will not start", "err", err)
-			notifyDSM("dsm-mini", "Telegram rejected the bot token. Check the package settings.")
 			return nil
 		}
 
-		// Report the outage once: repeating it every half a minute would turn
-		// the notification centre into noise.
+		status.SetBot(dsmui.Link{State: dsmui.LinkWaiting, Reason: dsmui.ReasonUnreachable})
+		// Logged once: repeating it every half a minute would bury
+		// everything else in the log.
 		if !warned {
 			warned = true
 			log.Warn("telegram unreachable, carrying on without the bot", "err", err, "retry", botRetry)
-			notifyDSM("dsm-mini",
-				"Cannot reach api.telegram.org. The Mini App works; the bot will connect once the link is back.")
 		} else {
 			log.Debug("telegram still unreachable", "err", err)
 		}
@@ -119,20 +120,4 @@ func waitForBot(ctx context.Context, cfg *config.Config, ds downloadstation.Stat
 		case <-time.After(botRetry):
 		}
 	}
-}
-
-// notifyDSM writes to the DSM notification centre.
-//
-// It only works when the service runs as a package on the NAS itself: during a
-// local run the tool simply is not there, and that is not an error. Permission
-// may also be missing — then we stay quiet, as a notification is not worth
-// stopping the service over.
-func notifyDSM(title, message string) {
-	const tool = "/usr/syno/bin/synodsmnotify"
-	if _, err := os.Stat(tool); err != nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_ = exec.CommandContext(ctx, tool, "@administrators", title, message).Run()
 }

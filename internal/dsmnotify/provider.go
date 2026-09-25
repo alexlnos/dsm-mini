@@ -48,6 +48,15 @@ const (
 	// looked perfect in every listing.
 	reqMethod = "post"
 
+	// sepChar is what DSM puts in place of every space of the message. It is
+	// a leftover of the SMS gateways this mechanism was built for, which take
+	// the text in a query string; every preset in DSM's own interface sets a
+	// space, JSON bodies included (NotificationVueBundle.js on the NAS), and
+	// its field is only shown for GET. An empty one is not "leave it alone":
+	// DSM deletes the spaces, and "Test Message from NAS" arrived in Telegram
+	// as "TestMessagefromNAS".
+	sepChar = " "
+
 	// providerName is what DSM shows in its list of webhooks, next to the
 	// owner's phone and whatever else sends there — so it is the package's own
 	// visible name, the one Package Center shows, and says whose webhook this
@@ -79,6 +88,7 @@ type providerList struct {
 			ReqHeader string `json:"req_header"`
 			ReqParam  string `json:"req_param"`
 			ReqMethod string `json:"req_method"`
+			SepChar   string `json:"sepchar"`
 			Provider  string `json:"provider"`
 		} `json:"target_config"`
 	} `json:"list"`
@@ -128,10 +138,12 @@ func Ensure(ctx context.Context, c Caller, url, secret string, log *slog.Logger)
 		p := list.List[current]
 		// The method is compared exactly, not case-insensitively: a provider an
 		// earlier version registered with "POST" looks right and never sends,
-		// and this is where it gets corrected on the next start.
+		// and this is where it gets corrected on the next start. The same goes
+		// for the separator, which earlier versions left empty.
 		if p.TargetConfig.ReqHeader == header &&
 			p.TargetConfig.ReqParam == bodyTemplate &&
 			p.TargetConfig.ReqMethod == reqMethod &&
+			p.TargetConfig.SepChar == sepChar &&
 			p.TargetConfig.Provider == providerName {
 			log.Debug("dsm notification webhook already registered", "profile", p.ProfileID)
 			return nil
@@ -195,7 +207,7 @@ func payload(url, header string) map[string]any {
 		"interval":         0,
 		"use_default_lang": true,
 		"prefix":           "",
-		"sepchar":          "",
+		"sepchar":          sepChar,
 		"port":             0,
 		"provider":         providerName,
 	}

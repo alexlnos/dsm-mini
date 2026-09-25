@@ -97,7 +97,11 @@ def entry(version: str, arch: str, spk_dir: pathlib.Path) -> dict:
         "support_url": f"https://github.com/{REPO}/issues",
         "price": 0,
         "beta": False,
-        # Installing without the wizard is impossible: without a bot token the service will not start.
+        # q is for quiet: spkrepo, SynoCommunity's catalogue server, sets
+        # qinst and qstart only for a package with neither an install wizard
+        # nor a licence to accept (spkrepo/domain/catalog.py). There is no
+        # wizard any more, but the .spk carries LICENSE, which Package Center
+        # shows for acceptance, so the install is still not a quiet one.
         "qinst": False,
         "qupgrade": True,
         "qstart": False,

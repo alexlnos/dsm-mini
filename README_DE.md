@@ -56,7 +56,7 @@ geht.
 
 - Was DSM selbst meldet — Sicherheitsberater, Platten, Updates — kommt in den Chat
 - Die Wahl, was der Bot schicken darf: nichts, nur Downloads, alles
-- Ein eigener Bildschirm im DSM-Hauptmenü: jede Einstellung, ohne eine Datei über SSH zu ändern
+- Ein eigener Bildschirm im DSM-Hauptmenü: dort wird das Paket nach der Installation eingerichtet und später jede Einstellung geändert, ohne Neustart
 
 **Sprache**
 
@@ -113,14 +113,21 @@ und **DSM mini — Telegram Mini App** aus dem Bereich **Community** installiere
 Unsicher bei der Architektur? Probieren Sie `amd64`: ein unpassendes Paket wird
 einfach abgelehnt.
 
-Der Installationsassistent fragt fünf Werte ab und erklärt jeden davon —
-alles dafür wurde in den Schritten oben zusammengetragen. Oder die `.spk` aus
-den [Veröffentlichungen](https://github.com/alexlnos/dsm-mini/releases) von
-Hand installieren, über Paket-Zentrum → Manuelle Installation.
+Bei der Installation wird nichts abgefragt. Oder die `.spk` aus den
+[Veröffentlichungen](https://github.com/alexlnos/dsm-mini/releases) von Hand
+installieren, über Paket-Zentrum → Manuelle Installation.
 
-**6. Die Adresse auf den Dienst lenken.** Systemsteuerung → Anmeldeportal →
-Erweitert → Reverse Proxy → Erstellen. Quelle: `HTTPS`, Ihr Name, Port `443`.
-Ziel: `HTTP`, `localhost`, Port `8080`.
+**6. Einrichten.** Öffnen Sie **DSM mini** im DSM-Hauptmenü oder klicken Sie im
+Paket-Zentrum auf **Öffnen**. Tragen Sie die fünf Werte ein — alles dafür wurde
+in den Schritten oben zusammengetragen, und das Fenster erklärt jeden davon —
+und klicken Sie auf **Speichern und starten**. Die Statuszeile oben im Fenster
+zeigt, wann DSM und der Bot geantwortet haben, und was nicht stimmt, falls
+nicht.
+
+Die Reverse-Proxy-Regel für die Adresse legt das Fenster selbst an: tragen Sie
+Ihren Namen unter **Einen Namen auf den Dienst richten** ein. Von Hand ist es
+Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy → Erstellen. Quelle:
+`HTTPS`, Ihr Name, Port `443`. Ziel: `HTTP`, `localhost`, Port `58080`.
 
 > Port **80** für diesen Namen nicht proxen: darüber erneuert DSM das
 > Zertifikat, und ein Abfangen zerlegt die Erneuerung drei Monate später.
@@ -136,48 +143,41 @@ ihm irgendeinen Magnet-Link, er bietet Ordner als Schaltflächen an.
 
 | Was du siehst | Woran es liegt | Was zu tun ist |
 |---|---|---|
-| Der Bot schweigt auf `/start` | Falsches Token, oder das Paket läuft nicht | Paket-Zentrum → **DSM mini — Telegram Mini App** → das Protokoll |
-| „Der Zugang zu diesem Bot ist geschlossen“ | Deine ID steht nicht auf der Liste | Die Nummer aus Schritt 2 in die erlaubten IDs eintragen (siehe „Einstellungen ändern“ unten) |
-| Es gibt keine App-Schaltfläche | Die öffentliche Adresse ist leer oder nicht `https://` | Dieselbe Stelle: die Einstellungsdatei, dann das Paket neu starten |
+| Der Bot schweigt auf `/start` | Das Paket ist nicht eingerichtet, oder das Token ist falsch | **DSM mini** im DSM-Hauptmenü öffnen: die Statuszeile oben sagt, was davon |
+| „Der Zugang zu diesem Bot ist geschlossen“ | Deine ID steht nicht auf der Liste | Die Nummer aus Schritt 2 im Fenster **DSM mini** zu den erlaubten IDs hinzufügen |
+| Es gibt keine App-Schaltfläche | Die öffentliche Adresse ist leer oder nicht `https://` | Das Fenster **DSM mini**, öffentliche Adresse |
 | Die Schaltfläche ist da, die App geht nicht auf | Reverse Proxy oder Zertifikat funktionieren nicht | `https://deine-adresse/healthz` im Browser öffnen |
 | „Öffne die App über den Bot“ | Die App wurde per direktem Link im Browser geöffnet | So ist es gedacht: aus dem Bot heraus öffnen |
 | „Zugriff verweigert: deine Telegram-ID…“ | Der Dienst hat dich nicht erkannt | In den erlaubten IDs nur Ziffern, durch Komma getrennt |
-| `authentication with DSM failed` im Protokoll | Das Passwort, 2FA oder die Rechte des Benutzers | Schritt 3: Passwort ohne Tippfehler, 2FA aus, Anwendungen erlaubt |
-| `Could not get the task list` im Protokoll | Download Station ist nicht installiert oder dem Benutzer verboten | Paket-Zentrum und die Rechte aus Schritt 3 |
-| Das Paket stoppt gleich nach dem Start | Eine Einstellung stimmt nicht — das Protokoll nennt welche | Der Grund kommt auch ins Benachrichtigungscenter von DSM |
+| Das Fenster meldet, DSM habe die Anmeldung abgelehnt | Das Passwort, 2FA oder die Rechte des Benutzers | Schritt 3: Passwort ohne Tippfehler, 2FA aus, Anwendungen erlaubt |
+| Das Fenster meldet, Download Station laufe nicht | Sie ist nicht installiert oder dem Benutzer verboten | Paket-Zentrum und die Rechte aus Schritt 3 |
+| Das Paket stoppt gleich nach dem Start | Sein Port ist anderweitig belegt — das Protokoll sagt es | `LISTEN_ADDR` in `config.env` über SSH ändern (siehe unten) |
 
-Das Protokoll des Pakets ist die wichtigste Quelle der Wahrheit: es benennt
-genau, was fehlt. Es liegt in `/var/packages/dsm-mini/var/dsm-mini.log` und
-öffnet sich aus dem Paket-Zentrum. Das Protokoll läuft auf Englisch, Oberfläche
-und Bot-Nachrichten in deiner Sprache.
+Der erste Blick gehört der Statuszeile oben im Fenster **DSM mini**: sie sagt,
+ob DSM und Telegram geantwortet haben, und wenn nicht, warum. Die Einzelheiten
+stehen im Protokoll des Pakets, `/var/packages/dsm-mini/var/dsm-mini.log`, das
+sich auch aus dem Paket-Zentrum öffnet. Das Protokoll läuft auf Englisch,
+Fenster, Oberfläche und Bot-Nachrichten in deiner Sprache.
 
 ### Einstellungen ändern
 
-Alles, was der Assistent gefragt hat, steht auf dem NAS in einer Datei:
-`/var/packages/dsm-mini/var/config.env`, Rechte `600`.
+**Öffnen Sie DSM mini im DSM-Hauptmenü** — dort sind alle Einstellungen.
+Passwort und Token sind nur schreibbar: ein leeres Feld behält den alten Wert.
+Gespeichertes gilt sofort: der Dienst startet sich selbst mit den neuen
+Einstellungen neu, das Paket muss nicht neu gestartet werden.
 
-Das Paket über sich selbst zu installieren fragt **nicht** erneut: der
-Assistent läuft bei der Installation, und eine Aktualisierung lässt die Datei
-absichtlich in Ruhe — darum überstehen die Einstellungen ein Update. Bleiben
-drei Wege:
+Die Einstellungen stehen auf dem NAS in einer Datei,
+`/var/packages/dsm-mini/var/config.env`, Rechte `600`. Sie lässt sich auch über
+SSH bearbeiten (Systemsteuerung → Terminal & SNMP → SSH einschalten); danach das
+Paket neu starten:
 
-- **Öffnen Sie DSM mini im DSM-Hauptmenü** — der Einstellungsbildschirm ändert
-  jede davon, und Passwort und Token sind dort nur schreibbar: ein leeres Feld
-  behält den alten Wert. Starten Sie danach das Paket neu; die
-  Benachrichtigungseinstellung gilt sofort.
+```bash
+sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='dein-neues-token'|" /var/packages/dsm-mini/var/config.env
+sudo synopkg restart dsm-mini
+```
 
-- **Die Datei über SSH bearbeiten** (Systemsteuerung → Terminal & SNMP → SSH
-  einschalten) und das Paket im Paket-Zentrum neu starten. So bleibt alles
-  andere erhalten:
-
-  ```bash
-  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='dein-neues-token'|" /var/packages/dsm-mini/var/config.env
-  sudo synopkg restart dsm-mini
-  ```
-
-- **Deinstallieren und neu installieren** — der Assistent fragt alles noch
-  einmal. Mit den Einstellungen verschwindet auch die Datenbank daneben: die
-  angehefteten Ordner, die Sprache und die zuletzt bekannten Aufgabenzustände.
+Eine Aktualisierung lässt die Datei in Ruhe, darum überstehen die Einstellungen
+ein Update.
 
 ## Aktualisieren
 
@@ -193,7 +193,7 @@ Einstellungen und Datenbank bleiben in beiden Fällen: sie liegen im
 
 Alles in `/var/packages/dsm-mini/var/`:
 
-- `config.env` — was der Assistent gefragt hat, Rechte `600`;
+- `config.env` — die Einstellungen aus dem Fenster DSM mini, Rechte `600`;
 - `dsm-mini.db` — eine SQLite-Datenbank: die angehefteten Ordner, die Sprache
   und die zuletzt bekannten Aufgabenzustände, an denen der Dienst erkennt,
   worüber er schon berichtet hat;
@@ -234,11 +234,12 @@ go test ./...
 Das Frontend für sich, mit automatischem Neuladen:
 
 ```bash
-cd web && npm run dev    # spricht mit dem Backend auf localhost:8080
+cd web && npm run dev    # spricht mit dem Backend auf localhost:58080
 ```
 
-Das Backend lokal zu starten liest dieselben Variablen, die der Paketassistent
-in `config.env` schreibt. Praktisch ist es, sie in einer Datei zu halten:
+Das Backend lokal zu starten liest `config.env` aus `STATE_DIR`, wie das Paket
+auch, und Umgebungsvariablen ergänzen, was in der Datei fehlt. Praktisch ist es,
+sie in einer Datei zu halten:
 
 ```bash
 cp .env.example .env     # ausfüllen

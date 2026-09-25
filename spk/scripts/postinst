@@ -1,52 +1,10 @@
 #!/bin/sh
-# Saves what the person entered in the install wizard.
+# Runs after the package files are in place, on an install and on an upgrade.
 #
-# The wizard values arrive as environment variables named after the keys in
-# WIZARD_UIFILES.
-
-VAR="${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}"
-ENV_FILE="$VAR/config.env"
-
-# On an upgrade the settings are left alone: the wizard was not shown there,
-# and the file may have been edited by hand. (postinst does run on an upgrade —
-# step 8 of the twelve in the developer guide — so this guard is what keeps the
-# settings, not luck.)
-if [ "$SYNOPKG_PKG_STATUS" = "UPGRADE" ] && [ -f "$ENV_FILE" ]; then
-    # One exception, and only one. Up to 1.0.0 the service was told to listen
-    # on ":port" — every interface — so the app answered anyone on the local
-    # network, around the reverse proxy it is meant to sit behind. That was a
-    # mistake rather than a choice, so an upgrade corrects it. The pattern
-    # matches only the bare ":port" form: an address someone set deliberately,
-    # like 0.0.0.0:8080 or a specific interface, is left as it is.
-    sed -i "s|^LISTEN_ADDR='\{0,1\}:\([0-9]*\)'\{0,1\}$|LISTEN_ADDR='127.0.0.1:\1'|" "$ENV_FILE"
-    exit 0
-fi
-
-# The value goes into a file that is later read through `.`, so the quotes are
-# mandatory: a password with a space or a dollar sign would break the startup.
-put() {
-    escaped=$(printf '%s' "$2" | sed "s/'/'\\\\''/g")
-    printf "%s='%s'\n" "$1" "$escaped" >> "$ENV_FILE"
-}
-
-umask 077
-: > "$ENV_FILE"
-
-# The DSM address and the service port are not asked for: the service runs on
-# this NAS, so the address is always the loopback one, and 8080 is free unless
-# somebody made it otherwise. Both are still written, with the defaults below,
-# and the settings screen inside DSM edits them if an installation needs it.
-put DSM_URL "${wizard_dsm_url:-https://localhost:5001}"
-put DSM_USER "$wizard_dsm_user"
-put DSM_PASSWORD "$wizard_dsm_password"
-put DSM_INSECURE_TLS "true"
-put TELEGRAM_BOT_TOKEN "$wizard_bot_token"
-put ALLOWED_USER_IDS "$wizard_allowed_ids"
-put PUBLIC_URL "$wizard_public_url"
-# Loopback only: the reverse proxy reaches the service through localhost,
-# and ":port" would also hand it to anyone on the local network.
-put LISTEN_ADDR "127.0.0.1:${wizard_port:-8080}"
-put LOG_LEVEL "info"
-
-chmod 600 "$ENV_FILE"
+# It has nothing to do. There is no install wizard: the service starts without
+# settings, and they are entered in its window in the DSM main menu, which is
+# also where they are changed later. The script stays because DSM expects the
+# full set — a missing preupgrade or postupgrade makes an upgrade from a
+# package source fail with code 261 — and a missing postinst is not worth
+# finding out about the same way.
 exit 0

@@ -43,6 +43,7 @@ func providerAt(id int, url, method, name, secret string) map[string]any {
 		"target_config": map[string]any{
 			"url":        url,
 			"req_method": method,
+			"sepchar":    sepChar,
 			"req_param":  bodyTemplate,
 			"req_header": "Content-Type:application/json" + headerSep + SecretHeader + ":" + secret + headerSep,
 			"provider":   name,
@@ -65,6 +66,9 @@ func TestCreatesWhenAbsent(t *testing.T) {
 	if f.last["provider"] != providerName {
 		t.Fatalf("name %v, want %q", f.last["provider"], providerName)
 	}
+	if f.last["sepchar"] != " " {
+		t.Fatalf("sepchar %q, DSM needs a space to keep the spaces", f.last["sepchar"])
+	}
 }
 
 // The exact state an earlier version left behind: registered with "POST",
@@ -80,6 +84,24 @@ func TestCorrectsUpperCaseMethod(t *testing.T) {
 	}
 	if f.last["profile_id"] != 3 || f.last["req_method"] != "post" {
 		t.Fatalf("set with %v", f.last)
+	}
+}
+
+// The state every earlier version left behind: the separator empty, so DSM
+// deleted every space and "Test Message from NAS" reached Telegram as
+// "TestMessagefromNAS". Found on a live NAS.
+func TestCorrectsAnEmptySeparator(t *testing.T) {
+	entry := providerEntry(3, "post", providerName, "s3cret")
+	entry["target_config"].(map[string]any)["sepchar"] = ""
+	f := &fakeDSM{existing: []map[string]any{entry}}
+	if err := Ensure(context.Background(), f, testURL, "s3cret", quiet()); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.calls; len(got) != 2 || got[1] != "set" {
+		t.Fatalf("calls = %v, want list then set", got)
+	}
+	if f.last["sepchar"] != " " {
+		t.Fatalf("sepchar %q, DSM needs a space to keep the spaces", f.last["sepchar"])
 	}
 }
 

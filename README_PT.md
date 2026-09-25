@@ -54,7 +54,7 @@ discos e como o NAS está se sentindo.
 
 - O que o próprio DSM anuncia — consultor de segurança, discos, atualizações — chega ao chat
 - A escolha do que o bot pode enviar: nada, apenas downloads, tudo
-- Uma tela própria no menu principal do DSM: qualquer configuração, sem editar um arquivo por SSH
+- Uma tela própria no menu principal do DSM: ali o pacote é configurado depois da instalação e ali se muda depois qualquer configuração, sem reiniciar
 
 **Idioma**
 
@@ -110,14 +110,20 @@ instale **DSM mini — Telegram Mini App** na seção **Comunidade**. Na dúvida
 sobre a arquitetura? Tente `amd64`: um pacote que não serve é simplesmente
 recusado.
 
-O instalador pergunta cinco valores e explica cada um na hora — tudo para eles
-foi reunido nos passos acima. Ou instale o `.spk` das
-[versões](https://github.com/alexlnos/dsm-mini/releases) na mão, pela Central
-de Pacotes → Instalação manual.
+A instalação não pergunta nada. Ou instale o `.spk` das
+[versões](https://github.com/alexlnos/dsm-mini/releases) na mão, pela Central de
+Pacotes → Instalação manual.
 
-**6. Apontar o endereço para o serviço.** Painel de Controle → Portal de login
-→ Avançado → Proxy reverso → Criar. Origem: `HTTPS`, o seu nome, porta `443`.
-Destino: `HTTP`, `localhost`, porta `8080`.
+**6. Configurar.** Abra o **DSM mini** pelo menu principal do DSM ou aperte
+**Abrir** na Central de Pacotes. Preencha os cinco valores — tudo para eles foi
+reunido nos passos acima, e a janela explica cada um — e aperte **Salvar e
+iniciar**. A linha de estado no topo da janela mostra quando o DSM e o bot
+responderam, e o que está errado se não responderam.
+
+A regra de proxy reverso para o endereço a própria janela cria: digite o seu
+nome em **Apontar um nome ao serviço**. Na mão é Painel de Controle → Portal de
+login → Avançado → Proxy reverso → Criar. Origem: `HTTPS`, o seu nome, porta
+`443`. Destino: `HTTP`, `localhost`, porta `58080`.
 
 > Não faça proxy da porta **80** para esse nome: é por ela que o DSM renova o
 > certificado, e interceptar quebra a renovação três meses depois.
@@ -133,46 +139,41 @@ magnet: ele oferece pastas com botões.
 
 | O que você vê | Qual é o problema | O que fazer |
 |---|---|---|
-| O bot fica mudo no `/start` | Token errado, ou o pacote não está rodando | Central de Pacotes → **DSM mini — Telegram Mini App** → o registro |
-| «O acesso a este bot está fechado» | Seu ID não está na lista | Ponha o número do passo 2 nos IDs permitidos (veja «Mudar as configurações» abaixo) |
-| Não há botão do aplicativo | O endereço público está vazio ou não é `https://` | No mesmo lugar: o arquivo de configurações, depois reinicie o pacote |
+| O bot fica mudo no `/start` | O pacote não está configurado, ou o token está errado | Abra o **DSM mini** no menu principal do DSM: a linha de estado no topo diz qual |
+| «O acesso a este bot está fechado» | Seu ID não está na lista | Ponha o número do passo 2 nos IDs permitidos na janela **DSM mini** |
+| Não há botão do aplicativo | O endereço público está vazio ou não é `https://` | A janela **DSM mini**, endereço público |
 | O botão existe, o aplicativo não abre | O proxy reverso ou o certificado não funcionam | Abra `https://seu-endereco/healthz` num navegador |
 | «Abra o aplicativo pelo bot» | O aplicativo foi aberto por link direto no navegador | É assim mesmo: abra pelo bot |
 | «Acesso negado: o seu ID do Telegram…» | O serviço não reconheceu você | Nos IDs permitidos só dígitos, separados por vírgula |
-| `authentication with DSM failed` no registro | A senha, a 2FA ou as permissões do usuário | Passo 3: senha sem erro de digitação, 2FA desligada, aplicativos permitidos |
-| `Could not get the task list` no registro | O Download Station não está instalado ou está negado ao usuário | Central de Pacotes e as permissões do passo 3 |
-| O pacote para logo depois de subir | Uma configuração está errada — o registro diz qual | O motivo chega também na central de notificações do DSM |
+| A janela diz que o DSM recusou o login | A senha, a 2FA ou as permissões do usuário | Passo 3: senha sem erro de digitação, 2FA desligada, aplicativos permitidos |
+| A janela diz que o Download Station não está rodando | Não está instalado ou está negado ao usuário | Central de Pacotes e as permissões do passo 3 |
+| O pacote para logo depois de subir | A porta dele está ocupada por outra coisa — o registro diz | Mude `LISTEN_ADDR` no `config.env` por SSH (veja abaixo) |
 
-O registro do pacote é a principal fonte de verdade: ele diz exatamente o que
-falta. Fica em `/var/packages/dsm-mini/var/dsm-mini.log` e abre pela Central de
-Pacotes. O registro é em inglês, a interface e as mensagens do bot são no seu
-idioma.
+O primeiro lugar para olhar é a linha de estado no topo da janela **DSM mini**:
+ela diz se o DSM e o Telegram responderam e, se não, por quê. Os detalhes ficam
+no registro do pacote, `/var/packages/dsm-mini/var/dsm-mini.log`, que também
+abre pela Central de Pacotes. O registro é em inglês; a janela, a interface e as
+mensagens do bot são no seu idioma.
 
 ### Mudar as configurações
 
-Tudo o que o assistente perguntou fica num único arquivo do NAS,
-`/var/packages/dsm-mini/var/config.env`, com permissões `600`.
+**Abra o DSM mini no menu principal do DSM** — todas as configurações estão ali.
+A senha e o token são apenas de escrita: um campo vazio mantém o que havia.
+Salvar vale de imediato: o serviço se reinicia sozinho com as novas
+configurações, e o pacote não precisa ser reiniciado.
 
-Instalar o pacote sobre ele mesmo **não** pergunta de novo: o assistente roda
-na instalação, e uma atualização deixa o arquivo de propósito — é por isso que
-as configurações sobrevivem. Restam três caminhos:
+As configurações ficam num único arquivo do NAS,
+`/var/packages/dsm-mini/var/config.env`, com permissões `600`. Dá para editá-lo
+também por SSH (Painel de Controle → Terminal e SNMP → ligar o SSH) e depois
+reiniciar o pacote:
 
-- **Abra o DSM mini no menu principal do DSM** — a tela de configurações muda
-  qualquer uma delas, e a senha e o token são apenas de escrita ali: um campo
-  vazio mantém o que havia. Reinicie o pacote depois; a configuração de
-  notificações vale de imediato.
+```bash
+sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='seu-novo-token'|" /var/packages/dsm-mini/var/config.env
+sudo synopkg restart dsm-mini
+```
 
-- **Editar o arquivo por SSH** (Painel de Controle → Terminal e SNMP → ligar o
-  SSH) e reiniciar o pacote na Central de Pacotes. Assim o resto fica:
-
-  ```bash
-  sudo sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN='seu-novo-token'|" /var/packages/dsm-mini/var/config.env
-  sudo synopkg restart dsm-mini
-  ```
-
-- **Desinstalar e instalar de novo** — o assistente pergunta tudo outra vez.
-  Junto com as configurações some o banco que fica ao lado: as pastas fixadas,
-  o idioma e os últimos estados conhecidos das tarefas.
+Uma atualização não mexe no arquivo, e é por isso que as configurações
+sobrevivem.
 
 ## Atualizar
 
@@ -187,7 +188,7 @@ pacote, e uma atualização não mexe nele.
 
 Tudo está em `/var/packages/dsm-mini/var/`:
 
-- `config.env` — o que o assistente perguntou, permissões `600`;
+- `config.env` — as configurações da janela DSM mini, permissões `600`;
 - `dsm-mini.db` — um banco SQLite: as pastas fixadas, o idioma e os últimos
   estados conhecidos das tarefas, pelos quais o serviço sabe do que já avisou;
 - `dsm-mini.log` — o registro.
@@ -226,11 +227,12 @@ go test ./...
 O frontend separado, com recarga automática:
 
 ```bash
-cd web && npm run dev    # conversa com o backend em localhost:8080
+cd web && npm run dev    # conversa com o backend em localhost:58080
 ```
 
-Rodar o backend localmente lê as mesmas variáveis que o assistente do pacote
-escreve no `config.env`. Fica prático mantê-las num arquivo:
+Rodar o backend localmente lê o `config.env` em `STATE_DIR`, como o pacote faz,
+e as variáveis de ambiente completam o que o arquivo não diz. Fica prático
+mantê-las num arquivo:
 
 ```bash
 cp .env.example .env     # preencha

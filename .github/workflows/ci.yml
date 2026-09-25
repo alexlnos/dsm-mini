@@ -85,11 +85,19 @@ jobs:
         run: |
           spk=dist/dsm-mini-0.0.0-ci-amd64.spk
           for entry in package.tgz INFO scripts/start-stop-status scripts/postinst \
-                       conf/privilege WIZARD_UIFILES/install_uifile PACKAGE_ICON.PNG; do
+                       scripts/preupgrade scripts/postupgrade scripts/preuninst \
+                       conf/privilege PACKAGE_ICON.PNG; do
             tar tf "$spk" | grep -qx "$entry" || { echo "::error::the package lacks $entry"; exit 1; }
           done
           tar xOf "$spk" package.tgz | tar tzf - | grep -qx './bin/dsm-mini' \
             || { echo "::error::package.tgz has no binary"; exit 1; }
+          # The same package user as the SynoCommunity build, whose framework
+          # names it sc-<package>. With two different users, moving from one
+          # build to the other is an ordinary upgrade to DSM, and the new
+          # service cannot read a single file the old one left — which is how
+          # a live NAS ended up stopped, with a Repair button and no reason.
+          tar xOf "$spk" conf/privilege | grep -q '"username": "sc-dsm-mini"' \
+            || { echo "::error::conf/privilege has to name the package user sc-dsm-mini"; exit 1; }
           # The settings screen ships inside the payload, because DSM serves it
           # from target/<dsmuidir>. Missing, the package installs perfectly and
           # the menu entry simply opens nothing.
@@ -149,26 +157,31 @@ jobs:
           print(f'{len(LANGS)} READMEs, the links are in step')
           CHECK
 
-      # The wizard files are generated from the table in make-wizard.py and
-      # committed. Edit the table, forget to regenerate, and the installer
-      # keeps showing the old questions while the source says otherwise.
-      - name: The wizard files match the generator
-        run: |
-          python3 tools/make-wizard.py
-          if ! git diff --quiet -- spk/WIZARD_UIFILES; then
-            echo "::error::spk/WIZARD_UIFILES differs from the generator result. Run 'python3 tools/make-wizard.py' and commit it."
-            git diff --stat -- spk/WIZARD_UIFILES
-            exit 1
-          fi
-
-      # Same arrangement for the settings screen inside DSM: its dictionary is
-      # generated and committed, because the page is served straight out of the
-      # package and there is nothing to build it at install time.
+      # The settings screen inside DSM has its dictionary generated and
+      # committed, because the page is served straight out of the package and
+      # there is nothing to build it at install time.
       - name: The settings screen dictionary matches the generator
         run: |
           python3 tools/make-dsmui-i18n.py
           if ! git diff --quiet -- spk/ui/i18n.js; then
             echo "::error::spk/ui/i18n.js differs from the generator result. Run 'python3 tools/make-dsmui-i18n.py' and commit it."
+            exit 1
+          fi
+
+      # The SynoCommunity recipe carries its own copy of the settings window:
+      # spksrc builds from its own tree and cannot reach into this one. The
+      # copy drifting means one build of the package sets itself up with a
+      # screen the other no longer has. Only the Ext JS wrapper differs, by
+      # its namespace.
+      - name: The SynoCommunity copy of the settings window matches spk/ui
+        run: |
+          app=contrib/spksrc/spk/dsm-mini/src/app
+          bad=0
+          for f in index.html app.js i18n.js api.cgi $(cd spk/ui && echo images/*.png); do
+            cmp -s "spk/ui/$f" "$app/$f" || { echo "::error::$app/$f differs from spk/ui/$f"; bad=1; }
+          done
+          if [ "$bad" = 1 ]; then
+            echo "Copy them over: cp -r spk/ui/{index.html,app.js,i18n.js,api.cgi,images} $app/"
             exit 1
           fi
 

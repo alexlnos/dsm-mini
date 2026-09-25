@@ -5,10 +5,10 @@ already added by a great many people, and getting in there means getting "into
 the store" without Synology's partner programme.
 
 This recipe is written the way their packages are, not the way ours is: their
-generic installer and service script, their templated wizard, their package
-user `sc-dsm-mini`. It follows `spk/ddns-go` (DSM 7, Go, MIT) for the build and
-`spk/gentoo-chroot` for the window in the DSM main menu. It was built with
-their toolchain in their container before it was committed here.
+generic installer and service script, their package user `sc-dsm-mini`. It
+follows `spk/ddns-go` (DSM 7, Go, MIT) for the build and `spk/gentoo-chroot`
+for the window in the DSM main menu. It was built with their toolchain in their
+container before it was committed here.
 
 ## What is here
 
@@ -17,26 +17,46 @@ cross/dsm-mini/        the binary: fetches our tag from GitHub and builds it wit
   PLIST                what the cross build hands over — the binary
   digests              checksums of the source tarball, from `make digests`
 spk/dsm-mini/          the package
-  src/service-setup.sh settings file on install, environment on start
-  src/wizard_templates/ one JSON template, one .yml per language
+  src/service-setup.sh where the service keeps its files, and the webhook on uninstall
   src/app/             the settings window in the DSM main menu
 ```
 
 The built Mini App lives in the repository and goes into the binary through
 `go:embed`, so the build needs Go and nothing else.
 
-## Where it differs from our own package, and why
+There is no install wizard. The package starts with no settings and is set up
+in its window in the DSM main menu, which is also where they are changed later;
+the service reads them itself and applies a save without a restart.
 
-- **Port 58080, not 8080.** In the SynoCommunity port list 8080 belongs to
-  SABnzbd — a download package, installed by exactly the kind of people who
-  install this one. Their rule for internal services is the 49152–65535 range.
+`src/app/` holds copies of `spk/ui/` from the repository — `index.html`,
+`app.js`, `i18n.js`, `api.cgi` and the images — and CI fails if they differ.
+Only the Ext JS wrapper is the recipe's own, `dsm-mini.js`, because the
+namespace of a DSM app is `SYNOCOMMUNITY.*` in their catalogue.
+
+## One package, two builds
+
+This recipe and the package this repository builds are the same package as far
+as DSM is concerned: the same identifier, the same package user `sc-dsm-mini`
+(their framework names it, and ours names it the same on purpose), the same
+port 58080. So a NAS can move from one to the other as an ordinary upgrade and
+keep its settings — which is how the repository's own builds serve as betas for
+the releases published here.
+
+It was not always so. When the repository's package ran as `dsm-mini`, an
+upgrade to it from this build left a live NAS stopped with a Repair button:
+DSM hands the data folder to the new package user on an upgrade, but not the
+files inside it, and the new service could not read one of them.
+
+## Where it differs from the repository's package, and why
+
 - **No `SERVICE_PORT`.** In their framework it generates a firewall rule and a
   desktop shortcut to the port. The service listens on loopback only, so the
   rule would open nothing useful and the shortcut would point at an address no
   browser can reach. The window comes from `DSM_UI_CONFIG` instead.
 - **The log is kept across restarts** (`SVC_KEEP_LOG`). Their script starts it
   afresh by default, and a refusal logged just before an upgrade is often the
-  only trace of why the upgrade was needed.
+  only trace of why the upgrade was needed. The repository's package appends to
+  it as well.
 - **The display name has a dash, not brackets.** Their INFO step writes the
   name unquoted into a shell command, so brackets are a syntax error there, and
   quoted into `jq` elsewhere, so escaping them leaks a backslash. No package of
@@ -44,12 +64,6 @@ The built Mini App lives in the repository and goes into the binary through
   everywhere.
 - **Apostrophes in descriptions are written `\'`** — their convention, needed
   because the descriptions pass through the shell on the way into INFO.
-
-The package user is `sc-dsm-mini`, where our own package runs as `dsm-mini`.
-The two builds are therefore **not interchangeable on one NAS**: moving from
-one to the other is seen by DSM as an ordinary upgrade, and the new service
-cannot read the settings or the database, both mode 0600 and owned by the
-other user. Remove one before installing the other.
 
 ## Building it
 
@@ -86,4 +100,5 @@ package did not outrun their toolchain.
 
 Update `PKG_VERS` in `cross/dsm-mini/Makefile` and `SPK_VERS` in
 `spk/dsm-mini/Makefile`, **increment `SPK_REV`** — it only ever grows, even when
-the version changes — and regenerate the checksums with `make digests`.
+the version changes — and regenerate the checksums with `make digests`. Copy
+`spk/ui/` over `src/app/` if the window changed; CI says so when it has.

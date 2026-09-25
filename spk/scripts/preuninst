@@ -14,16 +14,12 @@
 TARGET="${SYNOPKG_PKGDEST:-/var/packages/dsm-mini/target}"
 VAR="${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}"
 BIN="$TARGET/bin/dsm-mini"
-ENV_FILE="$VAR/config.env"
 
-[ -x "$BIN" ] && [ -r "$ENV_FILE" ] || exit 0
+[ -x "$BIN" ] || exit 0
 
-# The uninstall must go through whatever happens here: a NAS that cannot be
-# reached is no reason to keep a package somebody asked to remove.
-(
-    set -a
-    . "$ENV_FILE"
-    set +a
-    "$BIN" unregister-webhook
-) >/dev/null 2>&1 || true
+# The binary reads the settings itself, from STATE_DIR; a package that was
+# never set up registered nothing, and it simply says so. The uninstall must go
+# through whatever happens here: a NAS that cannot be reached is no reason to
+# keep a package somebody asked to remove.
+STATE_DIR="$VAR" "$BIN" unregister-webhook >/dev/null 2>&1 || true
 exit 0

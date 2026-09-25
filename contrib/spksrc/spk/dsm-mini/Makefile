@@ -34,15 +34,15 @@ SERVICE_USER = auto
 # reverse proxy is what publishes it, because Telegram opens a Mini App over
 # HTTPS alone — and SERVICE_PORT would generate a firewall rule for a port
 # nobody outside should reach, plus a desktop shortcut to an address a browser
-# cannot open. The port lives in the wizard instead (default 58080).
+# cannot open. The port is 58080 unless the settings window says otherwise.
 
 # The settings window in the DSM main menu, instead of a generated shortcut.
 # Same arrangement as spk/gentoo-chroot: an Ext JS app declared in app/config.
+# It is also where the package is set up — there is no install wizard: the
+# service starts without settings and waits for the window to save them.
 DSM_UI_DIR = app
 DSM_UI_CONFIG = src/app/config
 DSM_APP_NAME = SYNOCOMMUNITY.DsmMini.AppInstance
-
-WIZARDS_TEMPLATES_DIR = src/wizard_templates
 
 POST_STRIP_TARGET = dsm-mini_extra_install
 

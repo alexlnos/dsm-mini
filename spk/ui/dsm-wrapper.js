@@ -37,7 +37,12 @@ Ext.define("DSMMINI.Settings.AppWindow", {
                 itemId: "appframe",
                 autoEl: {
                     tag: "iframe",
-                    src: "/webman/3rdparty/dsm-mini/index.html",
+                    // A new address on every open. DSM's web server sends these
+                    // files with no Cache-Control, so a browser may go on
+                    // showing the page of the previous version for hours after
+                    // an upgrade; the page passes the same value on to its
+                    // scripts.
+                    src: "/webman/3rdparty/dsm-mini/index.html?v=" + Date.now(),
                     frameborder: "0",
                     style: "width:100%; height:100%; border:none;"
                 }

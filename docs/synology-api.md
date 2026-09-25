@@ -479,7 +479,8 @@ NAS отдаёт все пять картинок по 100–130 КБ.
 | `req_header` | заголовки одной строкой, разделитель — **голый `\r`**, не `\r\n` |
 | `req_param` | тело запроса; текст уведомления подставляется как `@@TEXT@@` |
 | `template_id` | `1` — встроенный шаблон «All»: info, warning и error |
-| `needssl`, `interval`, `port`, `provider`, `prefix`, `sepchar` | обязательны в вызове, для вебхука пустые или нули |
+| `sepchar` | **пробел `" "`**, не пустая строка — см. ниже |
+| `needssl`, `interval`, `port`, `provider`, `prefix` | обязательны в вызове, для вебхука пустые или нули |
 
 Ловушки:
 
@@ -495,6 +496,19 @@ NAS отдаёт все пять картинок по 100–130 КБ.
   ```
 
   Провайдер при этом выглядит безупречно в любом списке.
+- **`sepchar` — пробел.** Это символ, которым DSM **заменяет каждый пробел
+  текста** перед подстановкой в `@@TEXT@@`: наследство SMS-шлюзов, куда текст
+  уходит в строке запроса. С пустым `sepchar` пробелы просто исчезают —
+  «Test Message from AlexlNos-NAS» пришло в Telegram как
+  `TestMessagefromAlexlNos-NAS`, а обновление пакетов как
+  `UpdatesareavailableforcertainpackagesonAlexlNos-NAS`. В интерфейсе DSM
+  (`/usr/syno/synoman/webman/modules/AdminCenter/NotificationVueBundle.js`)
+  у каждого готового шаблона `sepChar: " "`, включая Sendinblue с JSON-телом
+  через POST, умолчание формы — тоже `" "`, а само поле показывается только
+  для GET: `e.form.reqMethod===e.HTTP_METHOD.GET?…sep_char_label…`. Подпись
+  поля в `texts/enu/strings`: `sep_char_desc = "The default value is space…"`.
+  Создавая провайдера через API, про поле легко не узнать — мы и не узнали,
+  пока журнал писал «forwarded», а человек говорил «ничего не пришло».
 - **Имя провайдера — поле `provider`.** Его и показывает список вебхуков DSM.
 - **При удалении пакета вебхук остаётся.** DSM не связывает провайдеров
   уведомлений с пакетами: профиль, заведённый службой на 8080, пережил
@@ -539,10 +553,90 @@ NAS отдаёт все пять картинок по 100–130 КБ.
 Где искать: `/usr/syno/synoman/scripts/synowebapi.js/` и `synocredential.js/`
 на самом NAS.
 
+## Сессия администратора годится и с loopback
+
+Окно пакета ходит в DSM **от имени администратора, который его открыл**:
+служба берёт cookie `id` и SynoToken из запроса браузера и делает с ними свои
+вызовы (правила обратного прокси, внешний адрес, DDNS). Браузер при этом на
+другой машине, а вызов идёт с NAS через `127.0.0.1`.
+
+Проверено на DSM 7.4 при `SYNO.Core.Security.DSM` → `skip_ip_checking: false`
+(проверка IP включена) и `enable_csrf_protection: true`: сессия, открытая с
+Mac, принята с loopback для `SYNO.Core.Desktop.Initdata`,
+`SYNO.Core.AppPortal.ReverseProxy` `list` и `SYNO.Core.DDNS.ExtIP` `list`.
+Почему проверка IP её не отвергает — не выяснялось; факт записан как есть.
+
+## Порты DSM лежат в `/usr/syno/etc/www/DSM.json`
+
+Файл читается любым пользователем (`rw-r--r--`), не документирован:
+
+```json
+{ "port": 5000, "ssl": { "port": 5001, "redirect": true }, "fqdn": "…" }
+```
+
+`port` — HTTP, `ssl.port` — HTTPS. В `/etc/synoinfo.conf` этих портов нет.
+Служба берёт отсюда адрес DSM по умолчанию, `https://localhost:<ssl.port>`:
+с неверным портом окно пакета не смогло бы даже проверить, кто его открыл, и
+исправить адрес было бы негде.
+
+## `/webman/3rdparty/` отдаётся без `Cache-Control`
+
+У файлов окна пакета nginx DSM ставит только `Last-Modified` и `ETag`
+(проверено `curl -I` на DSM 7.4). Браузер вправе держать такие файлы
+эвристически — часами после обновления пакета. Поэтому обёртка открывает
+`index.html?v=<время>`, а страница грузит скрипты с тем же параметром.
+
+## Смена пользователя пакета при обновлении
+
+`conf/privilege` задаёт пользователя пакета полями `username` и `groupname`
+(«If not specified, the package name will be the default value», есть с
+DSM 6.0-5940). spksrc всегда пишет `sc-<пакет>` и группу `synocommunity`.
+
+Что DSM делает, когда при обновлении пользователь меняется, в руководстве не
+сказано. На живом NAS (SynoCommunity-сборка `sc-dsm-mini` → наша `dsm-mini`):
+
+- **папка** `/volume1/@appdata/dsm-mini` перешла новому пользователю —
+  `ctime` ровно время обновления;
+- **файлы в ней** остались за `sc-dsm-mini`, `0600`: `config.env`,
+  `dsm-mini.db`, и `dsm-mini.log` (`0644`, но писать в него нельзя);
+- `/var/log/packages/dsm-mini.log`:
+
+  ```
+  upgrade dsm-mini 1.0.12-0 Begin postinst
+  sed: can't read /volume1/@appdata/dsm-mini/config.env: Permission denied
+  upgrade dsm-mini 1.0.12-0 Begin start-stop-status start
+  Configuration not found: /volume1/@appdata/dsm-mini/config.env
+  upgrade dsm-mini 1.0.12-0 End start-stop-status start ret=[1]
+  ```
+
+- `synopkg status dsm-mini` → `start_failed`, код `272`, в Центре пакетов —
+  «Остановлено» и кнопка «Восстановить».
+
+Центр пакетов предлагает такое обновление как обычное: сравнивает только
+идентификатор и версию. Отсюда правило: у двух сборок одного пакета должен
+быть один пользователь. Папка своя, поэтому файлы чужого пользователя можно
+**заменить** (переименование требует прав на папку, а не на файл), но не
+прочитать.
+
+## Флаги каталога `qinst`, `qupgrade`, `qstart`
+
+«q» — quiet. В spkrepo, сервере каталога SynoCommunity
+(`spkrepo/domain/catalog.py`, `derive_quick_flags`):
+
+```python
+qinst = license_text is None and install_wizard is False
+qupgrade = license_text is None and upgrade_wizard is False
+qstart = license_text is None and install_wizard is False and startable is not False
+```
+
+То есть тихая установка — только без мастера **и** без лицензии на принятие.
+Наш `.spk` несёт `LICENSE`, поэтому `qinst` остаётся `False` и после отказа от
+мастера.
+
 ## Коды языков DSM
 
-Суффиксы `description_<язык>`, `displayname_<язык>` и файлов мастера
-`install_uifile_<язык>` — это коды DSM, а не Telegram:
+Суффиксы `description_<язык>` и `displayname_<язык>` — это коды DSM, а не
+Telegram (по ним же назывались файлы мастера установки, пока он был):
 `enu, cht, chs, krn, ger, fre, ita, spn, jpn, dan, nor, sve, nld, rus, plk,
 ptb, ptg, hun, trk, csy`.
 
