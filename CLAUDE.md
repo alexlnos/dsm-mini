@@ -361,7 +361,14 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   log. It carries a **copy** of the window in `src/app/` (spksrc builds from its
   own tree); CI fails when the copy differs from `spk/ui/`, and only the Ext JS
   wrapper is its own, for the namespace. On a release: `PKG_VERS`, `SPK_VERS`,
-  `make digests`, and `SPK_REV` goes up — it never resets.
+  `tools/build-spksrc.sh digests`, and `SPK_REV` goes up — it never resets.
+- **Their framework is a cache, not a project.** `tools/build-spksrc.sh` keeps
+  a clone of SynoCommunity/spksrc in `~/Library/Caches/dsm-mini/spksrc` and
+  copies the recipe into it on every build. It does not go into `~/Projects`,
+  where it once sat looking like a second project with a stale copy of the
+  recipe, nor into this repository's folder: 3 GB of somebody else's code,
+  Go toolchain sources included, would go through `gofmt -l .`, the IDE and
+  backups.
 - **The two builds replace each other**: same package id, same package user,
   same port. So our own catalogue can serve betas and SynoCommunity the
   releases, and moving between them is an ordinary update that keeps the
