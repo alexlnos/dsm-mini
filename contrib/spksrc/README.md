@@ -47,6 +47,12 @@ upgrade to it from this build left a live NAS stopped with a Repair button:
 DSM hands the data folder to the new package user on an upgrade, but not the
 files inside it, and the new service could not read one of them.
 
+Checked on a live NAS (SA6400, DSM 7.4) with 1.0.13 on 25 September 2026: the
+repository's 1.0.13-0 was replaced by this build's 1.0.13-1 as an upgrade,
+with the settings and the database kept; an uninstall with "Uninstall only"
+removed the notification webhook and kept the files, and the next install
+started on the kept settings and registered the webhook again.
+
 ## Where it differs from the repository's package, and why
 
 - **No `SERVICE_PORT`.** In their framework it generates a firewall rule and a

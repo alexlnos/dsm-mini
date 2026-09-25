@@ -372,8 +372,12 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - **The two builds replace each other**: same package id, same package user,
   same port. So our own catalogue can serve betas and SynoCommunity the
   releases, and moving between them is an ordinary update that keeps the
-  settings. Anything that makes the builds differ in where or as whom they keep
-  files breaks that — see the package user above.
+  settings. Checked on a live NAS with 1.0.13: our build started on files the
+  SynoCommunity build had created, an upgrade from our build to theirs kept
+  everything, and so did their uninstall with "Uninstall only" followed by an
+  install. The upgrade from theirs to ours has not been run yet. Anything that
+  makes the builds differ in where or as whom they keep files breaks this —
+  see the package user above.
 - **No brackets in the display name.** spksrc writes it into INFO unquoted
   through the shell, so brackets are a syntax error, and elsewhere quoted into
   `jq`, so escaping them leaks a backslash. The name is "DSM mini — Telegram
