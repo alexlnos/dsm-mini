@@ -40,7 +40,9 @@
     ALLOWED_USER_IDS: '123456789,987654321',
     PUBLIC_URL: 'https://nas.example.com'
   };
-  var PROBLEM = { missing: 'pMissing', https: 'pHttps', url: 'pUrl', ids: 'pIds', listen: 'pListen' };
+  var PROBLEM = {
+    missing: 'pMissing', https: 'pHttps', url: 'pUrl', ids: 'pIds', listen: 'pListen', loopback: 'pLoopback'
+  };
 
   // DSM's CSRF token. The screen is an iframe of the same origin as the
   // desktop that opened it, so the token can be read from there rather than
@@ -355,7 +357,11 @@
     var a = state.address;
     if (!a) return;
 
-    box.appendChild(kv(t('addrExternal'), a.external_ip || t('addrNone')));
+    // The address DSM sees for this network is shown only where it matters —
+    // next to the rule, whose name has to lead to it. On its own, as a line
+    // reading "not set" when DSM does not know it, it read like a setting to
+    // fill in, and a tester took it for a demand to open his NAS to the
+    // internet.
     if (a.matching) {
       box.appendChild(el('p', { class: 'note good', text: t('addrMatched') }));
       box.appendChild(kv((a.matching.https ? 'https://' : 'http://') + a.matching.fqdn,
@@ -387,7 +393,8 @@
       box.appendChild(el('div', { class: 'row' }, [
         el('label', { text: t('addrCreate'), for: 'fqdn' }),
         name,
-        el('span', { class: 'hint', text: t('addrFqdnHint') })
+        el('span', { class: 'hint', text: t('addrFqdnHint') }),
+        a.external_ip ? el('span', { class: 'hint', text: t('addrExternalIs', { ip: a.external_ip }) }) : null
       ]));
       box.appendChild(el('div', { class: 'bar' }, [create]));
     }
