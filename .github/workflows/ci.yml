@@ -86,7 +86,7 @@ jobs:
           spk=dist/dsm-mini-0.0.0-ci-amd64.spk
           for entry in package.tgz INFO scripts/start-stop-status scripts/postinst \
                        scripts/preupgrade scripts/postupgrade scripts/preuninst \
-                       conf/privilege PACKAGE_ICON.PNG; do
+                       conf/privilege conf/resource PACKAGE_ICON.PNG; do
             tar tf "$spk" | grep -qx "$entry" || { echo "::error::the package lacks $entry"; exit 1; }
           done
           tar xOf "$spk" package.tgz | tar tzf - | grep -qx './bin/dsm-mini' \
@@ -102,7 +102,7 @@ jobs:
           # from target/<dsmuidir>. Missing, the package installs perfectly and
           # the menu entry simply opens nothing.
           for entry in ./ui/index.html ./ui/app.js ./ui/i18n.js ./ui/config \
-                       ./ui/dsm-wrapper.js ./ui/api.cgi ./ui/images/dsm-mini-72.png; do
+                       ./ui/dsm-wrapper.js ./ui/api.cgi ./ui/dsm-mini.sc ./ui/images/dsm-mini-72.png; do
             tar xOf "$spk" package.tgz | tar tzf - | grep -qx "$entry" \
               || { echo "::error::package.tgz lacks $entry"; exit 1; }
           done
@@ -180,6 +180,10 @@ jobs:
           for f in index.html app.js i18n.js api.cgi $(cd spk/ui && echo images/*.png); do
             cmp -s "spk/ui/$f" "$app/$f" || { echo "::error::$app/$f differs from spk/ui/$f"; bad=1; }
           done
+          # The firewall service file that reserves the port: the recipe takes
+          # it through FWPORTS from src/, our package from ui/.
+          cmp -s spk/ui/dsm-mini.sc contrib/spksrc/spk/dsm-mini/src/dsm-mini.sc \
+            || { echo "::error::contrib/spksrc/spk/dsm-mini/src/dsm-mini.sc differs from spk/ui/dsm-mini.sc"; bad=1; }
           if [ "$bad" = 1 ]; then
             echo "Copy them over: cp -r spk/ui/{index.html,app.js,i18n.js,api.cgi,images} $app/"
             exit 1

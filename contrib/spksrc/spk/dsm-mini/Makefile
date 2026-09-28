@@ -34,11 +34,13 @@ SERVICE_SETUP = src/service-setup.sh
 STARTABLE = yes
 SERVICE_USER = auto
 
-# No SERVICE_PORT on purpose. The service listens on loopback only — the DSM
-# reverse proxy is what publishes it, because Telegram opens a Mini App over
-# HTTPS alone — and SERVICE_PORT would generate a firewall rule for a port
-# nobody outside should reach, plus a desktop shortcut to an address a browser
-# cannot open. The port is 58080 unless the settings window says otherwise.
+# The port is declared to DSM so that it is reserved — DSM's port conflict
+# check then names dsm-mini for 58080 — through a service file of our own
+# rather than SERVICE_PORT: the service listens on loopback only, behind the
+# DSM reverse proxy, so the file says port_forward="no" where SERVICE_PORT
+# would write "yes", and no desktop shortcut to an address a browser cannot
+# open gets generated.
+FWPORTS = src/dsm-mini.sc
 
 # The settings window in the DSM main menu, instead of a generated shortcut.
 # Same arrangement as spk/gentoo-chroot: an Ext JS app declared in app/config.
