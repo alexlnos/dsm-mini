@@ -7,12 +7,15 @@
 # Package Center shows what a script leaves in SYNOPKG_TEMP_LOGFILE in a box
 # once the installation is done (PkgManApp.js, _showDoneMessage, on DSM 7.4),
 # in the language SYNOPKG_DSM_LANGUAGE names. An upgrade keeps its settings
-# and says nothing.
+# and says nothing, and so does an install over the files an earlier
+# installation left behind ("Uninstall only" keeps them): it is set up
+# already, and "not set up yet" would be untrue.
 #
 # The script stays even when it has nothing to do, because DSM expects the
 # full set: a missing preupgrade or postupgrade makes an upgrade from a
 # package source fail with code 261.
-if [ "$SYNOPKG_PKG_STATUS" = "INSTALL" ] && [ -n "$SYNOPKG_TEMP_LOGFILE" ]; then
+if [ "$SYNOPKG_PKG_STATUS" = "INSTALL" ] && [ -n "$SYNOPKG_TEMP_LOGFILE" ] \
+    && [ ! -e "${SYNOPKG_PKGVAR:-/var/packages/dsm-mini/var}/config.env" ]; then
     MESSAGES="${SYNOPKG_PKGDEST:-/var/packages/dsm-mini/target}/ui/installed.txt"
     lang="${SYNOPKG_DSM_LANGUAGE:-enu}"
     text=$(sed -n "s/^${lang}|//p" "$MESSAGES" 2>/dev/null | head -n 1)

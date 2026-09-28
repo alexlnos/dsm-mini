@@ -692,7 +692,9 @@ WS-Discovery в `SMBService.sc`, `syno_oob.sc`. Для службы на loopbac
 выводит `alert` с именем пакета в заголовке. Текст туда кладёт сценарий
 пакета — в файл `$SYNOPKG_TEMP_LOGFILE`; язык человека — в
 `SYNOPKG_DSM_LANGUAGE`, код DSM (`enu`, `rus`, …). Наш `postinst` пишет туда
-одну строку при `SYNOPKG_PKG_STATUS=INSTALL`, при обновлении — ничего.
+одну строку при `SYNOPKG_PKG_STATUS=INSTALL`. При обновлении — ничего, и при
+установке поверх данных прежней (после «Удалить только пакет» `var` остаётся,
+и `SYNOPKG_PKG_STATUS` всё равно `INSTALL`) — тоже: там уже есть `config.env`.
 
 Ловушка в spksrc: сценарий целиком запускается как `postinst >
 $SYNOPKG_TEMP_LOGFILE`, но `service_postinst` вызывается через `call_func …

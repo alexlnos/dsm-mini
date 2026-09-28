@@ -23,7 +23,10 @@ service_postinst ()
     # the package log (call_func ... install_log), so an echo would never
     # reach the box: the line is written to the file itself. It is picked by
     # SYNOPKG_DSM_LANGUAGE from the same messages the upstream package ships.
-    if [ "${SYNOPKG_PKG_STATUS}" != "INSTALL" ] || [ -z "${SYNOPKG_TEMP_LOGFILE}" ]; then
+    # Nothing when the settings of an earlier installation are still there
+    # ("Uninstall only" keeps them): that package is set up already.
+    if [ "${SYNOPKG_PKG_STATUS}" != "INSTALL" ] || [ -z "${SYNOPKG_TEMP_LOGFILE}" ] \
+        || [ -e "${SYNOPKG_PKGVAR}/config.env" ]; then
         return 0
     fi
     messages="${SYNOPKG_PKGDEST}/app/installed.txt"

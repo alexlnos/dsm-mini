@@ -485,7 +485,9 @@ on and **Start** has been pressed.
   goes to that file (`INSTALLER_OUTPUT`), but `service_postinst` runs through
   `call_func … install_log`, which sends everything it prints to the package
   log — so the recipe writes the file itself, as ours does; an `echo` would
-  never reach the box. Nothing on an upgrade: the settings are there already.
+  never reach the box. Nothing on an upgrade, and nothing on an install that
+  finds `config.env` left by an earlier one ("Uninstall only" keeps it): that
+  package is set up already, and "not set up yet" would be untrue.
 - **"Check the account"** signs in as the account typed into the window — with
   the saved password when the field is empty and the account is the saved one
   — and goes through what the service does with it, read-only: the sign-in,
