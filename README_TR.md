@@ -69,10 +69,12 @@ bir dil İngilizce alır.
 Yarım saat, ve çoğu servise değil sertifikaya gidiyor. DSM 7'li bir Synology
 NAS ve Download Station gerekiyor; başka hiçbir şeyi önceden kurmak gerekmez.
 
-> **Genel bir adres neden gerekli.** Telegram bir Mini App'i yalnızca gerçek
-> sertifikalı `https://` üzerinden açar: yerel bir `192.168.…` ya da kendinden
-> imzalı bir sertifika açılmaz. Botun kendisi adressiz de çalışır, sadece
-> düğmesiz.
+> **Genel adres yalnızca Mini App için gerekir.** Telegram bir Mini App'i
+> yalnızca gerçek sertifikalı `https://` üzerinden açar: yerel bir `192.168.…`
+> ya da kendinden imzalı bir sertifika açılmaz. Adres olmadan bot tek başına
+> çalışır — bağlantılar, `.torrent` dosyaları, `/status` ve bildirimler — ve
+> NAS'ın dışarıdan erişilebilir olması gerekmez. Adres almanın üç yolu 4.
+> adımda; ikisi yönlendiricide bağlantı noktası açmadan.
 
 **1. Botu oluşturmak.** [@BotFather](https://t.me/BotFather) → `/newbot` → bir
 ad ve `bot` ile biten bir kullanıcı adı. Yanıt olarak bir belirteç gelir;
@@ -81,13 +83,18 @@ saklayın, o botunuzun parolasıdır.
 **2. Kendi numaranızı öğrenmek.** [@userinfobot](https://t.me/userinfobot) →
 Start. `Id` satırıyla yanıt verir.
 
-**3. Servis için bir DSM kullanıcısı açmak.** Denetim Masası → Kullanıcı ve
-Grup → Oluştur. Yalnızca Download Station ve File Station erişimi, iki aşamalı
+**3. Servis için bir DSM kullanıcısı açmak.** Denetim Masası → Kullanıcı ve Grup
+→ Oluştur. Yalnızca Download Station ve File Station erişimi, iki aşamalı
 doğrulama olmadan: tek kullanımlık kod bir yapılandırma dosyasından gelemez.
-Yönetici vermeyin: servis dosya silebiliyor.
+Yönetici vermeyin: servis dosya silebiliyor. Hesabın yetip yetmediğini **DSM
+mini** penceresindeki **Hesabı denetle** düğmesi gösterir (6. adım): bu
+kullanıcıyla oturum açar ve DSM'nin ona neye izin verdiğini sıralar.
 
-**4. Adres ve sertifika almak.** NAS'ta geçerli sertifikalı bir alan adı zaten
-varsa atlayın.
+**4. Mini App için bir adres almak** — ya da bu adımı atlayıp botu tek başına
+kullanın. Adres, Telegram'ı kullandığınız telefonda `https://` ile açılmalı. Üç
+yol var. Birincisi DSM üzerinden gider ve yönlendiricide bağlantı noktası
+yönlendirmesi ister; NAS'ta geçerli sertifikalı bir alan adı zaten varsa
+atlayın:
 
 - Denetim Masası → Harici Erişim → DDNS → Ekle, sağlayıcı `Synology`:
   `alex-nas.synology.me` gibi bir şey çıkar.
@@ -98,6 +105,18 @@ varsa atlayın.
 
 Telefondan mobil veriyle deneyin: `https://alex-nas.synology.me:5001` DSM'yi
 uyarısız açmalı.
+
+İkincisi **Cloudflare Tunnel**, bağlantı noktası açmadan; DNS'i Cloudflare'de
+olan bir alan adı gerekir. Cloudflare panelinde bir tünel oluşturun,
+[SynoCommunity](https://synocommunity.com) paketlerinden **Cloudflare Tunnel**'ı
+tünelin belirteciyle kurun ve tünele genel bir ana makine adı verin — örneğin
+`mini.example.com` — hizmet olarak `http://localhost:58080`.
+
+Üçüncüsü **Tailscale**, yalnızca kendi cihazlarınız için. Tailscale'i NAS'a ve
+telefona kurun, tailnet'inizin DNS ayarlarında HTTPS sertifikalarını açın ve
+NAS'ta `sudo tailscale serve --bg 58080` çalıştırın:
+`https://nas.tail1234.ts.net` gibi bir adres verir. Uygulama, telefon
+Tailscale'e bağlı olduğu sürece açılır.
 
 **5. Paketi kurmak.** Paket Merkezi → Ayarlar → Paket Kaynakları → Ekle, ad
 `dsm-mini` ve mimarinize göre adres:
@@ -114,33 +133,37 @@ Kurulum hiçbir şey sormaz. Ya da `.spk` dosyasını
 Merkezi → Elle Yükleme ile.
 
 **6. Ayarlamak.** DSM ana menüsünden **DSM mini**'yi açın ya da Paket
-Merkezi'nde **Aç**'a basın. Beş değeri doldurun — hepsi için gereken yukarıdaki
-adımlarda toplandı, pencere de her birini açıklar — ve **Kaydet ve başlat**'a
-basın. Pencerenin üstündeki durum satırı DSM'nin ve botun ne zaman yanıt
-verdiğini, vermediyse neyin yanlış olduğunu gösterir.
+Merkezi'nde **Aç**'a basın — Paket Merkezi kurulum bitince bunu kendisi de
+söyler. Yukarıdaki adımlarda toplanan değerleri doldurun: pencere her birini
+açıklar, genel adres boş kalabilir. **Kaydet**'e, ardından pencerenin üstündeki
+**Başlat**'a basın. Oradaki durum, DSM'nin ve botun ne zaman yanıt verdiğini,
+vermediyse neyin yanlış olduğunu gösterir.
 
-Adres için ters proxy kuralını pencere kendisi oluşturur: adınızı **Bir adı
-servise yönlendir** alanına yazın. Elle yapmak için Denetim Masası → Oturum Açma
-Portalı → Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin adınız,
+Birinci yol için ters proxy kuralını pencere kendisi oluşturur: adınızı **Bir
+adı servise yönlendir** alanına yazın. Elle yapmak için Denetim Masası → Oturum
+Açma Portalı → Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin adınız,
 bağlantı noktası `443`. Hedef: `HTTP`, `localhost`, bağlantı noktası `58080`.
+Tünel ya da Tailscale ile, onların verdiği adresi genel adres olarak girin.
 
 > Bu ad için **80** numaralı bağlantı noktasını proxy'lemeyin: DSM sertifikayı
 > oradan yeniliyor, araya girmek yenilemeyi üç ay sonra bozar.
 
-**7. Denemek.** Tarayıcıda `https://adresiniz/healthz` `{"status":"ok"}`
-yanıtını vermeli. Telegram imzası olmadan dışarıya hiçbir şey verilmez.
+**7. Denemek.** Adres varsa, tarayıcıda `https://adresiniz/healthz`
+`{"status":"ok"}` yanıtını vermeli. Telegram imzası olmadan dışarıya hiçbir şey
+verilmez.
 
 **8. Uygulamayı açmak.** Botu kullanıcı adından bulun, Start'a basın — yazma
 alanının yanında bir **İndirmeler** düğmesi belirir. Ona herhangi bir magnet
-bağlantısı gönderin, klasörleri düğmelerle önerir.
+bağlantısı gönderin, klasörleri düğmelerle önerir. Adres yoksa düğme de olmaz:
+bağlantıları bota sohbetten gönderin.
 
 ## Bir şeyler ters gittiyse
 
 | Gördüğünüz | Sorun ne | Ne yapmalı |
 |---|---|---|
-| Bot `/start` komutuna susuyor | Paket ayarlanmamış ya da belirteç yanlış | DSM ana menüsünden **DSM mini**'yi açın: üstteki durum satırı hangisi olduğunu söyler |
+| Bot `/start` komutuna susuyor | Bot kapalı ya da ayarlanmamış veya belirteç yanlış | DSM ana menüsünden **DSM mini**'yi açın: üstteki durum hangisi olduğunu söyler, **Başlat** da botu açar |
 | «Bu bota erişim kapalı» | Kimliğiniz listede değil | 2. adımdaki numarayı **DSM mini** penceresinde izin verilen kimliklere ekleyin |
-| Uygulama düğmesi yok | Genel adres boş ya da `https://` değil | **DSM mini** penceresi, genel adres |
+| Uygulama düğmesi yok | Genel adres boş (o zaman yalnızca bot çalışır) ya da `https://` değil | **DSM mini** penceresi, genel adres |
 | Düğme var, uygulama açılmıyor | Ters proxy ya da sertifika çalışmıyor | Tarayıcıda `https://adresiniz/healthz` açın |
 | «Uygulamayı bot üzerinden açın» | Uygulama tarayıcıda doğrudan bağlantıyla açıldı | Böyle olması gerekiyor: bottan açın |
 | «Erişim reddedildi: Telegram kimliğiniz…» | Servis sizi tanımadı | İzin verilen kimliklerde yalnızca rakamlar, virgülle ayrılmış |
@@ -212,7 +235,9 @@ Servis internete açık ve NAS'taki dosyaları silebiliyor, bu yüzden:
   dosyasında, `600` izinleriyle durur ve hiçbir zaman günlüğe düşmez: bir
   reddedişte neden yazılır, değer değil.
 - Servis yalnızca `127.0.0.1` üzerinde dinler — yani NAS'ın kendisinden.
-  Dışarıdan gelen her şey, TLS'i de sonlandıran DSM ters proxy'sinden geçer.
+  Dışarıdan gelen her şey, genel adresi sunan şeyden — DSM ters proxy'si, bir
+  tünel ya da Tailscale — geçer; TLS'i de o sonlandırır. Adres yoksa dışarıdan
+  ona hiçbir şey ulaşmaz.
 
 ## Geliştirme
 

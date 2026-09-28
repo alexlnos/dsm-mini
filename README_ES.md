@@ -70,10 +70,12 @@ Media hora, y la mayor parte se va en el certificado, no en el servicio. Hace
 falta un NAS Synology con DSM 7 y Download Station; nada más hay que instalar
 de antemano.
 
-> **Por qué hace falta una dirección pública.** Telegram abre una Mini App solo
-> por `https://` con un certificado de verdad: un `192.168.…` local o uno
-> autofirmado no abrirán. El bot en sí funciona sin dirección, solo que sin el
-> botón.
+> **La dirección pública solo hace falta para la Mini App.** Telegram abre una
+> Mini App solo por `https://` con un certificado de verdad: un `192.168.…`
+> local o uno autofirmado no abrirán. Sin dirección, el bot funciona por su
+> cuenta —enlaces, archivos `.torrent`, `/status` y notificaciones— sin que el
+> NAS tenga que ser accesible desde fuera. El paso 4 da tres formas de
+> conseguirla, dos de ellas sin abrir puertos en el router.
 
 **1. Crear el bot.** [@BotFather](https://t.me/BotFather) → `/newbot` → un
 nombre y un usuario que termine en `bot`. Responde con un token; guárdalo, es
@@ -85,10 +87,15 @@ Responde con la línea `Id`.
 **3. Crear un usuario de DSM para el servicio.** Panel de control → Usuario y
 grupo → Crear. Acceso solo a Download Station y File Station, sin verificación
 en dos pasos: un código de un solo uso no puede salir de un archivo de
-configuración. No le des un administrador: el servicio puede borrar archivos.
+configuración. No le des un administrador: el servicio puede borrar archivos. Si
+la cuenta basta lo dice el botón **Comprobar la cuenta** de la ventana DSM mini
+(paso 6): inicia sesión como este usuario y enumera lo que DSM le permite.
 
-**4. Conseguir dirección y certificado.** Sáltalo si el NAS ya tiene un dominio
-con certificado válido.
+**4. Conseguir una dirección para la Mini App**, o sáltate este paso y usa el
+bot por su cuenta. La dirección tiene que abrirse por `https://` en el teléfono
+donde usas Telegram. Hay tres formas. La primera pasa por DSM y necesita
+redirigir puertos en el router; sáltala si el NAS ya tiene un dominio con
+certificado válido:
 
 - Panel de control → Acceso externo → DDNS → Añadir, proveedor `Synology`: sale
   algo como `alex-nas.synology.me`.
@@ -99,6 +106,18 @@ con certificado válido.
 
 Compruébalo desde el móvil con datos: `https://alex-nas.synology.me:5001` debe
 abrir DSM sin avisos.
+
+La segunda es **Cloudflare Tunnel**, sin abrir puertos; necesita un dominio cuyo
+DNS esté en Cloudflare. Crea un túnel en el panel de Cloudflare, instala el
+paquete **Cloudflare Tunnel** de [SynoCommunity](https://synocommunity.com) con
+el token del túnel y dale al túnel un nombre de host público —por ejemplo,
+`mini.example.com`— con el servicio `http://localhost:58080`.
+
+La tercera es **Tailscale**, solo para tus propios dispositivos. Instala
+Tailscale en el NAS y en el teléfono, activa los certificados HTTPS en los
+ajustes de DNS de tu tailnet y ejecuta `sudo tailscale serve --bg 58080` en el
+NAS: muestra una dirección como `https://nas.tail1234.ts.net`. La aplicación se
+abre entonces mientras el teléfono esté conectado a Tailscale.
 
 **5. Instalar el paquete.** Centro de paquetes → Configuración → Orígenes de
 paquetes → Añadir, nombre `dsm-mini` y la dirección de tu arquitectura:
@@ -116,33 +135,36 @@ La instalación no pregunta nada. O instala el `.spk` de las
 paquetes → Instalación manual.
 
 **6. Configurar.** Abre **DSM mini** desde el menú principal de DSM o pulsa
-**Abrir** en el Centro de paquetes. Rellena los cinco valores (todo lo necesario
-se reunió en los pasos de arriba, y la ventana explica cada uno) y pulsa
-**Guardar e iniciar**. La línea de estado de arriba de la ventana dice cuándo
-han respondido DSM y el bot, y qué falla si no lo han hecho.
+**Abrir** en el Centro de paquetes; él mismo lo recuerda al terminar la
+instalación. Rellena los valores reunidos en los pasos de arriba: la ventana
+explica cada uno, y la dirección pública puede quedar vacía. Pulsa **Guardar** y
+después **Iniciar**, arriba en la ventana. El estado de ahí dice cuándo han
+respondido DSM y el bot, y qué falla si no lo han hecho.
 
-La regla de proxy inverso para la dirección la crea la propia ventana: escribe
-tu nombre en **Dirigir un nombre al servicio**. A mano es Panel de control →
-Portal de inicio de sesión → Avanzado → Proxy inverso → Crear. Origen: `HTTPS`,
-tu nombre, puerto `443`. Destino: `HTTP`, `localhost`, puerto `58080`.
+Para la primera forma, la regla de proxy inverso la crea la propia ventana:
+escribe tu nombre en **Dirigir un nombre al servicio**. A mano es Panel de
+control → Portal de inicio de sesión → Avanzado → Proxy inverso → Crear. Origen:
+`HTTPS`, tu nombre, puerto `443`. Destino: `HTTP`, `localhost`, puerto `58080`.
+Con un túnel o Tailscale, pon como dirección pública la que te hayan dado.
 
 > No hagas proxy del puerto **80** para este nombre: por ahí DSM renueva el
 > certificado, e interceptarlo rompe la renovación tres meses después.
 
-**7. Comprobar.** `https://tu-direccion/healthz` en un navegador debe responder
-`{"status":"ok"}`. Sin firma de Telegram no se entrega nada.
+**7. Comprobar.** Con dirección, `https://tu-direccion/healthz` en un navegador
+debe responder `{"status":"ok"}`. Sin firma de Telegram no se entrega nada.
 
 **8. Abrir la aplicación.** Busca el bot por su usuario, pulsa Start y junto al
 campo de escritura aparece un botón **Descargas**. Mándale cualquier enlace
-magnet: te ofrecerá carpetas con botones.
+magnet: te ofrecerá carpetas con botones. Sin dirección no hay botón: manda los
+enlaces al bot en el chat.
 
 ## Si algo ha salido mal
 
 | Qué ves | De qué se trata | Qué hacer |
 |---|---|---|
-| El bot calla ante `/start` | El paquete no está configurado, o el token es incorrecto | Abre **DSM mini** en el menú principal de DSM: la línea de estado de arriba dice cuál |
+| El bot calla ante `/start` | El bot está apagado o sin configurar, o el token es incorrecto | Abre **DSM mini** en el menú principal de DSM: el estado de arriba dice cuál, e **Iniciar** enciende el bot |
 | «El acceso a este bot está cerrado» | Tu ID no está en la lista | Añade el número del paso 2 a los IDs permitidos en la ventana **DSM mini** |
-| No hay botón de la aplicación | La dirección pública está vacía o no es `https://` | La ventana **DSM mini**, dirección pública |
+| No hay botón de la aplicación | La dirección pública está vacía (entonces solo funciona el bot) o no es `https://` | La ventana **DSM mini**, dirección pública |
 | El botón está, la aplicación no abre | El proxy inverso o el certificado no funcionan | Abre `https://tu-direccion/healthz` en un navegador |
 | «Abre la aplicación desde el bot» | La aplicación se abrió por enlace directo en un navegador | Es lo previsto: ábrela desde el bot |
 | «Acceso denegado: tu ID de Telegram…» | El servicio no te reconoció | En los IDs permitidos solo dígitos, separados por comas |
@@ -214,7 +236,9 @@ El servicio está expuesto a internet y puede borrar archivos del NAS, así que:
   propio NAS, con permisos `600`, y nunca llegan al registro: en un rechazo se
   escribe el motivo, nunca el valor.
 - El servicio escucha solo en `127.0.0.1`, es decir desde el propio NAS. Todo lo
-  que viene de fuera pasa por el proxy inverso de DSM, que además termina el TLS.
+  que viene de fuera pasa por lo que sirve la dirección pública —el proxy
+  inverso de DSM, un túnel o Tailscale—, que además termina el TLS. Sin
+  dirección, nada de fuera llega a él.
 
 ## Desarrollo
 
