@@ -131,8 +131,14 @@ export interface PackageState {
 }
 
 export interface SystemOverview {
-  info: SystemInfo
-  usage: SystemUsage
+  /** Null when DSM refused it — an ordinary account gets no details. */
+  info: SystemInfo | null
+  /** Why the details are missing, already in the person's language. */
+  info_error?: string
+  /** Null when DSM refused it, rather than zeros that would be a lie. */
+  usage: SystemUsage | null
+  usage_error?: string
+  /** Empty when the package list was refused: nothing is known either way. */
   packages: Record<string, PackageState>
 }
 

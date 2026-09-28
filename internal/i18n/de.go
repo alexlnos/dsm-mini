@@ -69,6 +69,8 @@ var de = map[string]string{
 	"api.transferStop":    "Vorgang ließ sich nicht anhalten",
 	"api.openFile":        "Datei ließ sich nicht öffnen",
 	"api.info":            "Angaben zum NAS nicht erhalten",
+	"api.load":            "Auslastung nicht erhalten",
+	"api.noAccess":        "das DSM-Konto des Dienstes hat darauf keinen Zugriff",
 	"api.log":             "Protokoll nicht erhalten",
 	"api.storage":         "Speicherzustand nicht erhalten",
 	"api.vms":             "Liste der Maschinen nicht erhalten",

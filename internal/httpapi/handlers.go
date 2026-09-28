@@ -367,7 +367,7 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error, key str
 
 	status := http.StatusBadGateway
 	body := map[string]any{
-		"error":  i18n.T(i18n.Match(u.Language), key),
+		"error":  failureText(i18n.Match(u.Language), key, err),
 		"detail": err.Error(),
 	}
 	var apiErr *dsm.APIError
@@ -376,4 +376,17 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error, key str
 		body["code"] = apiErr.Code
 	}
 	writeJSON(w, status, body)
+}
+
+// failureText is what a person is told when a DSM call failed. A refusal of
+// permission, DSM's 105, says so: "could not get the storage state" alone left
+// a tester guessing, while the reason — the service signs in with an ordinary
+// account and DSM shows this to administrators — is one the owner can act on.
+func failureText(lang i18n.Lang, key string, err error) string {
+	text := i18n.T(lang, key)
+	var apiErr *dsm.APIError
+	if errors.As(err, &apiErr) && apiErr.Code == 105 {
+		text += ": " + i18n.T(lang, "api.noAccess")
+	}
+	return text
 }

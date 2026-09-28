@@ -107,7 +107,9 @@ export function Home({ downloads, onOpen }: Props) {
           <div className="home-title">
             <div className="home-name">{info?.hostname || 'NAS'}</div>
             <div className="muted tnum home-sub">
-              {info ? `${info.model} · DSM ${info.firmware?.split('-')[0] ?? ''}` : t('home.connecting')}
+              {info
+                ? `${info.model} · DSM ${info.firmware?.split('-')[0] ?? ''}`
+                : system?.info_error ?? t('home.connecting')}
             </div>
           </div>
           <span className={error ? 'badge bad' : 'badge ok'}>{error ? t('home.noLink') : t('home.online')}</span>
@@ -115,7 +117,10 @@ export function Home({ downloads, onOpen }: Props) {
 
         {error && <div className="home-error">{error}</div>}
 
-        {!usage && !error && <SkeletonMeters />}
+        {/* A refused load is said once, in words; placeholders would promise
+            figures that are not coming, and zeros would be a lie. */}
+        {!usage && !error && !system?.usage_error && <SkeletonMeters />}
+        {!usage && !error && system?.usage_error && <div className="home-note">{system.usage_error}</div>}
 
         {usage && (
           <>

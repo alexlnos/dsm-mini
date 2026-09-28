@@ -69,6 +69,8 @@ var pl = map[string]string{
 	"api.transferStop":    "Nie udało się zatrzymać operacji",
 	"api.openFile":        "Nie udało się otworzyć pliku",
 	"api.info":            "Nie udało się pobrać danych NAS",
+	"api.load":            "Nie udało się pobrać obciążenia",
+	"api.noAccess":        "konto DSM, którego używa usługa, nie ma do tego dostępu",
 	"api.log":             "Nie udało się pobrać dziennika",
 	"api.storage":         "Nie udało się pobrać stanu pamięci",
 	"api.vms":             "Nie udało się pobrać listy maszyn",

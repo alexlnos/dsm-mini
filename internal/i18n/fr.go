@@ -69,6 +69,8 @@ var fr = map[string]string{
 	"api.transferStop":    "Impossible d’arrêter l’opération",
 	"api.openFile":        "Impossible d’ouvrir le fichier",
 	"api.info":            "Impossible d’obtenir les infos du NAS",
+	"api.load":            "Impossible d’obtenir la charge",
+	"api.noAccess":        "le compte DSM du service n'y a pas accès",
 	"api.log":             "Impossible d’obtenir le journal",
 	"api.storage":         "Impossible d’obtenir l’état du stockage",
 	"api.vms":             "Impossible d’obtenir la liste des machines",

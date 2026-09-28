@@ -69,6 +69,8 @@ var pt = map[string]string{
 	"api.transferStop":    "Não foi possível parar a operação",
 	"api.openFile":        "Não foi possível abrir o arquivo",
 	"api.info":            "Não foi possível obter os dados do NAS",
+	"api.load":            "Não foi possível obter a carga",
+	"api.noAccess":        "a conta do DSM usada pelo serviço não tem acesso a isto",
 	"api.log":             "Não foi possível obter o registro",
 	"api.storage":         "Não foi possível obter o estado do armazenamento",
 	"api.vms":             "Não foi possível obter a lista de máquinas",

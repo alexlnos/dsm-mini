@@ -69,6 +69,8 @@ var tr = map[string]string{
 	"api.transferStop":    "İşlem durdurulamadı",
 	"api.openFile":        "Dosya açılamadı",
 	"api.info":            "NAS bilgileri alınamadı",
+	"api.load":            "Yük bilgisi alınamadı",
+	"api.noAccess":        "servisin kullandığı DSM hesabının buna erişimi yok",
 	"api.log":             "Günlük alınamadı",
 	"api.storage":         "Depolama durumu alınamadı",
 	"api.vms":             "Makine listesi alınamadı",
