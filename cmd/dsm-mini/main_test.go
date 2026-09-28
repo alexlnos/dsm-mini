@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alexlnos/dsm-mini/internal/db"
+	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
 func freePort(t *testing.T) string {
@@ -55,8 +58,8 @@ func TestFreshPackageWaitsToBeSetUp(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	if !strings.Contains(health, `"setup"`) {
-		t.Fatalf("healthz said %q, want the setup state", health)
+	if !strings.Contains(health, `"stopped"`) {
+		t.Fatalf("healthz said %q, want the stopped state", health)
 	}
 
 	resp, err := http.Get("http://" + addr + "/")
@@ -82,5 +85,44 @@ func TestFreshPackageWaitsToBeSetUp(t *testing.T) {
 		}
 	case <-time.After(20 * time.Second):
 		t.Fatal("the service did not stop")
+	}
+}
+
+// The first start of the version with the Start button settles whether the
+// app runs: an installation with its settings was running and keeps running
+// through the upgrade, a fresh one waits for Start. After that the choice is
+// the window's, whatever the settings say.
+func TestFirstStartSettlesTheSwitch(t *testing.T) {
+	ctx := context.Background()
+	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
+	open := func(t *testing.T) *store.Store {
+		database, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { database.Close() })
+		return store.New(database)
+	}
+
+	upgraded := open(t)
+	if !switchedOn(ctx, upgraded, true, quiet) {
+		t.Fatal("an installation that was set up stopped on the upgrade")
+	}
+	fresh := open(t)
+	if switchedOn(ctx, fresh, false, quiet) {
+		t.Fatal("a fresh installation started on its own")
+	}
+	// Set up afterwards, it still waits for Start.
+	if switchedOn(ctx, fresh, true, quiet) {
+		t.Fatal("saving the settings started the app without Start")
+	}
+	if err := fresh.SetAppEnabled(ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	if !switchedOn(ctx, fresh, true, quiet) {
+		t.Fatal("Start did not stick")
+	}
+	if switchedOn(ctx, nil, true, quiet) {
+		t.Fatal("no database, and yet switched on")
 	}
 }

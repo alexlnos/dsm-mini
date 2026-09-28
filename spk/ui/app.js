@@ -138,25 +138,26 @@
     statusBox.textContent = '';
     if (!s) return;
 
-    var kind = { setup: 'info', starting: 'info', running: 'good', failed: 'bad' }[s.state] || 'info';
+    var kind = { stopped: 'info', starting: 'info', running: 'good', failed: 'bad' }[s.state] || 'info';
     var card = el('div', { class: 'card status ' + kind });
+    var blocked = !!s.unreadable || (s.problems || []).length > 0;
 
     if (s.unreadable) {
       card.appendChild(el('h3', { text: t('stUnread') }));
       card.appendChild(el('p', { text: t('stUnreadText', { owner: s.unreadable.owner || '?' }) }));
       card.appendChild(el('pre', { text: s.unreadable.command }));
-    } else if (s.state === 'setup') {
-      card.appendChild(el('h3', { text: t('stSetup') }));
-      card.appendChild(el('p', { text: t('stSetupText') }));
+    } else if (s.state === 'stopped') {
+      card.appendChild(el('h3', { text: t('stStopped') }));
       var missing = (s.problems || []).filter(function (p) { return LABEL[p.key]; })
         .map(function (p) { return t(LABEL[p.key]); });
-      if (missing.length) {
-        card.appendChild(el('p', { class: 'hint', text: t('stMissing') + ' ' + missing.join(', ') }));
-      }
+      card.appendChild(el('p', { text: missing.length ? t('stMissing') + ' ' + missing.join(', ') : t('stStoppedText') }));
     } else {
       card.appendChild(el('h3', { text: t({ starting: 'stStarting', running: 'stRunning', failed: 'stFailed' }[s.state]) }));
       if (s.dsm && s.dsm.state) card.appendChild(kv(t('lnDsm'), dsmText(s.dsm)));
       if (s.bot && s.bot.state) card.appendChild(kv(t('lnBot'), botText(s.bot)));
+      // Without a public address there is no Mini App, and that is a choice
+      // rather than a fault: the bot works on its own.
+      if (state.settings && !state.settings.values.PUBLIC_URL) card.appendChild(kv(t('lnApp'), t('lnAppOff')));
       if (s.bot && s.bot.state === 'ok' && s.bot.name) {
         card.appendChild(el('p', {}, [el('a', {
           href: 'https://t.me/' + encodeURIComponent(s.bot.name), target: '_blank', rel: 'noopener',
@@ -164,12 +165,26 @@
         })]));
       }
     }
+
+    // Start and Stop switch the bot and the Mini App; the process itself
+    // keeps running, since it is what answers this window. Start waits for
+    // settings that are enough to start on.
+    var on = s.state !== 'stopped';
+    var toggle = el('button', { class: on ? 'ghost' : '', text: on ? t('btnStop') : t('btnStart') });
+    toggle.disabled = !on && blocked;
+    toggle.addEventListener('click', function () {
+      toggle.disabled = true;
+      call('run', 'POST', { enabled: !on }).then(pollStatus).catch(function (err) {
+        toggle.disabled = false;
+        showError(err);
+      });
+    });
+    card.appendChild(el('div', { class: 'bar' }, [toggle]));
+
     if (extra) card.appendChild(el('p', { class: 'hint', text: extra }));
     statusBox.appendChild(card);
-    if (state.saveButton) {
-      state.saveButton.textContent = s.state === 'setup' ? t('saveStart') : t('save');
-    }
   }
+
 
   // After a save the service starts its insides again: the status goes
   // through "starting" and settles. A 502 from api.cgi on the way is the
@@ -261,10 +276,15 @@
     app.textContent = '';
 
     app.appendChild(el('h2', { text: t('nas') }));
+    var checkButton = el('button', { class: 'ghost', text: t('chkBtn') });
+    var checkResult = el('div', { class: 'check' });
+    checkButton.addEventListener('click', function () { checkAccount(checkButton, checkResult); });
     app.appendChild(el('div', { class: 'card' }, [
       el('p', { class: 'hint', text: t('nasIntro') }),
       field('DSM_USER', t('hDsmUser')),
-      field('DSM_PASSWORD', secretHint('DSM_PASSWORD', t('hDsmPassword')), { secret: true })
+      field('DSM_PASSWORD', secretHint('DSM_PASSWORD', t('hDsmPassword')), { secret: true }),
+      el('div', { class: 'bar' }, [checkButton]),
+      checkResult
     ]));
 
     app.appendChild(el('h2', { text: t('telegram') }));
@@ -305,9 +325,7 @@
     ]));
     app.appendChild(more);
 
-    var setup = state.status && state.status.state === 'setup';
-    var save = el('button', { text: setup ? t('saveStart') : t('save') });
-    state.saveButton = save;
+    var save = el('button', { text: t('save') });
     var result = el('span', { class: 'hint' });
     save.addEventListener('click', function () {
       save.disabled = true;
@@ -325,6 +343,9 @@
           state.settings = saved;
           renderForm();
           if (saved.applying) {
+            // The outcome shows in the status at the top, and so does Start
+            // when the bot is switched off: the button is at the bottom.
+            statusBox.scrollIntoView({ block: 'start' });
             pollStatus();
           } else {
             refreshStatus();
@@ -347,6 +368,77 @@
     markProblems();
   }
 
+  // ---- account check -------------------------------------------------------
+
+  // The parts the check goes through, in its order. Required ones are what
+  // the bot cannot work without; the rest are sections the Mini App shows
+  // when DSM lets the account see them.
+  var CHECK_LABEL = {
+    signin: 'chkSignin', admin: 'chkAdmin', downloads: 'chkDownloads', files: 'chkFiles',
+    shares: 'chkShares', details: 'chkDetails', load: 'chkLoad', storage: 'chkStorage',
+    vms: 'chkVms', containers: 'chkContainers', log: 'chkLog', notify: 'chkNotify'
+  };
+  var CHECK_REQUIRED = { signin: true, downloads: true, files: true, shares: true };
+
+  // checkLine says how one part went: a mark and a sentence with what to do.
+  function checkLine(item) {
+    if (item.state === 'error') return ['off', t('chkError')];
+    switch (item.id) {
+      case 'signin':
+        return item.state === 'ok' ? ['ok', t('chkOk')] : ['bad', authText(item.code)];
+      case 'admin':
+        return item.state === 'yes' ? ['warn', t('chkAdminYes')] : ['ok', t('chkAdminNo')];
+      case 'downloads':
+        if (item.state === 'absent') return ['bad', t('chkDownloadsAbsent')];
+        return item.state === 'ok' ? ['ok', t('chkOk')] : ['bad', t('chkDownloadsNo')];
+      case 'files':
+        return item.state === 'ok' ? ['ok', t('chkOk')] : ['bad', t('chkFilesNo')];
+      case 'shares':
+        return item.state === 'ok'
+          ? ['ok', t('chkSharesOk', { count: item.count })] : ['bad', t('chkSharesNone')];
+      case 'notify':
+        return item.state === 'ok' ? ['ok', t('chkOk')] : ['off', t('chkNotifyNo', { code: item.code })];
+      default:
+        if (item.state === 'absent') return ['off', t('chkAbsent')];
+        return item.state === 'ok'
+          ? ['ok', t('chkOk')] : ['off', t('chkSectionNo', { code: item.code })];
+    }
+  }
+
+  // The check signs in as whatever is in the two fields — an empty password
+  // field means the saved one, which the window never has — and goes through
+  // everything the service would do, read-only.
+  function checkAccount(button, box) {
+    var user = document.getElementById('f-DSM_USER');
+    var password = document.getElementById('f-DSM_PASSWORD');
+    button.disabled = true;
+    box.textContent = '';
+    box.appendChild(el('p', { class: 'hint', text: t('chkRunning') }));
+    call('check-account', 'POST', {
+      user: user ? user.value : '', password: password ? password.value : ''
+    }).then(function (res) {
+      box.textContent = '';
+      var lines = (res.items || []).map(function (item) {
+        var line = checkLine(item);
+        if (CHECK_REQUIRED[item.id] && line[0] !== 'ok') line[0] = 'bad';
+        return { item: item, mark: line[0], text: line[1] };
+      });
+      var broken = lines.some(function (l) { return l.mark === 'bad'; });
+      box.appendChild(el('p', { class: broken ? 'note bad' : 'note good', text: broken ? t('chkNeedsWork') : t('chkReady') }));
+      lines.forEach(function (l) {
+        box.appendChild(el('div', { class: 'check-line ' + l.mark }, [
+          el('span', { class: 'check-mark', text: { ok: '✓', bad: '✗', warn: '!', off: '–' }[l.mark] }),
+          el('span', { class: 'check-name', text: t(CHECK_LABEL[l.item.id] || l.item.id) }),
+          el('span', { class: 'check-text', text: l.text })
+        ]));
+      });
+    }).catch(function (err) {
+      box.textContent = '';
+      var text = err && err.status === 400 ? t('chkNeedCreds') : err && err.status === 502 ? t('errUnreachable') : t('errGeneric');
+      box.appendChild(el('p', { class: 'note bad', text: text }));
+    }).then(function () { button.disabled = false; });
+  }
+
   // The address part: where the name points, and a way to create the rule
   // that sends it to the service. It is read with the administrator's own
   // session, so it works before the service is set up.
@@ -360,7 +452,7 @@
     // The address DSM sees for this network is shown only where it matters —
     // next to the rule, whose name has to lead to it. On its own, as a line
     // reading "not set" when DSM does not know it, it read like a setting to
-    // fill in, and a tester took it for a demand to open his NAS to the
+    // fill in, and a tester took it for a demand to open their NAS to the
     // internet.
     if (a.matching) {
       box.appendChild(el('p', { class: 'note good', text: t('addrMatched') }));

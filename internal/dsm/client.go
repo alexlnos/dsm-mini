@@ -39,6 +39,7 @@ type Client struct {
 	// session; see Options.
 	cookie    string
 	synoToken string
+	session   string
 
 	mu   sync.RWMutex
 	sid  string
@@ -65,6 +66,12 @@ type Options struct {
 	InsecureTLS bool
 	Timeout     time.Duration
 	Logger      *slog.Logger
+
+	// Session names the DSM session; "DownloadStation" when empty. A client
+	// that signs in beside the service as the same account — the settings
+	// window checking it — takes a name of its own, which keeps its sign-out
+	// apart from the service's session.
+	Session string
 
 	// Cookie and SynoToken make the client act inside somebody else's browser
 	// session instead of signing in itself: the settings window inside DSM
@@ -98,6 +105,7 @@ func New(o Options) *Client {
 		otp:         o.OTP,
 		cookie:      o.Cookie,
 		synoToken:   o.SynoToken,
+		session:     o.Session,
 		http:        &http.Client{Timeout: o.Timeout, Transport: transport},
 		log:         o.Logger,
 		apis:        make(map[string]apiInfo),
@@ -128,7 +136,7 @@ func (c *Client) Login(ctx context.Context) error {
 	params := map[string]any{
 		"account": c.user,
 		"passwd":  c.pass,
-		"session": "DownloadStation",
+		"session": c.sessionName(),
 		"format":  "sid",
 	}
 	if c.otp != "" {
@@ -172,7 +180,7 @@ func (c *Client) Logout(ctx context.Context) error {
 		return nil
 	}
 	_, err := c.post(ctx, "entry.cgi", buildForm("SYNO.API.Auth", "logout", 7,
-		sid, map[string]any{"session": "DownloadStation"}, false))
+		sid, map[string]any{"session": c.sessionName()}, false))
 	c.mu.Lock()
 	c.sid = ""
 	c.mu.Unlock()
@@ -260,7 +268,7 @@ func (c *Client) apiInfo(ctx context.Context, api string) (apiInfo, error) {
 	}
 	info, ok = all[api]
 	if !ok {
-		return apiInfo{}, fmt.Errorf("API %s is missing on this NAS", api)
+		return apiInfo{}, fmt.Errorf("%w: %s", ErrNoAPI, api)
 	}
 
 	c.mu.Lock()
@@ -386,4 +394,11 @@ func asAPIError(err error, target **APIError) bool {
 		err = u.Unwrap()
 	}
 	return false
+}
+
+func (c *Client) sessionName() string {
+	if c.session != "" {
+		return c.session
+	}
+	return "DownloadStation"
 }

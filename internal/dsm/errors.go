@@ -46,6 +46,11 @@ func (e *APIError) needsRelogin() bool {
 // account or a demand for a 2FA code. Repeating such a request is pointless.
 var ErrAuth = errors.New("authentication with DSM failed")
 
+// ErrNoAPI is an API this NAS does not have: the package behind it is not
+// installed or not running. Telling it apart from a refusal is what lets the
+// settings window say "not installed" rather than "no access".
+var ErrNoAPI = errors.New("the API is missing on this NAS")
+
 // AuthError is a refused login together with DSM's code, so that whoever
 // shows it to a person can say which of the refusals it was. It matches
 // ErrAuth under errors.Is.

@@ -648,6 +648,62 @@ qstart = license_text is None and install_wizard is False and startable is not F
 Наш `.spk` несёт `LICENSE`, поэтому `qinst` остаётся `False` и после отказа от
 мастера.
 
+## Что DSM не отдаёт обычной учётной записи
+
+Служба ходит в DSM от учётной записи, которую ей дали, а рекомендуем мы
+обычную, не администратора. Журнал тестера SynoCommunity (27.09.2026, NAS
+тестера, пользователь `dsm-mini` без прав администратора):
+
+```
+SYNO.Storage.CGI.Storage.load_info: the account lacks permission (code 105)
+SYNO.Core.System.Utilization.get: the account lacks permission (code 105)
+SYNO.Core.System.info: DSM error with code 1006
+```
+
+Вход при этом проходит. Про виртуальные машины, контейнеры, журнал DSM, список
+пакетов и регистрацию вебхука уведомлений от обычной учётной записи — **не
+проверено**.
+
+Проверить самим, заведя временного пользователя через API, пока не вышло:
+`SYNO.Core.User` `list` администратору отвечает, а `create` и `delete` —
+кодом **105**, и в сессии от API (`session=PackageCenter`), и в сессии как у
+веб-интерфейса (`session=webui`, `enable_syno_token=yes`, заголовок
+`X-SYNO-TOKEN`). Параметры `create` взяты из `admin_center.js` самого DSM
+(`name`, `password`, `description`, `email`, `cannot_chg_passwd`, `expired`,
+`passwd_never_expire`, `notify_by_email`); интерфейс DSM при этом шифрует
+`password` (`encryption:["password"]`). Причина не установлена — смотреть
+`/var/log/synoscgi.log` (root), а не гадать.
+
+## Файл порта для брандмауэра: `port_forward` бывает и `"no"`
+
+`port-config` в `conf/resource` указывает на `.sc`-файл, и DSM регистрирует
+порт службы: проверка конфликтов портов называет её (`servicetool
+--conf-port-conflict-check`). spksrc с `SERVICE_PORT` пишет
+`port_forward="yes"`, но в собственных файлах DSM (`/usr/local/etc/services.d/`,
+`/usr/syno/etc/services.d/`) встречается и `"no"` — например WS-Transfer и
+WS-Discovery в `SMBService.sc`, `syno_oob.sc`. Для службы на loopback это и
+верно: пробрасывать её порт на роутере бессмысленно.
+
+## Сообщение после установки: `SYNOPKG_TEMP_LOGFILE`
+
+Центр пакетов по окончании установки показывает окно с текстом, если он есть:
+`_showDoneMessage` в `/usr/syno/synoman/webman/modules/PkgManApp/PkgManApp.js`
+(DSM 7.4.1) собирает его из полей `message` ответа на вызов установки и
+выводит `alert` с именем пакета в заголовке. Текст туда кладёт сценарий
+пакета — в файл `$SYNOPKG_TEMP_LOGFILE`; язык человека — в
+`SYNOPKG_DSM_LANGUAGE`, код DSM (`enu`, `rus`, …). Наш `postinst` пишет туда
+одну строку при `SYNOPKG_PKG_STATUS=INSTALL`, при обновлении — ничего.
+
+Ловушка в spksrc: сценарий целиком запускается как `postinst >
+$SYNOPKG_TEMP_LOGFILE`, но `service_postinst` вызывается через `call_func …
+install_log`, а тот отправляет всё напечатанное в stderr — в журнал пакета
+`/var/log/packages/<пакет>.log`. `echo` из `service_postinst` до окна не
+доходит (проверено, запустив их `installer.dsm7` локально), поэтому рецепт
+пишет в `$SYNOPKG_TEMP_LOGFILE` сам.
+
+Что окно действительно появляется после установки нашего пакета, на живом DSM
+ещё **не проверено**.
+
 ## Коды языков DSM
 
 Суффиксы `description_<язык>` и `displayname_<язык>` — это коды DSM, а не

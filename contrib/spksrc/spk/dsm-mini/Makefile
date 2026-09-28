@@ -60,6 +60,6 @@ include ../../mk/spksrc.spk.mk
 .PHONY: dsm-mini_extra_install
 dsm-mini_extra_install:
 	@install -d -m 755 $(STAGING_DIR)/app/images
-	@install -m 644 src/app/index.html src/app/app.js src/app/i18n.js src/app/dsm-mini.js $(STAGING_DIR)/app/
+	@install -m 644 src/app/index.html src/app/app.js src/app/i18n.js src/app/installed.txt src/app/dsm-mini.js $(STAGING_DIR)/app/
 	@install -m 755 src/app/api.cgi $(STAGING_DIR)/app/
 	@install -m 644 src/app/images/*.png $(STAGING_DIR)/app/images/

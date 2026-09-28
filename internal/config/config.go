@@ -96,8 +96,14 @@ func (p Problem) String() string {
 
 // Required are the settings only the person installing can know, in the
 // order the settings window asks for them. Everything else has a default.
+//
+// PUBLIC_URL is not among them. Without it there is no Mini App — Telegram
+// opens one only over public HTTPS — but the bot still takes links and
+// torrents and still sends notifications, and a person who would rather
+// publish nothing at all gets exactly that instead of a service that refuses
+// to start. A SynoCommunity tester asked for as much.
 var Required = []string{
-	"DSM_USER", "DSM_PASSWORD", "TELEGRAM_BOT_TOKEN", "ALLOWED_USER_IDS", "PUBLIC_URL",
+	"DSM_USER", "DSM_PASSWORD", "TELEGRAM_BOT_TOKEN", "ALLOWED_USER_IDS",
 }
 
 // Defaults are the values the optional settings take when nothing sets them,

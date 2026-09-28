@@ -1,10 +1,22 @@
 #!/bin/sh
 # Runs after the package files are in place, on an install and on an upgrade.
 #
-# It has nothing to do. There is no install wizard: the service starts without
-# settings, and they are entered in its window in the DSM main menu, which is
-# also where they are changed later. The script stays because DSM expects the
-# full set — a missing preupgrade or postupgrade makes an upgrade from a
-# package source fail with code 261 — and a missing postinst is not worth
-# finding out about the same way.
+# There is no install wizard: the service starts with no settings, and they
+# are entered in its window in the DSM main menu, where the bot and the Mini
+# App are then started. So a fresh installation says where that window is.
+# Package Center shows what a script leaves in SYNOPKG_TEMP_LOGFILE in a box
+# once the installation is done (PkgManApp.js, _showDoneMessage, on DSM 7.4),
+# in the language SYNOPKG_DSM_LANGUAGE names. An upgrade keeps its settings
+# and says nothing.
+#
+# The script stays even when it has nothing to do, because DSM expects the
+# full set: a missing preupgrade or postupgrade makes an upgrade from a
+# package source fail with code 261.
+if [ "$SYNOPKG_PKG_STATUS" = "INSTALL" ] && [ -n "$SYNOPKG_TEMP_LOGFILE" ]; then
+    MESSAGES="${SYNOPKG_PKGDEST:-/var/packages/dsm-mini/target}/ui/installed.txt"
+    lang="${SYNOPKG_DSM_LANGUAGE:-enu}"
+    text=$(sed -n "s/^${lang}|//p" "$MESSAGES" 2>/dev/null | head -n 1)
+    [ -n "$text" ] || text=$(sed -n 's/^enu|//p' "$MESSAGES" 2>/dev/null | head -n 1)
+    [ -n "$text" ] && printf '%s\n' "$text" > "$SYNOPKG_TEMP_LOGFILE"
+fi
 exit 0

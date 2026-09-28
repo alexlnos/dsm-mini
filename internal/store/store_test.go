@@ -211,3 +211,21 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 		t.Errorf("the data did not survive reopening: %v", got.PinnedFolders)
 	}
 }
+
+// Whether the app is switched on is unknown until something decides it, and
+// then it is kept.
+func TestAppEnabledRoundTrip(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	if on, set, err := s.AppEnabled(ctx); err != nil || set || on {
+		t.Fatalf("fresh database: on %v, set %v, err %v", on, set, err)
+	}
+	for _, want := range []bool{true, false} {
+		if err := s.SetAppEnabled(ctx, want); err != nil {
+			t.Fatal(err)
+		}
+		if on, set, err := s.AppEnabled(ctx); err != nil || !set || on != want {
+			t.Fatalf("after %v: on %v, set %v, err %v", want, on, set, err)
+		}
+	}
+}

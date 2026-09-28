@@ -14,6 +14,7 @@ import (
 const (
 	keyNotifications = "notifications"
 	keyWebhookSecret = "webhook_secret"
+	keyAppEnabled    = "app_enabled"
 )
 
 // meta reads one value; a missing key is not an error, it is the empty string.
@@ -80,4 +81,24 @@ func (s *Store) WebhookSecret(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return v, nil
+}
+
+// AppEnabled says whether the bot and the Mini App are meant to run, as the
+// Start and Stop buttons of the settings window left it. set is false until
+// anything has decided: the service settles that on its first start.
+func (s *Store) AppEnabled(ctx context.Context) (enabled, set bool, err error) {
+	v, err := s.meta(ctx, keyAppEnabled)
+	if err != nil || v == "" {
+		return false, false, err
+	}
+	return v == "1", true, nil
+}
+
+// SetAppEnabled records the choice; it survives a restart of the NAS.
+func (s *Store) SetAppEnabled(ctx context.Context, enabled bool) error {
+	v := "0"
+	if enabled {
+		v = "1"
+	}
+	return s.setMeta(ctx, keyAppEnabled, v)
 }

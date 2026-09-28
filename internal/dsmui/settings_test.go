@@ -222,6 +222,10 @@ func TestAddressWorksThroughTheAdministratorsSession(t *testing.T) {
 
 func TestStatusSumsUp(t *testing.T) {
 	s := NewStatus()
+	if got := s.View().State; got != "stopped" {
+		t.Fatalf("not switched on yet: %s", got)
+	}
+	s.SetEnabled(true)
 	if got := s.View().State; got != "starting" {
 		t.Fatalf("nothing known yet: %s", got)
 	}
@@ -239,7 +243,7 @@ func TestStatusSumsUp(t *testing.T) {
 		t.Fatalf("a refused password: %s", got)
 	}
 	s.SetProblems([]config.Problem{{Key: "DSM_USER", Code: config.Missing}})
-	if got := s.View().State; got != "setup" {
+	if got := s.View().State; got != "stopped" {
 		t.Fatalf("settings missing: %s", got)
 	}
 }

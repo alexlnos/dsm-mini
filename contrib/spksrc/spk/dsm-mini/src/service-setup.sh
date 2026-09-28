@@ -14,6 +14,27 @@ SVC_WRITE_PID=y
 # often the only trace of why the upgrade was needed.
 SVC_KEEP_LOG=y
 
+service_postinst ()
+{
+    # A fresh installation says where the package is set up: its window in
+    # the DSM main menu. Package Center shows what is in SYNOPKG_TEMP_LOGFILE
+    # in a box once the installation is done. The framework points the
+    # script's own output there, but it pipes this function's output into
+    # the package log (call_func ... install_log), so an echo would never
+    # reach the box: the line is written to the file itself. It is picked by
+    # SYNOPKG_DSM_LANGUAGE from the same messages the upstream package ships.
+    if [ "${SYNOPKG_PKG_STATUS}" != "INSTALL" ] || [ -z "${SYNOPKG_TEMP_LOGFILE}" ]; then
+        return 0
+    fi
+    messages="${SYNOPKG_PKGDEST}/app/installed.txt"
+    text=$(sed -n "s/^${SYNOPKG_DSM_LANGUAGE:-enu}|//p" "${messages}" 2>/dev/null | head -n 1)
+    [ -n "${text}" ] || text=$(sed -n 's/^enu|//p' "${messages}" 2>/dev/null | head -n 1)
+    if [ -n "${text}" ]; then
+        echo "${text}" > "${SYNOPKG_TEMP_LOGFILE}"
+    fi
+    return 0
+}
+
 service_prestart ()
 {
     # Where config.env and the database live, and where the settings window

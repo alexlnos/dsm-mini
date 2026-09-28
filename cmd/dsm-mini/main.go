@@ -124,7 +124,7 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 	level.Set(logLevel(cfg.LogLevel))
 	if len(problems) > 0 {
 		status.SetProblems(problems)
-		log.Info("not set up yet: waiting for the settings window in the DSM main menu",
+		log.Info("settings incomplete: waiting for the settings window in the DSM main menu",
 			"missing", config.Describe(problems))
 	}
 
@@ -149,6 +149,12 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 	if database != nil {
 		defer database.Close()
 		settings = store.New(database)
+	}
+
+	enabled := switchedOn(ctx, settings, ready, log)
+	status.SetEnabled(enabled)
+	if !enabled {
+		log.Info("the bot and the mini app are switched off in the dsm window")
 	}
 
 	// The settings screen inside DSM, served in every state: it is how the
@@ -215,7 +221,7 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 		}
 	}()
 
-	if ready {
+	if ready && enabled {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -424,6 +430,34 @@ func waitForDownloadStation(ctx context.Context, client *dsm.Client,
 // is set aside instead, kept under another name: what it holds is people's
 // preferences and pinned folders, and a service that stays down for them is
 // worse than one that starts afresh. Nil with no error means "not opened".
+// switchedOn says whether the bot and the Mini App are to run. They run only
+// when the window's Start button says so; the process itself always runs,
+// since the window is served by it.
+//
+// Nothing has said so yet on the first start of a version that has the
+// button, and that start settles it once: an installation that already has
+// its settings was running before the upgrade and goes on running, a fresh
+// one waits for Start. Without a database there is nowhere to keep the
+// choice, and the app stays off — that is the state whose reason the window
+// shows.
+func switchedOn(ctx context.Context, settings *store.Store, ready bool, log *slog.Logger) bool {
+	if settings == nil {
+		return false
+	}
+	on, set, err := settings.AppEnabled(ctx)
+	if err != nil {
+		log.Warn("cannot read whether the app is switched on", "err", err)
+		return false
+	}
+	if !set {
+		on = ready
+		if err := settings.SetAppEnabled(ctx, on); err != nil {
+			log.Warn("cannot record whether the app is switched on", "err", err)
+		}
+	}
+	return on
+}
+
 func openDatabase(dir string, ready bool, log *slog.Logger) (*sql.DB, error) {
 	path := filepath.Join(dir, databaseName)
 	if dsmui.FindUnreadable(dir, databaseName) != nil {
@@ -464,8 +498,8 @@ func notReady(w http.ResponseWriter, r *http.Request, status *dsmui.Status) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Retry-After", "10")
 	w.WriteHeader(http.StatusServiceUnavailable)
-	if state == "setup" {
-		fmt.Fprintln(w, "DSM mini is not set up yet: open it from the DSM main menu.")
+	if state == "stopped" {
+		fmt.Fprintln(w, "DSM mini is switched off: start it from its window in the DSM main menu.")
 		return
 	}
 	fmt.Fprintln(w, "DSM mini is starting; its window in the DSM main menu says how it is going.")

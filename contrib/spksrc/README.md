@@ -17,8 +17,11 @@ cross/dsm-mini/        the binary: fetches our tag from GitHub and builds it wit
   PLIST                what the cross build hands over — the binary
   digests              checksums of the source tarball, from `make digests`
 spk/dsm-mini/          the package
-  src/service-setup.sh where the service keeps its files, and the webhook on uninstall
+  src/service-setup.sh where the service keeps its files, the line shown after a
+                       fresh install, and the webhook on uninstall
+  src/dsm-mini.sc      the port for DSM's firewall and port conflict check
   src/app/             the settings window in the DSM main menu
+docs/dsm-mini.md       the package page for docs.synocommunity.com
 ```
 
 The built Mini App lives in the repository and goes into the binary through
@@ -29,7 +32,8 @@ in its window in the DSM main menu, which is also where they are changed later;
 the service reads them itself and applies a save without a restart.
 
 `src/app/` holds copies of `spk/ui/` from the repository — `index.html`,
-`app.js`, `i18n.js`, `api.cgi` and the images — and CI fails if they differ.
+`app.js`, `i18n.js`, `installed.txt`, `api.cgi` and the images — and CI fails
+if they differ.
 Only the Ext JS wrapper is the recipe's own, `dsm-mini.js`, because the
 namespace of a DSM app is `SYNOCOMMUNITY.*` in their catalogue.
 
@@ -55,10 +59,21 @@ started on the kept settings and registered the webhook again.
 
 ## Where it differs from the repository's package, and why
 
-- **No `SERVICE_PORT`.** In their framework it generates a firewall rule and a
-  desktop shortcut to the port. The service listens on loopback only, so the
-  rule would open nothing useful and the shortcut would point at an address no
-  browser can reach. The window comes from `DSM_UI_CONFIG` instead.
+- **The port is declared with a file of our own, not `SERVICE_PORT`.**
+  `FWPORTS = src/dsm-mini.sc` registers 58080 with DSM, so its port conflict
+  check names dsm-mini — a SynoCommunity reviewer asked for it, after
+  Vaultwarden. The file says `port_forward="no"`: the service listens on
+  loopback only, behind the reverse proxy, and `SERVICE_PORT` would write
+  `"yes"` and generate a desktop shortcut to an address no browser can open.
+  `NO_SERVICE_SHORTCUT`, which Vaultwarden uses, is left out on purpose: in
+  the framework it also switches off `DSM_UI_CONFIG`, and the settings window
+  would be gone from the menu.
+- **The line after a fresh install is written to `$SYNOPKG_TEMP_LOGFILE`
+  directly.** Package Center shows that file's content once the installation
+  is done, and it is where the framework points the script's output — but it
+  runs `service_postinst` through `call_func … install_log`, which sends all
+  of its output to the package log, so an `echo` never reaches the box. The
+  repository's `postinst` writes the same line to the same file.
 - **The log is kept across restarts** (`SVC_KEEP_LOG`). Their script starts it
   afresh by default, and a refusal logged just before an upgrade is often the
   only trace of why the upgrade was needed. The repository's package appends to

@@ -301,3 +301,23 @@ func TestEmptyValueMeansTheDefault(t *testing.T) {
 		t.Fatalf("DSM_URL %q, LISTEN_ADDR %q: an empty value has to mean the default", c.DSMURL, c.ListenAddr)
 	}
 }
+
+// Without a public address there is no Mini App, but the bot works: it is a
+// way to run the package with nothing on the NAS published at all. A value
+// that is there is still held to https.
+func TestPublicAddressIsOptional(t *testing.T) {
+	dir := isolate(t)
+	path := filepath.Join(dir, "config.env")
+	write(t, path, `DSM_USER='u'
+DSM_PASSWORD='p'
+TELEGRAM_BOT_TOKEN='1234567890:AAExampleTokenReplaceThisWithYours0'
+ALLOWED_USER_IDS='12'
+`)
+	c, problems, err := Load(path)
+	if err != nil || len(problems) != 0 {
+		t.Fatalf("err %v, problems %v", err, problems)
+	}
+	if c.PublicURL != "" {
+		t.Fatalf("public address %q out of nowhere", c.PublicURL)
+	}
+}
