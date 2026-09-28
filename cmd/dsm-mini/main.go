@@ -155,15 +155,22 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 	// service gets set up in the first place. It authorises itself against
 	// DSM's own session cookie — /webman/3rdparty/ is served to anyone,
 	// checked against a live NAS, so the path guards nothing.
+	//
+	// The screen reaches DSM on this machine by the address DSM describes
+	// itself, never by DSM_URL from the file: the screen is where a wrong
+	// DSM_URL gets fixed, and it checks who is asking by calling DSM — with
+	// the file's address a mistake there would lock everybody out of the one
+	// place that could undo it.
+	localDSM := config.Defaults()["DSM_URL"]
 	admin := dsmui.New(dsmui.Options{
 		StateDir:    dir,
 		Store:       settings,
-		DSMURL:      cfg.DSMURL,
-		InsecureTLS: cfg.DSMInsecure,
+		DSMURL:      localDSM,
+		InsecureTLS: true,
 		ListenAddr:  cfg.ListenAddr,
 		Status:      status,
 		Restart:     func() { cancel(errRestart) },
-		Auth:        dsmui.NewAuth(dsmui.NewVerifier(cfg.DSMURL, cfg.DSMInsecure), log),
+		Auth:        dsmui.NewAuth(dsmui.NewVerifier(localDSM, true), log),
 		Logger:      log,
 	})
 

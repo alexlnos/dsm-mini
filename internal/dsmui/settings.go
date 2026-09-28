@@ -2,7 +2,9 @@ package dsmui
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +25,38 @@ var editable = []string{
 // secret marks the values that are never sent back to the browser. The screen
 // shows whether they are set and offers an empty field to replace them.
 var secret = map[string]bool{"DSM_PASSWORD": true, "TELEGRAM_BOT_TOKEN": true}
+
+// onThisNAS marks the addresses that can only ever be this NAS: the service
+// runs here, reaches DSM here and listens here for the reverse proxy. A
+// tester put the NAS's internet address into DSM_URL, which is a perfectly
+// good URL and stopped the service reaching DSM at all; and 0.0.0.0 in
+// LISTEN_ADDR would hand the app to the whole local network around the proxy.
+// So the screen refuses anything but loopback in both. The file itself is not
+// held to this — running the binary elsewhere while developing it needs a
+// DSM on another machine.
+var onThisNAS = map[string]bool{"DSM_URL": true, "LISTEN_ADDR": true}
+
+// NotThisNAS is the code the screen gets for an address that is not loopback.
+const NotThisNAS = "loopback"
+
+func pointsAtThisNAS(key, v string) bool {
+	host := v
+	switch key {
+	case "DSM_URL":
+		u, err := url.Parse(v)
+		if err != nil {
+			return false
+		}
+		host = u.Hostname()
+	case "LISTEN_ADDR":
+		h, _, err := net.SplitHostPort(v)
+		if err != nil {
+			return false
+		}
+		host = h
+	}
+	return isLoopback(host)
+}
 
 // SettingsFile is where the settings live: the package var, which survives an
 // upgrade.
@@ -68,6 +102,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defaults := config.Defaults()
 	changed := false
 	for _, key := range editable {
 		v, ok := req.Values[key]
@@ -82,7 +117,20 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		if v == "" && secret[key] {
 			continue
 		}
-		if code := config.Check(key, v); code != "" {
+		// An empty field that has a default means the default, and the key
+		// goes from the file rather than staying there as an empty value.
+		if _, hasDefault := defaults[key]; hasDefault && v == "" {
+			if _, present := current[key]; present {
+				delete(current, key)
+				changed = true
+			}
+			continue
+		}
+		code := config.Check(key, v)
+		if code == "" && onThisNAS[key] && !pointsAtThisNAS(key, v) {
+			code = NotThisNAS
+		}
+		if code != "" {
 			// A code, not a sentence: the screen speaks ten languages.
 			writeJSON(w, http.StatusBadRequest,
 				map[string]string{"error": "invalid", "field": key, "code": code})

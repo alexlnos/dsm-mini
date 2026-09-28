@@ -259,3 +259,51 @@ func TestListenPortFallsBack(t *testing.T) {
 		}
 	}
 }
+
+// A cleared field with a default drops the key: an empty DSM_URL left in the
+// file stopped the service reaching DSM for a tester.
+func TestClearedFieldDropsTheKey(t *testing.T) {
+	sc := newScreen(t)
+	if err := config.WriteFile(SettingsFile(sc.dir), map[string]string{
+		"DSM_URL": "https://localhost:5443", "LISTEN_ADDR": "127.0.0.1:59000", "DSM_USER": "u",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings", `{"values":{"DSM_URL":"","LISTEN_ADDR":"","DSM_USER":"u"}}`)
+	if code != http.StatusOK || got["applying"] != true {
+		t.Fatalf("got %d %v", code, got)
+	}
+	file := sc.file(t)
+	if _, still := file["DSM_URL"]; still {
+		t.Fatalf("DSM_URL stayed in the file: %v", file)
+	}
+	if _, still := file["LISTEN_ADDR"]; still {
+		t.Fatalf("LISTEN_ADDR stayed in the file: %v", file)
+	}
+}
+
+// The internet address of the NAS in DSM_URL, which is what a tester typed,
+// and every interface in LISTEN_ADDR: both are refused by the screen.
+func TestAddressesHaveToBeThisNAS(t *testing.T) {
+	sc := newScreen(t)
+	for key, value := range map[string]string{
+		"DSM_URL":     "https://mynas.me:8443",
+		"LISTEN_ADDR": "0.0.0.0:58080",
+	} {
+		code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+			`{"values":{"`+key+`":"`+value+`"}}`)
+		if code != http.StatusBadRequest || got["field"] != key || got["code"] != NotThisNAS {
+			t.Fatalf("%s=%s: got %d %v", key, value, code, got)
+		}
+	}
+	for key, value := range map[string]string{
+		"DSM_URL":     "https://localhost:5443",
+		"LISTEN_ADDR": "127.0.0.1:59000",
+	} {
+		code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+			`{"values":{"`+key+`":"`+value+`"}}`)
+		if code != http.StatusOK {
+			t.Fatalf("%s=%s was refused: %d %v", key, value, code, got)
+		}
+	}
+}

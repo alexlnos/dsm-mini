@@ -171,9 +171,15 @@ func parse(values map[string]string) (*Config, []Problem) {
 	get := func(key, def string) string {
 		// A key the file names wins even when it is empty: ALLOWED_USER_IDS=''
 		// in the file means "nobody", and an environment variable must not be
-		// able to quietly say otherwise.
+		// able to quietly say otherwise. Empty stands for the default,
+		// though: DSM_URL='' left behind by a cleared field is DSM on this
+		// machine, not an address of nothing — that is what one tester got
+		// before the window learned to drop the key instead.
 		if v, ok := values[key]; ok {
-			return strings.TrimSpace(v)
+			if v = strings.TrimSpace(v); v != "" {
+				return v
+			}
+			return def
 		}
 		if v := os.Getenv(key); v != "" {
 			return v
