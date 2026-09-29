@@ -2,12 +2,14 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/alexlnos/dsm-mini/internal/dsm"
 	"github.com/alexlnos/dsm-mini/internal/dsm/system"
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
@@ -57,6 +59,14 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	// failing the whole answer over them showed "no connection" on the home
 	// screen of a service that was connected and working; zeros in place of
 	// a refused load would have been a plain lie.
+	//
+	// A DSM that does not answer at all is still "no connection", as it
+	// always was: only its refusals are told part by part.
+	var refused *dsm.APIError
+	if infoErr != nil && !errors.As(infoErr, &refused) {
+		s.fail(w, r, infoErr, "api.info")
+		return
+	}
 	u, _ := userFrom(ctx)
 	lang := i18n.Match(u.Language)
 	body := map[string]any{"info": nil, "usage": nil}

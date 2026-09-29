@@ -33,7 +33,7 @@ You need three things, and the package asks for nothing during installation — 
 
 1. Install **DSM mini — Telegram Mini App** from Package Center. When it is done, Package Center says where to go next: the package runs, with the bot and the Mini App switched off until they are set up.
 2. Open **DSM mini** from the DSM main menu (only administrators see it).
-3. Fill in the DSM account and its password, the bot token and the allowed Telegram ids. Every field explains itself in the window. **Check the account** signs in as that account and lists what DSM lets it do — see [Permissions](#permissions-of-the-dsm-account).
+3. Fill in the DSM account and its password, the bot token and the allowed Telegram ids. Every field explains itself in the window. **Check the account** signs in as that account and lists what DSM lets it do — see [Permissions](#permissions-of-the-dsm-account). Under **Mini App access**, choose how the phone will reach the Mini App, or **The bot only, no Mini App** — see [The Public Address](#the-public-address).
 4. Click **Save**, then **Start** at the top of the window. The status there says when DSM and the bot have answered, and what is wrong if they have not. **Start** and **Stop** are remembered across restarts of the NAS, and a save applies at once: the package does not have to be restarted.
 5. Open the bot in Telegram and press **Start**. With a public address, the Mini App opens from the button next to the input field.
 
@@ -59,8 +59,11 @@ Telegram opens a Mini App only over HTTPS with a certificate the phone trusts, a
 | [DSM's reverse proxy](#reverse-proxy-in-dsm) | 443, and 80 for Let's Encrypt | anyone; only the allowed ids get past the service |
 | [Cloudflare Tunnel](#cloudflare-tunnel) | none | anyone, through Cloudflare; the same check applies |
 | [Tailscale](#tailscale) | none | only your own devices in the tailnet |
+| [Home network only](#home-network-only) | none | devices on the home network, or on a VPN into it |
 
 Whatever serves the address forwards it to `http://localhost:58080` on the NAS. The address can be changed or cleared in the window at any time; the bot does not have to be recreated.
+
+In the window this is **Mini App access**: the bot only, through DDNS, an own domain on a static address, the home network only, or another way. Each choice lists its own steps, with the addresses of this NAS filled in, and the ways through DSM create the reverse proxy rule from there.
 
 ### Reverse Proxy in DSM
 
@@ -90,7 +93,7 @@ Needs a domain whose DNS is on Cloudflare.
 
 1. In the Cloudflare dashboard, create a tunnel and copy its token. Install [Cloudflared](cloudflared.md) and paste the token when it asks.
 2. Give the tunnel a public hostname, for example `mini.example.com`, with the service `http://localhost:58080`.
-3. Enter `https://mini.example.com` as the public address in the DSM mini window.
+3. In the DSM mini window, choose **Another way** under **Mini App access** and enter `https://mini.example.com`.
 
 ### Tailscale
 
@@ -99,9 +102,17 @@ For a Mini App that only your own devices can open.
 1. Install Tailscale on the NAS (it is in Package Center) and on the phone, signed in to the same tailnet.
 2. In the Tailscale admin console, under **DNS**, turn on MagicDNS and HTTPS certificates.
 3. On the NAS over SSH: `sudo tailscale serve --bg 58080`. It answers with the address, `https://<nas-name>.<tailnet>.ts.net`.
-4. Enter that address as the public address in the DSM mini window.
+4. In the DSM mini window, choose **Another way** under **Mini App access** and enter that address.
 
 The Mini App then opens while the phone is connected to Tailscale; the bot works either way.
+
+### Home Network Only
+
+For a Mini App that opens on the home network, or through a VPN into it, with nothing forwarded on the router.
+
+1. Pick a name and make it lead to the NAS's local address inside the network, in the router's DNS. The window shows that address.
+2. Create the reverse proxy rule for the name from the window.
+3. Get a certificate for the name some other way than DSM's own Let's Encrypt, which needs the NAS reachable from the internet on port 80: through a DNS check, with acme.sh for example. Import it under **Control Panel** > **Security** > **Certificate** > **Add** > **Import** and assign it to the rule under **Settings**.
 
 ## Configuration
 
@@ -149,7 +160,7 @@ The status at the top of the DSM mini window is the first place to look. The det
 
 **There is no button for the Mini App**
 
-- The public address is empty, which is the bot on its own, or it is not `https://`. See [The Public Address](#the-public-address).
+- **Mini App access** is set to the bot only, or the address is not `https://`. See [The Public Address](#the-public-address).
 
 ### Getting Help
 

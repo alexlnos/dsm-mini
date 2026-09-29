@@ -132,7 +132,9 @@ The service is exposed to the internet and can delete files on the NAS.
   section's message plus "the DSM account the service uses has no access to
   this", and `/api/system` answers part by part: failing it whole showed "no
   connection" on a working service, zeros for a refused load would lie, and an
-  unread package list marked Download Station "not installed".
+  unread package list marked Download Station "not installed". Only DSM's
+  refusals are split up that way: a DSM that does not answer at all is still a
+  502, or the home screen would say "online" next to nothing.
 
 - **The project never holds anyone's bot token**, and that rules out one idea
   that keeps looking attractive: a "helper bot" that creates the user's bot for
@@ -580,7 +582,10 @@ on and **Start** has been pressed.
   `LISTEN_ADDR` are refused unless they are loopback: a tester put the NAS's
   internet address into `DSM_URL` — a perfectly good URL — and the service
   stopped reaching DSM; `0.0.0.0` in `LISTEN_ADDR` would publish the app to the
-  whole network. The file itself is not held to this, for development.
+  whole network. Only a value being changed is held to it: the window sends
+  every field back on a save, and a LAN address or the bare `:58080` an older
+  installation left — which work — must not block saving a new token. The
+  file itself is not held to this, for development.
 - **Empty means the default.** A cleared field with a default drops the key
   from `config.env`, and an empty value found in the file reads as the
   default too — it used to be written as `DSM_URL=''` and read as an address

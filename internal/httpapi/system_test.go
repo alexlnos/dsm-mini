@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -70,5 +71,33 @@ func TestHomeSurvivesAnOrdinaryAccount(t *testing.T) {
 	}
 	if len(body.Packages) != 0 {
 		t.Fatalf("packages %v: an unread list must not mark the apps as missing", body.Packages)
+	}
+}
+
+// silentNAS is a DSM that does not answer at all: the NAS rebooting, the
+// network down.
+type silentNAS struct{}
+
+func (silentNAS) Call(context.Context, string, string, int, map[string]any, any) error {
+	return errors.New("dial tcp 127.0.0.1:5001: connect: connection refused")
+}
+
+// Only DSM's refusals are told part by part. A DSM that does not answer is
+// still "no connection" on the home screen — answering 200 would have put
+// "online" next to it.
+func TestHomeSaysNoConnectionWhenDSMIsSilent(t *testing.T) {
+	s := New(Options{
+		BotToken:       testToken,
+		AllowedUserIDs: []int64{42},
+		Downloads:      &stubStation{},
+		System:         system.New(silentNAS{}),
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	r := httptest.NewRequest(http.MethodGet, "/api/system", nil)
+	r.Header.Set("Authorization", "tma "+signedInitData(t, 42, time.Now()))
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("status %d, want 502 for a DSM that does not answer", w.Code)
 	}
 }

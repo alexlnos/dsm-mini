@@ -238,7 +238,7 @@ func isLoopback(host string) bool {
 // carry a private address: containers, virtual machines' private bridges,
 // VPNs. On a live NAS the network itself was ovs_eth0 (Virtual Machine
 // Manager's switch) and Container Manager added docker0.
-var virtualLink = []string{"docker", "br-", "veth", "virbr", "lxc", "tun", "tap", "wg", "tailscale", "zt"}
+var virtualLink = []string{"docker", "br-", "veth", "virbr", "lxc", "tun", "tap", "ppp", "wg", "tailscale", "zt"}
 
 // localIPs lists the private IPv4 addresses of this machine's network
 // interfaces. The service runs on the NAS, so these are the NAS's own.

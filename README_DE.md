@@ -140,18 +140,18 @@ installieren, über Paket-Zentrum → Manuelle Installation.
 
 **6. Einrichten.** Öffnen Sie **DSM mini** im DSM-Hauptmenü oder klicken Sie im
 Paket-Zentrum auf **Öffnen** — das Paket-Zentrum weist nach der Installation
-selbst darauf hin. Tragen Sie die Werte aus den Schritten oben ein: das Fenster
-erklärt jeden davon, und die öffentliche Adresse darf leer bleiben. Klicken Sie
-auf **Speichern** und dann oben im Fenster auf **Starten**. Der Status dort
-zeigt, wann DSM und der Bot geantwortet haben, und was nicht stimmt, falls
-nicht.
+selbst darauf hin. Tragen Sie die Werte aus den Schritten oben ein — das Fenster
+erklärt jeden davon — und wählen Sie unter **Zugang zur Mini App** den Weg aus
+Schritt 4 oder **Nur der Bot, ohne Mini App**. Klicken Sie auf **Speichern** und
+dann oben im Fenster auf **Starten**. Der Status dort zeigt, wann DSM und der
+Bot geantwortet haben, und was nicht stimmt, falls nicht.
 
 Für den ersten Weg legt das Fenster die Reverse-Proxy-Regel selbst an: tragen
 Sie Ihren Namen unter **Einen Namen auf den Dienst richten** ein. Von Hand ist
 es Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy → Erstellen.
 Quelle: `HTTPS`, Ihr Name, Port `443`. Ziel: `HTTP`, `localhost`, Port `58080`.
-Mit einem Tunnel oder Tailscale tragen Sie die Adresse, die diese vergeben
-haben, als öffentliche Adresse ein.
+Mit einem Tunnel oder Tailscale wählen Sie **Ein anderer Weg** und tragen die
+Adresse ein, die diese vergeben haben.
 
 > Port **80** für diesen Namen nicht proxen: darüber erneuert DSM das
 > Zertifikat, und ein Abfangen zerlegt die Erneuerung drei Monate später.
@@ -171,7 +171,7 @@ Bot.
 |---|---|---|
 | Der Bot schweigt auf `/start` | Der Bot ist ausgeschaltet oder nicht eingerichtet, oder das Token ist falsch | **DSM mini** im DSM-Hauptmenü öffnen: der Status oben sagt, was davon, und **Starten** schaltet den Bot ein |
 | „Der Zugang zu diesem Bot ist geschlossen“ | Deine ID steht nicht auf der Liste | Die Nummer aus Schritt 2 im Fenster **DSM mini** zu den erlaubten IDs hinzufügen |
-| Es gibt keine App-Schaltfläche | Die öffentliche Adresse ist leer — dann gibt es nur den Bot — oder nicht `https://` | Das Fenster **DSM mini**, öffentliche Adresse |
+| Es gibt keine App-Schaltfläche | Die öffentliche Adresse ist leer — dann gibt es nur den Bot — oder nicht `https://` | Das Fenster **DSM mini**, **Zugang zur Mini App** |
 | Die Schaltfläche ist da, die App geht nicht auf | Reverse Proxy oder Zertifikat funktionieren nicht | `https://deine-adresse/healthz` im Browser öffnen |
 | „Öffne die App über den Bot“ | Die App wurde per direktem Link im Browser geöffnet | So ist es gedacht: aus dem Bot heraus öffnen |
 | „Zugriff verweigert: deine Telegram-ID…“ | Der Dienst hat dich nicht erkannt | In den erlaubten IDs nur Ziffern, durch Komma getrennt |

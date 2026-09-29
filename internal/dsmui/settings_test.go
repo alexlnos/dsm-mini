@@ -311,3 +311,29 @@ func TestAddressesHaveToBeThisNAS(t *testing.T) {
 		}
 	}
 }
+
+// What an older installation left in the file and what works there does not
+// block saving something else: the window sends every field back, and a DSM
+// address on the LAN or the bare ":58080" that packages up to 1.0.0 wrote
+// would otherwise refuse a changed token until somebody cleared them.
+func TestOldAddressesDoNotBlockASave(t *testing.T) {
+	sc := newScreen(t)
+	if err := config.WriteFile(SettingsFile(sc.dir), map[string]string{
+		"DSM_URL": "https://192.168.1.10:5001", "LISTEN_ADDR": ":58080", "DSM_USER": "u",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+		`{"values":{"DSM_URL":"https://192.168.1.10:5001","LISTEN_ADDR":":58080","DSM_USER":"v"}}`)
+	if code != http.StatusOK {
+		t.Fatalf("got %d %v", code, got)
+	}
+	if f := sc.file(t); f["DSM_USER"] != "v" || f["DSM_URL"] != "https://192.168.1.10:5001" {
+		t.Fatalf("file %v", f)
+	}
+	// Changing it to another address that is not this NAS is still refused.
+	code, got = sc.do(t, http.MethodPut, "/dsm/admin/settings", `{"values":{"DSM_URL":"https://203.0.113.7:5001"}}`)
+	if code != http.StatusBadRequest || got["code"] != NotThisNAS {
+		t.Fatalf("a new outside address got %d %v", code, got)
+	}
+}

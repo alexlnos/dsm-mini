@@ -135,15 +135,18 @@ pakietów → Instalacja ręczna.
 
 **6. Skonfigurować.** Otwórz **DSM mini** z menu głównego DSM albo naciśnij
 **Otwórz** w Centrum pakietów — samo o tym przypomni po instalacji. Wypełnij
-wartości zebrane w krokach powyżej: okno objaśnia każdą, a adres publiczny może
-zostać pusty. Naciśnij **Zapisz**, a potem **Uruchom** u góry okna. Stan tam
-pokaże, kiedy DSM i bot odpowiedziały, a jeśli nie — co jest nie tak.
+wartości zebrane w krokach powyżej — okno objaśnia każdą — a w sekcji
+**Dostęp do Mini App** wybierz sposób z kroku 4 albo
+**Tylko bot, bez Mini App**. Naciśnij **Zapisz**, a potem **Uruchom** u góry
+okna. Stan tam pokaże, kiedy DSM i bot odpowiedziały, a jeśli nie — co jest nie
+tak.
 
 Dla pierwszego sposobu regułę zwrotnego serwera proxy okno tworzy samo: wpisz
 nazwę w polu **Skieruj nazwę do usługi**. Ręcznie to Panel sterowania → Portal
 logowania → Zaawansowane → Zwrotny serwer proxy → Utwórz. Źródło: `HTTPS`, twoja
 nazwa, port `443`. Miejsce docelowe: `HTTP`, `localhost`, port `58080`. Przy
-tunelu lub Tailscale wpisz jako adres publiczny ten, który od nich dostałeś.
+tunelu lub Tailscale wybierz **Inny sposób** i wpisz adres, który od nich
+dostałeś.
 
 > Portu **80** dla tej nazwy nie przepuszczaj przez proxy: przez niego DSM
 > odnawia certyfikat, a przechwycenie zepsuje odnowienie trzy miesiące później.
@@ -163,7 +166,7 @@ prostu wysyłaj botowi na czacie.
 |---|---|---|
 | Bot milczy na `/start` | Bot jest wyłączony lub nieskonfigurowany albo token jest zły | Otwórz **DSM mini** w menu głównym DSM: stan u góry powie, które z nich, a **Uruchom** włączy bota |
 | „Dostęp do tego bota jest zamknięty” | Twojego ID nie ma na liście | Wpisz liczbę z kroku 2 do dozwolonych identyfikatorów w oknie **DSM mini** |
-| Nie ma przycisku aplikacji | Publiczny adres jest pusty — wtedy działa sam bot — albo nie jest `https://` | Okno **DSM mini**, adres publiczny |
+| Nie ma przycisku aplikacji | Publiczny adres jest pusty — wtedy działa sam bot — albo nie jest `https://` | Okno **DSM mini**, sekcja **Dostęp do Mini App** |
 | Przycisk jest, aplikacja się nie otwiera | Nie działa zwrotny serwer proxy albo certyfikat | Otwórz `https://twoj-adres/healthz` w przeglądarce |
 | „Otwórz aplikację przez bota” | Aplikację otwarto bezpośrednim linkiem w przeglądarce | Tak ma być: otwieraj z bota |
 | „Dostęp zamknięty: twoje Telegram ID…” | Usługa cię nie rozpoznała | W dozwolonych identyfikatorach tylko cyfry, po przecinku |

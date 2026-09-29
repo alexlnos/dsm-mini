@@ -33,9 +33,11 @@ var secret = map[string]bool{"DSM_PASSWORD": true, "TELEGRAM_BOT_TOKEN": true}
 // tester put the NAS's internet address into DSM_URL, which is a perfectly
 // good URL and stopped the service reaching DSM at all; and 0.0.0.0 in
 // LISTEN_ADDR would hand the app to the whole local network around the proxy.
-// So the screen refuses anything but loopback in both. The file itself is not
-// held to this — running the binary elsewhere while developing it needs a
-// DSM on another machine.
+// So the screen refuses anything but loopback in both — when the value is
+// being changed: an address that is already in the file and works, a LAN
+// address from an older installation say, must not block the save of an
+// unrelated setting. The file itself is not held to this — running the
+// binary elsewhere while developing it needs a DSM on another machine.
 var onThisNAS = map[string]bool{"DSM_URL": true, "LISTEN_ADDR": true}
 
 // NotThisNAS is the code the screen gets for an address that is not loopback.
@@ -54,6 +56,11 @@ func pointsAtThisNAS(key, v string) bool {
 		h, _, err := net.SplitHostPort(v)
 		if err != nil {
 			return false
+		}
+		// ":58080" is what packages up to 1.0.0 wrote, and config reads the
+		// bare form as loopback.
+		if h == "" {
+			return true
 		}
 		host = h
 	}
@@ -147,7 +154,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		code := config.Check(key, v)
-		if code == "" && onThisNAS[key] && !pointsAtThisNAS(key, v) {
+		if code == "" && onThisNAS[key] && v != current[key] && !pointsAtThisNAS(key, v) {
 			code = NotThisNAS
 		}
 		if code != "" {

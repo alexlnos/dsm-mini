@@ -134,16 +134,18 @@ Merkezi → Elle Yükleme ile.
 
 **6. Ayarlamak.** DSM ana menüsünden **DSM mini**'yi açın ya da Paket
 Merkezi'nde **Aç**'a basın — Paket Merkezi kurulum bitince bunu kendisi de
-söyler. Yukarıdaki adımlarda toplanan değerleri doldurun: pencere her birini
-açıklar, genel adres boş kalabilir. **Kaydet**'e, ardından pencerenin üstündeki
-**Başlat**'a basın. Oradaki durum, DSM'nin ve botun ne zaman yanıt verdiğini,
-vermediyse neyin yanlış olduğunu gösterir.
+söyler. Yukarıdaki adımlarda toplanan değerleri doldurun — pencere her birini
+açıklar — ve **Mini App erişimi** bölümünde 4. adımdaki yolu ya da
+**Yalnızca bot, Mini App yok** seçeneğini seçin. **Kaydet**'e, ardından
+pencerenin üstündeki **Başlat**'a basın. Oradaki durum, DSM'nin ve botun ne
+zaman yanıt verdiğini, vermediyse neyin yanlış olduğunu gösterir.
 
-Birinci yol için ters proxy kuralını pencere kendisi oluşturur: adınızı **Bir
-adı servise yönlendir** alanına yazın. Elle yapmak için Denetim Masası → Oturum
-Açma Portalı → Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin adınız,
-bağlantı noktası `443`. Hedef: `HTTP`, `localhost`, bağlantı noktası `58080`.
-Tünel ya da Tailscale ile, onların verdiği adresi genel adres olarak girin.
+Birinci yol için ters proxy kuralını pencere kendisi oluşturur: adınızı
+**Bir adı servise yönlendir** alanına yazın. Elle yapmak için Denetim Masası →
+Oturum Açma Portalı → Gelişmiş → Ters Proxy → Oluştur. Kaynak: `HTTPS`, sizin
+adınız, bağlantı noktası `443`. Hedef: `HTTP`, `localhost`, bağlantı noktası
+`58080`. Tünel ya da Tailscale ile **Başka bir yol**'u seçip onların verdiği
+adresi girin.
 
 > Bu ad için **80** numaralı bağlantı noktasını proxy'lemeyin: DSM sertifikayı
 > oradan yeniliyor, araya girmek yenilemeyi üç ay sonra bozar.
@@ -163,7 +165,7 @@ bağlantıları bota sohbetten gönderin.
 |---|---|---|
 | Bot `/start` komutuna susuyor | Bot kapalı ya da ayarlanmamış veya belirteç yanlış | DSM ana menüsünden **DSM mini**'yi açın: üstteki durum hangisi olduğunu söyler, **Başlat** da botu açar |
 | «Bu bota erişim kapalı» | Kimliğiniz listede değil | 2. adımdaki numarayı **DSM mini** penceresinde izin verilen kimliklere ekleyin |
-| Uygulama düğmesi yok | Genel adres boş (o zaman yalnızca bot çalışır) ya da `https://` değil | **DSM mini** penceresi, genel adres |
+| Uygulama düğmesi yok | Genel adres boş (o zaman yalnızca bot çalışır) ya da `https://` değil | **DSM mini** penceresi, **Mini App erişimi** |
 | Düğme var, uygulama açılmıyor | Ters proxy ya da sertifika çalışmıyor | Tarayıcıda `https://adresiniz/healthz` açın |
 | «Uygulamayı bot üzerinden açın» | Uygulama tarayıcıda doğrudan bağlantıyla açıldı | Böyle olması gerekiyor: bottan açın |
 | «Erişim reddedildi: Telegram kimliğiniz…» | Servis sizi tanımadı | İzin verilen kimliklerde yalnızca rakamlar, virgülle ayrılmış |

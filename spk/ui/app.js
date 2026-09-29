@@ -416,6 +416,7 @@
         return item.state === 'ok'
           ? ['ok', t('chkSharesOk', { count: item.count })] : ['bad', t('chkSharesNone')];
       case 'notify':
+        if (item.state === 'absent') return ['off', t('chkAbsent')];
         return item.state === 'ok' ? ['ok', t('chkOk')] : ['off', t('chkNotifyNo', { code: item.code })];
       default:
         if (item.state === 'absent') return ['off', t('chkAbsent')];

@@ -135,16 +135,17 @@ Pacotes → Instalação manual.
 
 **6. Configurar.** Abra o **DSM mini** pelo menu principal do DSM ou aperte
 **Abrir** na Central de Pacotes — ela mesma lembra disso no fim da instalação.
-Preencha os valores reunidos nos passos acima: a janela explica cada um, e o
-endereço público pode ficar vazio. Aperte **Salvar** e depois **Iniciar** no
-topo da janela. O estado ali mostra quando o DSM e o bot responderam, e o que
-está errado se não responderam.
+Preencha os valores reunidos nos passos acima — a janela explica cada um — e em
+**Acesso ao Mini App** escolha o jeito do passo 4, ou
+**Só o bot, sem Mini App**. Aperte **Salvar** e depois **Iniciar** no topo da
+janela. O estado ali mostra quando o DSM e o bot responderam, e o que está
+errado se não responderam.
 
 Para o primeiro jeito, a regra de proxy reverso a própria janela cria: digite o
 seu nome em **Apontar um nome ao serviço**. Na mão é Painel de Controle → Portal
 de login → Avançado → Proxy reverso → Criar. Origem: `HTTPS`, o seu nome, porta
 `443`. Destino: `HTTP`, `localhost`, porta `58080`. Com um túnel ou o Tailscale,
-ponha como endereço público o que eles deram.
+escolha **Outro jeito** e ponha o endereço que eles deram.
 
 > Não faça proxy da porta **80** para esse nome: é por ela que o DSM renova o
 > certificado, e interceptar quebra a renovação três meses depois.
@@ -163,7 +164,7 @@ para o bot no chat.
 |---|---|---|
 | O bot fica mudo no `/start` | O bot está desligado ou não configurado, ou o token está errado | Abra o **DSM mini** no menu principal do DSM: o estado no topo diz qual, e **Iniciar** liga o bot |
 | «O acesso a este bot está fechado» | Seu ID não está na lista | Ponha o número do passo 2 nos IDs permitidos na janela **DSM mini** |
-| Não há botão do aplicativo | O endereço público está vazio — aí só o bot funciona — ou não é `https://` | A janela **DSM mini**, endereço público |
+| Não há botão do aplicativo | O endereço público está vazio — aí só o bot funciona — ou não é `https://` | A janela **DSM mini**, **Acesso ao Mini App** |
 | O botão existe, o aplicativo não abre | O proxy reverso ou o certificado não funcionam | Abra `https://seu-endereco/healthz` num navegador |
 | «Abra o aplicativo pelo bot» | O aplicativo foi aberto por link direto no navegador | É assim mesmo: abra pelo bot |
 | «Acesso negado: o seu ID do Telegram…» | O serviço não reconheceu você | Nos IDs permitidos só dígitos, separados por vírgula |

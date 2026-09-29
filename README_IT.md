@@ -135,16 +135,18 @@ pacchetti → Installazione manuale.
 
 **6. Configurare.** Apri **DSM mini** dal menu principale di DSM, oppure premi
 **Apri** in Centro pacchetti — lo ricorda lui stesso a fine installazione.
-Compila i valori raccolti nei passi qui sopra: la finestra spiega ognuno, e
-l'indirizzo pubblico può restare vuoto. Premi **Salva** e poi **Avvia** in cima
-alla finestra. Lo stato lì dice quando DSM e il bot hanno risposto, e cosa non
-va se non l'hanno fatto.
+Compila i valori raccolti nei passi qui sopra — la finestra spiega ognuno — e in
+**Accesso alla Mini App** scegli il modo del passo 4, o
+**Solo il bot, senza Mini App**. Premi **Salva** e poi **Avvia** in cima alla
+finestra. Lo stato lì dice quando DSM e il bot hanno risposto, e cosa non va se
+non l'hanno fatto.
 
 Per il primo modo, la regola di proxy inverso la crea la finestra stessa: scrivi
 il tuo nome in **Puntare un nome al servizio**. A mano è Pannello di controllo →
 Portale di accesso → Avanzate → Proxy inverso → Crea. Origine: `HTTPS`, il tuo
 nome, porta `443`. Destinazione: `HTTP`, `localhost`, porta `58080`. Con un
-tunnel o Tailscale, inserisci come indirizzo pubblico quello che ti hanno dato.
+tunnel o Tailscale, scegli **Un altro modo** e inserisci l'indirizzo che ti
+hanno dato.
 
 > Non passare per il proxy la porta **80** di questo nome: è da lì che DSM
 > rinnova il certificato, e intercettarla rompe il rinnovo tre mesi dopo.
@@ -164,7 +166,7 @@ pulsante non c'è: manda i link al bot nella chat.
 |---|---|---|
 | Il bot tace su `/start` | Il bot è spento o non configurato, oppure il token è sbagliato | Apri **DSM mini** nel menu principale di DSM: lo stato in cima dice quale, e **Avvia** accende il bot |
 | «L'accesso a questo bot è chiuso» | Il tuo ID non è nell'elenco | Aggiungi il numero del passo 2 agli ID consentiti nella finestra **DSM mini** |
-| Non c'è il pulsante dell'applicazione | L'indirizzo pubblico è vuoto — allora c'è solo il bot — o non è `https://` | La finestra **DSM mini**, indirizzo pubblico |
+| Non c'è il pulsante dell'applicazione | L'indirizzo pubblico è vuoto — allora c'è solo il bot — o non è `https://` | La finestra **DSM mini**, **Accesso alla Mini App** |
 | Il pulsante c'è, l'applicazione non si apre | Il proxy inverso o il certificato non funzionano | Apri `https://tuo-indirizzo/healthz` in un browser |
 | «Apri l'applicazione dal bot» | L'applicazione è stata aperta con un link diretto nel browser | È voluto: aprila dal bot |
 | «Accesso negato: il tuo ID Telegram…» | Il servizio non ti ha riconosciuto | Negli ID consentiti solo cifre, separate da virgole |

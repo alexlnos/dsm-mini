@@ -421,15 +421,6 @@ func waitForDownloadStation(ctx context.Context, client *dsm.Client,
 	}
 }
 
-// openDatabase opens the database in the package var — which is what
-// survives an upgrade, unlike target.
-//
-// A database that belongs to an earlier installation's user is left alone
-// while the service waits to be set up: the owner may yet hand the files back
-// over SSH and keep everything. Once the service has settings to run on, it
-// is set aside instead, kept under another name: what it holds is people's
-// preferences and pinned folders, and a service that stays down for them is
-// worse than one that starts afresh. Nil with no error means "not opened".
 // switchedOn says whether the bot and the Mini App are to run. They run only
 // when the window's Start button says so; the process itself always runs,
 // since the window is served by it.
@@ -458,6 +449,15 @@ func switchedOn(ctx context.Context, settings *store.Store, ready bool, log *slo
 	return on
 }
 
+// openDatabase opens the database in the package var — which is what
+// survives an upgrade, unlike target.
+//
+// A database that belongs to an earlier installation's user is left alone
+// while the service waits to be set up: the owner may yet hand the files back
+// over SSH and keep everything. Once the service has settings to run on, it
+// is set aside instead, kept under another name: what it holds is people's
+// preferences and pinned folders, and a service that stays down for them is
+// worse than one that starts afresh. Nil with no error means "not opened".
 func openDatabase(dir string, ready bool, log *slog.Logger) (*sql.DB, error) {
 	path := filepath.Join(dir, databaseName)
 	if dsmui.FindUnreadable(dir, databaseName) != nil {

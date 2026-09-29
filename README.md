@@ -135,16 +135,16 @@ Package Center → Manual Install.
 
 **6. Set it up.** Open **DSM mini** from the DSM main menu, or press **Open** in
 Package Center — it says so itself when the installation is done. Fill in the
-values collected in the steps above: the window explains each one, and the
-public address may stay empty. Press **Save**, then **Start** at the top of the
-window. The status there says when DSM and the bot have answered, and what is
-wrong if they have not.
+values collected in the steps above — the window explains each one — and under
+**Mini App access** pick the way from step 4, or **The bot only, no Mini App**.
+Press **Save**, then **Start** at the top of the window. The status there says
+when DSM and the bot have answered, and what is wrong if they have not.
 
 For the first way, the window creates the reverse proxy rule itself: type your
 name under **Point a name at the service**. By hand it is Control Panel → Login
 Portal → Advanced → Reverse Proxy → Create. Source: `HTTPS`, your name, port
 `443`. Destination: `HTTP`, `localhost`, port `58080`. With a tunnel or
-Tailscale, enter the address they gave as the public address.
+Tailscale, pick **Another way** and enter the address they gave.
 
 > Do not proxy port **80** for this name: DSM renews the certificate through it,
 > and intercepting it breaks the renewal three months later.
@@ -164,7 +164,7 @@ the links to the bot in the chat.
 |---|---|---|
 | The bot is silent on `/start` | The bot is switched off or not set up, or the token is wrong | Open **DSM mini** in the DSM main menu: the status at the top says which, and **Start** switches the bot on |
 | "Access to this bot is closed" | Your ID is not on the list | Add the number from step 2 to the allowed IDs in the **DSM mini** window |
-| There is no app button | The public address is empty — the bot on its own — or not `https://` | The **DSM mini** window, public address |
+| There is no app button | The public address is empty — the bot on its own — or not `https://` | The **DSM mini** window, **Mini App access** |
 | The button is there, the app does not open | The reverse proxy or the certificate is not working | Open `https://your-address/healthz` in a browser |
 | "Open the app through the bot" | The app was opened by a direct link in a browser | That is intended: open it from the bot |
 | "Access denied: your Telegram ID…" | The service did not recognise you | The allowed IDs take digits only, comma separated |
