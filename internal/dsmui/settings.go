@@ -1,6 +1,7 @@
 package dsmui
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/alexlnos/dsm-mini/internal/config"
+	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
 // Keys of config.env that the screen edits, in the order it asks for them.
@@ -73,6 +75,10 @@ type settingsBody struct {
 	// Notifications is the installation-wide choice. It is kept in the
 	// database and applies at once. Empty when the database is out of reach.
 	Notifications string `json:"notifications,omitempty"`
+	// Access is how the Mini App is reached, as last chosen in the window:
+	// see store.AccessBot and the rest. Empty while nobody has chosen, and
+	// then the window works it out from the address.
+	Access string `json:"access,omitempty"`
 	// Applying is true when the save changed something the service reads
 	// when it starts: it is starting again with it right now, and the screen
 	// waits for the status to settle.
@@ -91,10 +97,24 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Values        map[string]string `json:"values"`
 		Notifications *string           `json:"notifications"`
+		Access        *string           `json:"access"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 		return
+	}
+	if req.Access != nil && !store.ValidAccess(*req.Access) {
+		http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
+		return
+	}
+	// "The bot only" means no Mini App, whatever the address field held:
+	// the choice is what a person reads, and the address is what the
+	// service goes by, so the two must not disagree.
+	if req.Access != nil && *req.Access == store.AccessBot {
+		if req.Values == nil {
+			req.Values = map[string]string{}
+		}
+		req.Values["PUBLIC_URL"] = ""
 	}
 
 	current, ok := s.readSettings(w, r)
@@ -162,6 +182,15 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.log.Info("notification mode set from the dsm screen", "mode", mode, "by", who.User)
 	}
 
+	if req.Access != nil && s.store != nil {
+		if err := s.store.SetAccess(r.Context(), *req.Access); err != nil {
+			s.fail(w, r, err, "cannot save the way the mini app is reached")
+			return
+		}
+		who, _ := SessionFrom(r.Context())
+		s.log.Info("mini app access set from the dsm screen", "access", *req.Access, "by", who.User)
+	}
+
 	writeJSON(w, http.StatusOK, s.view(current, changed))
 	if changed {
 		// After the answer: the service is about to close this very server,
@@ -201,5 +230,19 @@ func (s *Server) view(values map[string]string, applying bool) settingsBody {
 		out.Values[key] = values[key]
 	}
 	out.Notifications = s.notifyMode()
+	out.Access = s.accessMode()
 	return out
+}
+
+// accessMode is the saved way of reaching the Mini App, or "" when there is
+// none or no database to keep it in.
+func (s *Server) accessMode() string {
+	if s.store == nil {
+		return ""
+	}
+	mode, err := s.store.Access(context.Background())
+	if err != nil {
+		s.log.Warn("cannot read the way the mini app is reached", "err", err)
+	}
+	return mode
 }

@@ -82,3 +82,33 @@ func TestRunNeedsAnAnswer(t *testing.T) {
 		t.Fatalf("a body without enabled got %d", code)
 	}
 }
+
+// The way the Mini App is reached is kept, and "the bot only" takes the
+// address away whatever the field held: the choice a person reads and the
+// address the service goes by must not disagree.
+func TestAccessIsKeptAndBotOnlyDropsTheAddress(t *testing.T) {
+	sc, _, st := runScreen(t)
+	ctx := context.Background()
+
+	code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+		`{"values":{"PUBLIC_URL":"https://mini.example.com"},"access":"domain"}`)
+	if code != http.StatusOK || got["access"] != "domain" {
+		t.Fatalf("got %d %v", code, got)
+	}
+	if mode, _ := st.Access(ctx); mode != "domain" || sc.file(t)["PUBLIC_URL"] != "https://mini.example.com" {
+		t.Fatalf("access %q, file %v", mode, sc.file(t))
+	}
+
+	code, got = sc.do(t, http.MethodPut, "/dsm/admin/settings",
+		`{"values":{"PUBLIC_URL":"https://mini.example.com"},"access":"bot"}`)
+	if code != http.StatusOK || got["access"] != "bot" {
+		t.Fatalf("got %d %v", code, got)
+	}
+	if sc.file(t)["PUBLIC_URL"] != "" {
+		t.Fatalf("the bot only kept the address: %v", sc.file(t))
+	}
+
+	if code, _ := sc.do(t, http.MethodPut, "/dsm/admin/settings", `{"access":"everything"}`); code != http.StatusBadRequest {
+		t.Fatalf("an unknown way got %d", code)
+	}
+}

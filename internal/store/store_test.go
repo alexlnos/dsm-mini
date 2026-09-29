@@ -229,3 +229,25 @@ func TestAppEnabledRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// The way the Mini App is reached is unknown until chosen, and nothing but
+// the known ways is kept.
+func TestAccessRoundTrip(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	if mode, err := s.Access(ctx); err != nil || mode != "" {
+		t.Fatalf("fresh database: %q, %v", mode, err)
+	}
+	if err := s.SetAccess(ctx, AccessLAN); err != nil {
+		t.Fatal(err)
+	}
+	if mode, _ := s.Access(ctx); mode != AccessLAN {
+		t.Fatalf("got %q", mode)
+	}
+	if err := s.SetAccess(ctx, "everything"); err == nil {
+		t.Fatal("an unknown way was accepted")
+	}
+	if mode, _ := s.Access(ctx); mode != AccessLAN {
+		t.Fatalf("a refused value replaced the choice: %q", mode)
+	}
+}

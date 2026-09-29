@@ -10,10 +10,9 @@ import (
 	"github.com/alexlnos/dsm-mini/internal/config"
 )
 
-// Telegram opens a Mini App only over a public HTTPS address with a real
-// certificate, so something has to tie a name from the internet to a port on
-// this NAS. DSM can do every part of it, and this is where the screen finds
-// out which parts are already done.
+// Telegram opens a Mini App only over HTTPS with a real certificate, so
+// something has to tie a name to a port on this NAS. DSM can do most of it,
+// and this is where the screen finds out which parts are already done.
 type addressView struct {
 	// Public is what the service is configured with right now.
 	Public string `json:"public"`
@@ -29,6 +28,10 @@ type addressView struct {
 	Proxies []proxyRule `json:"proxies"`
 	// DDNS is the names DSM keeps up to date by itself.
 	DDNS []ddnsRecord `json:"ddns"`
+	// LocalIPs are this NAS's addresses on the local network. For the Mini
+	// App reached from the home network only, the name has to lead to one of
+	// them inside that network.
+	LocalIPs []string `json:"local_ips"`
 }
 
 type proxyRule struct {
@@ -70,6 +73,7 @@ func (s *Server) handleAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	view.ExternalIP = s.readExternalIP(r, nas)
 	view.DDNS = s.readDDNS(r, nas)
+	view.LocalIPs = localIPs()
 
 	writeJSON(w, http.StatusOK, view)
 }
@@ -228,4 +232,48 @@ func isLoopback(host string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// virtualLink names interfaces that are not the local network even when they
+// carry a private address: containers, virtual machines' private bridges,
+// VPNs. On a live NAS the network itself was ovs_eth0 (Virtual Machine
+// Manager's switch) and Container Manager added docker0.
+var virtualLink = []string{"docker", "br-", "veth", "virbr", "lxc", "tun", "tap", "wg", "tailscale", "zt"}
+
+// localIPs lists the private IPv4 addresses of this machine's network
+// interfaces. The service runs on the NAS, so these are the NAS's own.
+func localIPs() []string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || isVirtualLink(iface.Name) {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			ipnet, ok := a.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			if ip := ipnet.IP.To4(); ip != nil && ip.IsPrivate() {
+				out = append(out, ip.String())
+			}
+		}
+	}
+	return out
+}
+
+func isVirtualLink(name string) bool {
+	for _, prefix := range virtualLink {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }

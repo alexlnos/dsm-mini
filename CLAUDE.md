@@ -307,6 +307,23 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   not want to open ports at all, and the documentation now offers three ways
   to an address — DSM's reverse proxy, Cloudflare Tunnel, Tailscale — two of
   them with nothing opened on the router.
+- **How the Mini App is reached is a switch in the window**: the bot only,
+  DDNS, an own domain on a static address, the home network only, another way
+  (a tunnel, Tailscale, a proxy elsewhere). The service still reads nothing
+  but `PUBLIC_URL`; the choice lives in the database (`access` in `meta`) and
+  decides what the window explains — the steps, the address a name has to
+  lead to (external for DDNS and a domain, the NAS's own local one for the
+  home network), the reverse proxy rule. "The bot only" clears the address on
+  the server, so the choice and the address never disagree. Before anybody
+  chooses, the window works it out from the address: none is the bot only, a
+  DSM DDNS name is DDNS, DSM's own rule is a domain, anything else another way.
+- **The home network only is the hard way, because of the certificate.**
+  DSM's own Let's Encrypt needs the NAS reachable from the internet on port 80
+  — its own renewal message says so — and issues wildcards for Synology DDNS
+  names only. So the window says to import a certificate obtained through a
+  DNS check, and the name has to lead to the NAS's local address inside the
+  network (the service lists its own private addresses, leaving out docker,
+  bridges and VPN links; on a live NAS the network was `ovs_eth0`).
 - Each field carries three things: a short label, an example shown in the
   empty field and a line underneath saying what the setting is for. Whoever
   fills this in has never seen the project and is being asked for a password

@@ -100,7 +100,7 @@
 
   var statusBox = document.getElementById('status');
   var app = document.getElementById('app');
-  var state = { status: null, settings: null, address: null, tried: false };
+  var state = { status: null, settings: null, address: null, tried: false, accessTouched: false };
 
   // ---- status ------------------------------------------------------------
 
@@ -155,9 +155,13 @@
       card.appendChild(el('h3', { text: t({ starting: 'stStarting', running: 'stRunning', failed: 'stFailed' }[s.state]) }));
       if (s.dsm && s.dsm.state) card.appendChild(kv(t('lnDsm'), dsmText(s.dsm)));
       if (s.bot && s.bot.state) card.appendChild(kv(t('lnBot'), botText(s.bot)));
-      // Without a public address there is no Mini App, and that is a choice
-      // rather than a fault: the bot works on its own.
-      if (state.settings && !state.settings.values.PUBLIC_URL) card.appendChild(kv(t('lnApp'), t('lnAppOff')));
+      // The Mini App line: its address, or why there is none — the bot on
+      // its own is a choice, a way chosen and not finished is a to-do.
+      if (state.settings) {
+        var url = state.settings.values.PUBLIC_URL;
+        var way = state.settings.access || (url ? '' : 'bot');
+        card.appendChild(kv(t('lnApp'), url ? url : way === 'bot' ? t('lnAppOff') : t('lnAppNoAddr')));
+      }
       if (s.bot && s.bot.state === 'ok' && s.bot.name) {
         card.appendChild(el('p', {}, [el('a', {
           href: 'https://t.me/' + encodeURIComponent(s.bot.name), target: '_blank', rel: 'noopener',
@@ -297,13 +301,23 @@
     ]));
 
     app.appendChild(el('h2', { text: t('address') }));
+    var chosen = currentAccess();
     var addr = el('div', { class: 'card' }, [
       el('p', { class: 'hint', text: t('addressHint') }),
+      el('div', { class: 'access' }, ACCESS.map(function (way) {
+        return radio('access', way, chosen, t(ACCESS_TEXT[way][0]), t(ACCESS_TEXT[way][1]));
+      })),
+      el('div', { id: 'access-steps' }),
       field('PUBLIC_URL', t('hPublicUrl'))
     ]);
-    addr.appendChild(el('div', { id: 'proxy' }));
     app.appendChild(addr);
-    renderAddress();
+    Array.prototype.forEach.call(addr.querySelectorAll('input[name=access]'), function (input) {
+      input.addEventListener('change', function () {
+        state.accessTouched = true;
+        renderAccess();
+      });
+    });
+    renderAccess();
 
     if (s.notifications) {
       app.appendChild(el('h2', { text: t('notify') }));
@@ -338,9 +352,14 @@
       });
       var picked = app.querySelector('input[name=notify]:checked');
 
-      call('settings', 'PUT', { values: values, notifications: picked ? picked.value : undefined })
+      call('settings', 'PUT', {
+        values: values,
+        notifications: picked ? picked.value : undefined,
+        access: selectedAccess()
+      })
         .then(function (saved) {
           state.settings = saved;
+          state.accessTouched = false;
           renderForm();
           if (saved.applying) {
             // The outcome shows in the status at the top, and so does Start
@@ -439,64 +458,146 @@
     }).then(function () { button.disabled = false; });
   }
 
-  // The address part: where the name points, and a way to create the rule
-  // that sends it to the service. It is read with the administrator's own
-  // session, so it works before the service is set up.
-  function renderAddress() {
-    var box = document.getElementById('proxy');
+  // ---- Mini App access ------------------------------------------------------
+
+  // The ways the Mini App can be reached, in the order the screen offers
+  // them, with a label and a line for each. Only the address matters to the
+  // service; the way decides what the screen explains and offers.
+  var ACCESS = ['bot', 'ddns', 'domain', 'lan', 'other'];
+  var ACCESS_TEXT = {
+    bot: ['accBot', 'accBotHint'], ddns: ['accDdns', 'accDdnsHint'], domain: ['accDomain', 'accDomainHint'],
+    lan: ['accLan', 'accLanHint'], other: ['accOther', 'accOtherHint']
+  };
+
+  function hostOf(url) {
+    var m = /^https?:\/\/([^\/:?#]+)/i.exec(url || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  // The address a rule publishes: https on 443 needs no port in it.
+  function ruleURL(r) {
+    var def = r.https ? 443 : 80;
+    return (r.https ? 'https://' : 'http://') + r.fqdn + (r.port && r.port !== def ? ':' + r.port : '');
+  }
+
+  // The way as saved, or — before anybody chose — what the address itself
+  // suggests: none means the bot on its own, a DSM DDNS name means DDNS, a
+  // reverse proxy rule of DSM's own means a domain, anything else another way.
+  function currentAccess() {
+    var s = state.settings, a = state.address;
+    if (s.access) return s.access;
+    var url = s.values.PUBLIC_URL || '';
+    if (!url) return 'bot';
+    var host = hostOf(url);
+    if (a && (a.ddns || []).some(function (d) { return (d.hostname || '').toLowerCase() === host; })) return 'ddns';
+    if (!a || (a.matching && a.matching.fqdn === host)) return 'domain';
+    return 'other';
+  }
+
+  function selectedAccess() {
+    var r = app.querySelector('input[name=access]:checked');
+    return r ? r.value : currentAccess();
+  }
+
+  // When the address data arrives it may tell the guess better — unless the
+  // person has already picked something.
+  function syncAccess() {
+    if (state.accessTouched || state.settings.access) return;
+    var want = app.querySelector('input[name=access][value="' + currentAccess() + '"]');
+    if (want) want.checked = true;
+  }
+
+  // renderAccess shows what the chosen way takes, step by step, and the
+  // reverse proxy rule for the ways that go through DSM. The address data is
+  // read with the administrator's own session, so it works before the
+  // service is set up; until it arrives the steps go without its figures.
+  function renderAccess() {
+    var box = document.getElementById('access-steps');
     if (!box) return;
     box.textContent = '';
-    var a = state.address;
-    if (!a) return;
+    var way = selectedAccess(), a = state.address;
+    var row = document.getElementById('row-PUBLIC_URL');
+    if (row) row.hidden = way === 'bot';
+    if (way === 'bot') return;
 
-    // The address DSM sees for this network is shown only where it matters —
-    // next to the rule, whose name has to lead to it. On its own, as a line
-    // reading "not set" when DSM does not know it, it read like a setting to
-    // fill in, and a tester took it for a demand to open their NAS to the
-    // internet.
+    var lan = a && a.local_ips && a.local_ips.length ? a.local_ips : [];
+    var port = (a && a.listen_port) || 58080;
+    var target = 'http://localhost:' + port;
+    var steps = [];
+    if (way === 'ddns') steps.push(t('accStepDdns'));
+    if (way === 'domain') steps.push(a && a.external_ip ? t('accStepDomainIp', { ip: a.external_ip }) : t('accStepDomain'));
+    if (way === 'ddns' || way === 'domain') {
+      steps.push(lan.length ? t('accStepPortsTo', { ip: lan[0] }) : t('accStepPorts'));
+      steps.push(t('accStepRule'));
+      steps.push(t('accStepCert'));
+    }
+    if (way === 'lan') {
+      steps.push(lan.length ? t('accStepLanDnsIp', { ips: lan.join(', ') }) : t('accStepLanDns'));
+      steps.push(t('accStepRule'));
+      steps.push(t('accStepLanCert'));
+      steps.push(t('accStepVpn'));
+    }
+    if (way === 'other') {
+      steps.push(t('accStepTarget', { target: target }));
+      steps.push(t('accStepTargetUrl'));
+    }
+    box.appendChild(el('ol', { class: 'steps' }, steps.map(function (text) { return el('li', { text: text }); })));
+
+    if (way === 'other') {
+      box.appendChild(el('p', { class: 'hint', text: t('accOtherExamples', { target: target, port: port }) }));
+      return;
+    }
+    if (!a) return;
+    if (way === 'ddns') {
+      var names = (a.ddns || []).map(function (d) { return d.hostname; }).filter(Boolean);
+      box.appendChild(el('p', { class: 'hint', text: names.length ? t('addrDdnsNames', { names: names.join(', ') }) : t('addrNoDdns') }));
+    }
+    renderRule(box, way, a);
+  }
+
+  // The reverse proxy rule that sends the name to the service: shown when
+  // there is one, created from here when there is not.
+  function renderRule(box, way, a) {
+    var input = document.getElementById('f-PUBLIC_URL');
     if (a.matching) {
       box.appendChild(el('p', { class: 'note good', text: t('addrMatched') }));
-      box.appendChild(kv((a.matching.https ? 'https://' : 'http://') + a.matching.fqdn,
-        'localhost:' + a.matching.backend_port));
-    } else {
-      var name = el('input', { type: 'text', id: 'fqdn', placeholder: 'nas.example.com' });
-      var create = el('button', { class: 'ghost', text: t('addrCreateBtn') });
-      create.addEventListener('click', function () {
-        create.disabled = true;
-        call('address/proxy', 'POST', { fqdn: name.value })
-          .then(function (made) {
-            // Only the address changes on the page: the other fields may hold
-            // what somebody has typed and not saved yet, and re-drawing the
-            // form from the server would throw it away.
-            state.settings.values.PUBLIC_URL = made.public;
-            var input = document.getElementById('f-PUBLIC_URL');
-            if (input) input.value = made.public;
-            pollStatus();
-            return call('address').then(function (a) {
-              state.address = a;
-              renderAddress();
-            });
-          })
-          .catch(function (err) {
-            create.disabled = false;
-            showError(err);
+      box.appendChild(kv(ruleURL(a.matching), 'localhost:' + a.matching.backend_port));
+      // Coming back to a way that goes through DSM after the address was
+      // cleared: the rule is still there, and so is its address.
+      if (input && !input.value) input.value = ruleURL(a.matching);
+      return;
+    }
+    var name = el('input', { type: 'text', id: 'fqdn', placeholder: 'nas.example.com' });
+    if (way === 'ddns' && a.ddns && a.ddns.length) name.value = a.ddns[0].hostname || '';
+    else if (input && input.value) name.value = hostOf(input.value);
+    var create = el('button', { class: 'ghost', text: t('addrCreateBtn') });
+    create.addEventListener('click', function () {
+      create.disabled = true;
+      call('address/proxy', 'POST', { fqdn: name.value })
+        .then(function (made) {
+          // Only the address changes on the page: the other fields may hold
+          // what somebody has typed and not saved yet, and re-drawing the
+          // form from the server would throw it away.
+          state.settings.values.PUBLIC_URL = made.public;
+          var urlInput = document.getElementById('f-PUBLIC_URL');
+          if (urlInput) urlInput.value = made.public;
+          pollStatus();
+          return call('address').then(function (next) {
+            state.address = next;
+            renderAccess();
           });
-      });
-      box.appendChild(el('div', { class: 'row' }, [
-        el('label', { text: t('addrCreate'), for: 'fqdn' }),
-        name,
-        el('span', { class: 'hint', text: t('addrFqdnHint') }),
-        a.external_ip ? el('span', { class: 'hint', text: t('addrExternalIs', { ip: a.external_ip }) }) : null
-      ]));
-      box.appendChild(el('div', { class: 'bar' }, [create]));
-    }
-
-    box.appendChild(el('h2', { text: t('addrDdns') }));
-    if (a.ddns && a.ddns.length) {
-      a.ddns.forEach(function (d) { box.appendChild(kv(d.hostname, d.provider || '')); });
-    } else {
-      box.appendChild(el('p', { class: 'hint', text: t('addrNoDdns') }));
-    }
+        })
+        .catch(function (err) {
+          create.disabled = false;
+          showError(err);
+        });
+    });
+    box.appendChild(el('div', { class: 'row' }, [
+      el('label', { text: t('addrCreate'), for: 'fqdn' }),
+      name,
+      el('span', { class: 'hint', text: t('addrFqdnHint') })
+    ]));
+    box.appendChild(el('div', { class: 'bar' }, [create]));
   }
 
   function note(kind, text) {
@@ -530,7 +631,8 @@
     renderForm();
     call('address').then(function (a) {
       state.address = a;
-      renderAddress();
+      syncAccess();
+      renderAccess();
     }).catch(function () {});
   }).catch(function (err) {
     app.textContent = '';
