@@ -416,14 +416,19 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - **The port is reserved in DSM** through a service file of our own,
   `dsm-mini.sc` (`ui/` in our package with `conf/resource` `port-config`,
   `src/` in the recipe through `FWPORTS`): DSM's port conflict check then
-  names dsm-mini for 58080. `port_forward="no"`, which DSM's own files use too
+  names dsm-mini for 58080 — checked on a live NAS with 1.0.14, and
+  `/usr/syno/bin/servicetool --conf-port-conflict-check --tcp 58080` needs no
+  root when called by its full path. `port_forward="no"`, which DSM's own files use too
   (WS-Transfer in `SMBService.sc`): the service is loopback-only, so offering
   to forward it on the router would be offering nothing. Not `SERVICE_PORT`,
   which writes `"yes"`; and **never `NO_SERVICE_SHORTCUT`** — in spksrc it also
   switches off `DSM_UI_CONFIG`, and the settings window would vanish from the
   menu.
 - The recipe's documentation page is `contrib/spksrc/docs/dsm-mini.md`; it goes
-  to SynoCommunity as `docs/packages/dsm-mini.md`, after their template.
+  to SynoCommunity as `docs/packages/dsm-mini.md`, after their template, and
+  needs two lines of theirs as well: `mkdocs.yml` (under Downloads) and a row
+  in `docs/packages/index.md`, which lists every documented package in
+  alphabetical order. Without them the page builds and nothing links to it.
 - **No brackets in the display name.** spksrc writes it into INFO unquoted
   through the shell, so brackets are a syntax error, and elsewhere quoted into
   `jq`, so escaping them leaks a backslash. The name is "DSM mini — Telegram
