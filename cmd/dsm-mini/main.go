@@ -124,7 +124,7 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 	level.Set(logLevel(cfg.LogLevel))
 	if len(problems) > 0 {
 		status.SetProblems(problems)
-		log.Info("not set up yet: waiting for the settings window in the DSM main menu",
+		log.Info("settings incomplete: waiting for the settings window in the DSM main menu",
 			"missing", config.Describe(problems))
 	}
 
@@ -151,19 +151,32 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 		settings = store.New(database)
 	}
 
+	enabled := switchedOn(ctx, settings, ready, log)
+	status.SetEnabled(enabled)
+	if !enabled {
+		log.Info("the bot and the mini app are switched off in the dsm window")
+	}
+
 	// The settings screen inside DSM, served in every state: it is how the
 	// service gets set up in the first place. It authorises itself against
 	// DSM's own session cookie — /webman/3rdparty/ is served to anyone,
 	// checked against a live NAS, so the path guards nothing.
+	//
+	// The screen reaches DSM on this machine by the address DSM describes
+	// itself, never by DSM_URL from the file: the screen is where a wrong
+	// DSM_URL gets fixed, and it checks who is asking by calling DSM — with
+	// the file's address a mistake there would lock everybody out of the one
+	// place that could undo it.
+	localDSM := config.Defaults()["DSM_URL"]
 	admin := dsmui.New(dsmui.Options{
 		StateDir:    dir,
 		Store:       settings,
-		DSMURL:      cfg.DSMURL,
-		InsecureTLS: cfg.DSMInsecure,
+		DSMURL:      localDSM,
+		InsecureTLS: true,
 		ListenAddr:  cfg.ListenAddr,
 		Status:      status,
 		Restart:     func() { cancel(errRestart) },
-		Auth:        dsmui.NewAuth(dsmui.NewVerifier(cfg.DSMURL, cfg.DSMInsecure), log),
+		Auth:        dsmui.NewAuth(dsmui.NewVerifier(localDSM, true), log),
 		Logger:      log,
 	})
 
@@ -208,7 +221,7 @@ func run(parent context.Context, log *slog.Logger, level *slog.LevelVar) error {
 		}
 	}()
 
-	if ready {
+	if ready && enabled {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -408,6 +421,34 @@ func waitForDownloadStation(ctx context.Context, client *dsm.Client,
 	}
 }
 
+// switchedOn says whether the bot and the Mini App are to run. They run only
+// when the window's Start button says so; the process itself always runs,
+// since the window is served by it.
+//
+// Nothing has said so yet on the first start of a version that has the
+// button, and that start settles it once: an installation that already has
+// its settings was running before the upgrade and goes on running, a fresh
+// one waits for Start. Without a database there is nowhere to keep the
+// choice, and the app stays off — that is the state whose reason the window
+// shows.
+func switchedOn(ctx context.Context, settings *store.Store, ready bool, log *slog.Logger) bool {
+	if settings == nil {
+		return false
+	}
+	on, set, err := settings.AppEnabled(ctx)
+	if err != nil {
+		log.Warn("cannot read whether the app is switched on", "err", err)
+		return false
+	}
+	if !set {
+		on = ready
+		if err := settings.SetAppEnabled(ctx, on); err != nil {
+			log.Warn("cannot record whether the app is switched on", "err", err)
+		}
+	}
+	return on
+}
+
 // openDatabase opens the database in the package var — which is what
 // survives an upgrade, unlike target.
 //
@@ -457,8 +498,8 @@ func notReady(w http.ResponseWriter, r *http.Request, status *dsmui.Status) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Retry-After", "10")
 	w.WriteHeader(http.StatusServiceUnavailable)
-	if state == "setup" {
-		fmt.Fprintln(w, "DSM mini is not set up yet: open it from the DSM main menu.")
+	if state == "stopped" {
+		fmt.Fprintln(w, "DSM mini is switched off: start it from its window in the DSM main menu.")
 		return
 	}
 	fmt.Fprintln(w, "DSM mini is starting; its window in the DSM main menu says how it is going.")

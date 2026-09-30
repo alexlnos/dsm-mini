@@ -125,7 +125,16 @@ The service is exposed to the internet and can delete files on the NAS.
 - The outside gets a generic phrase, the details go to the log: a message saying
   exactly what did not match in the signature is a hint on how to forge it.
 - For the NAS a **separate user** is created, with access only to the packages
-  needed and without two-factor, not an administrator.
+  needed and without two-factor, not an administrator. The price is known and
+  shown rather than hidden: DSM refuses an ordinary account the NAS details
+  (`SYNO.Core.System` `info`, code 1006), the load and the storage state (105)
+  — from a SynoCommunity tester's log. The API answers such a part with the
+  section's message plus "the DSM account the service uses has no access to
+  this", and `/api/system` answers part by part: failing it whole showed "no
+  connection" on a working service, zeros for a refused load would lie, and an
+  unread package list marked Download Station "not installed". Only DSM's
+  refusals are split up that way: a DSM that does not answer at all is still a
+  502, or the home screen would say "online" next to nothing.
 
 - **The project never holds anyone's bot token**, and that rules out one idea
   that keeps looking attractive: a "helper bot" that creates the user's bot for
@@ -291,6 +300,32 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   address is loopback, on whatever HTTPS port DSM describes in
   `/usr/syno/etc/www/DSM.json`. A question whose answer is the same for
   everyone is not a question.
+- **The public address is optional**, the other four are required
+  (`config.Required`). Without it there is no Mini App — Telegram opens one
+  only over public HTTPS — but the bot works on its own: links, torrents,
+  `/status`, notifications, and nothing on the NAS is published. The bot
+  already left out the Mini App buttons without an address; what made the
+  address required was only the list of problems. A SynoCommunity tester did
+  not want to open ports at all, and the documentation now offers three ways
+  to an address — DSM's reverse proxy, Cloudflare Tunnel, Tailscale — two of
+  them with nothing opened on the router.
+- **How the Mini App is reached is a switch in the window**: the bot only,
+  DDNS, an own domain on a static address, the home network only, another way
+  (a tunnel, Tailscale, a proxy elsewhere). The service still reads nothing
+  but `PUBLIC_URL`; the choice lives in the database (`access` in `meta`) and
+  decides what the window explains — the steps, the address a name has to
+  lead to (external for DDNS and a domain, the NAS's own local one for the
+  home network), the reverse proxy rule. "The bot only" clears the address on
+  the server, so the choice and the address never disagree. Before anybody
+  chooses, the window works it out from the address: none is the bot only, a
+  DSM DDNS name is DDNS, DSM's own rule is a domain, anything else another way.
+- **The home network only is the hard way, because of the certificate.**
+  DSM's own Let's Encrypt needs the NAS reachable from the internet on port 80
+  — its own renewal message says so — and issues wildcards for Synology DDNS
+  names only. So the window says to import a certificate obtained through a
+  DNS check, and the name has to lead to the NAS's local address inside the
+  network (the service lists its own private addresses, leaving out docker,
+  bridges and VPN links; on a live NAS the network was `ovs_eth0`).
 - Each field carries three things: a short label, an example shown in the
   empty field and a line underneath saying what the setting is for. Whoever
   fills this in has never seen the project and is being asked for a password
@@ -378,6 +413,17 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   install. The upgrade from theirs to ours has not been run yet. Anything that
   makes the builds differ in where or as whom they keep files breaks this —
   see the package user above.
+- **The port is reserved in DSM** through a service file of our own,
+  `dsm-mini.sc` (`ui/` in our package with `conf/resource` `port-config`,
+  `src/` in the recipe through `FWPORTS`): DSM's port conflict check then
+  names dsm-mini for 58080. `port_forward="no"`, which DSM's own files use too
+  (WS-Transfer in `SMBService.sc`): the service is loopback-only, so offering
+  to forward it on the router would be offering nothing. Not `SERVICE_PORT`,
+  which writes `"yes"`; and **never `NO_SERVICE_SHORTCUT`** — in spksrc it also
+  switches off `DSM_UI_CONFIG`, and the settings window would vanish from the
+  menu.
+- The recipe's documentation page is `contrib/spksrc/docs/dsm-mini.md`; it goes
+  to SynoCommunity as `docs/packages/dsm-mini.md`, after their template.
 - **No brackets in the display name.** spksrc writes it into INFO unquoted
   through the shell, so brackets are a syntax error, and elsewhere quoted into
   `jq`, so escaping them leaks a backslash. The name is "DSM mini — Telegram
@@ -436,7 +482,39 @@ straight out of the package by DSM's own web server.
 
 It is also **where the package is set up**: there is no install wizard. The
 service starts with no settings at all, serves this window and nothing else,
-and starts the rest once the window has saved enough to start on.
+and starts the bot and the Mini App once the window has saved enough to start
+on and **Start** has been pressed.
+
+- **Start and Stop are the window's.** The process always runs — it is what
+  serves the window — and the bot and the Mini App run only while the window
+  says so. The choice is kept in the database (`app_enabled` in `meta`) and
+  survives a restart of the NAS; the status reads "stopped" whenever they are
+  off, for whatever reason. Start is refused while the settings are not
+  enough to start on, so that switched on never means switched on and doing
+  nothing. The first start of a version with the button settles it once
+  (`switchedOn` in `cmd/dsm-mini`): an installation that has its settings was
+  running before the upgrade and goes on running, a fresh one waits for Start.
+  Package Center's own Stop still stops everything, the window included.
+- **After a fresh install Package Center says where to go next.** `postinst`
+  writes one line into `$SYNOPKG_TEMP_LOGFILE` on `INSTALL`, and Package
+  Center shows what is in that file in a message box once the installation is
+  done (`_showDoneMessage` in `PkgManApp.js` on the NAS). The language is
+  `SYNOPKG_DSM_LANGUAGE`, a DSM code; the lines are in `ui/installed.txt`,
+  generated with the window's dictionary. In spksrc the script's own output
+  goes to that file (`INSTALLER_OUTPUT`), but `service_postinst` runs through
+  `call_func … install_log`, which sends everything it prints to the package
+  log — so the recipe writes the file itself, as ours does; an `echo` would
+  never reach the box. Nothing on an upgrade, and nothing on an install that
+  finds `config.env` left by an earlier one ("Uninstall only" keeps it): that
+  package is set up already, and "not set up yet" would be untrue.
+- **"Check the account"** signs in as the account typed into the window — with
+  the saved password when the field is empty and the account is the saved one
+  — and goes through what the service does with it, read-only: the sign-in,
+  Download Station, File Station and the shared folders it sees (without them
+  the bot cannot work), then every section of the Mini App, each with DSM's
+  code when refused. It signs in under a session name of its own
+  (`DsmMiniCheck`), so that its sign-out has nothing to do with the service's
+  session. The log gets the account and the outcome, never the password.
 
 - **A save applies without restarting the package.** The service reads
   `config.env` itself (not through the start script's environment, which would
@@ -496,6 +574,22 @@ and starts the rest once the window has saved enough to start on.
   service's port, so the service writes that one value into `backend.conf` in
   `UI_DIR` every time it starts listening — the window can move the port
   without a package restart. The file is world-readable and holds nothing else.
+- **The window reaches DSM on this machine by the address DSM describes
+  itself** (`/usr/syno/etc/www/DSM.json`), never by `DSM_URL` from the file:
+  it checks who is asking by calling DSM, so a wrong `DSM_URL` would lock
+  everybody out of the one place that could fix it.
+- **Addresses in the window can only be this NAS.** `DSM_URL` and
+  `LISTEN_ADDR` are refused unless they are loopback: a tester put the NAS's
+  internet address into `DSM_URL` — a perfectly good URL — and the service
+  stopped reaching DSM; `0.0.0.0` in `LISTEN_ADDR` would publish the app to the
+  whole network. Only a value being changed is held to it: the window sends
+  every field back on a save, and a LAN address or the bare `:58080` an older
+  installation left — which work — must not block saving a new token. The
+  file itself is not held to this, for development.
+- **Empty means the default.** A cleared field with a default drops the key
+  from `config.env`, and an empty value found in the file reads as the
+  default too — it used to be written as `DSM_URL=''` and read as an address
+  of nothing. `ALLOWED_USER_IDS` is the exception: empty there is "nobody".
 - **Secrets are write-only.** The password and the token are never sent to the
   browser; the screen shows "set" and an empty field. An empty field means
   "leave it alone" — treating it as "erase" would lock the service out of the
@@ -561,9 +655,10 @@ read it.
 
 Russian lives only in **translations**: `internal/i18n/ru.go`,
 `web/src/i18n/ru.ts`, the settings window's table in
-`tools/make-dsmui-i18n.py` (and the `spk/ui/i18n.js` built from it), the
-listing text in `assets/store.json`, plus `DESCRIPTION_RUS` in the
-SynoCommunity recipe. The other nine languages live in the same places.
+`tools/make-dsmui-i18n.py` (and the `spk/ui/i18n.js` and `installed.txt`
+built from it), the listing text in `assets/store.json`, plus
+`DESCRIPTION_RUS` in the SynoCommunity recipe. The other nine languages live
+in the same places.
 
 Documentation follows the same rule: `README.md` and this file are English,
 translations of the README are separate files (`README_RU.md` and the rest), and

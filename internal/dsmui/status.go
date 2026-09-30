@@ -27,11 +27,14 @@ type Status struct {
 // StatusView is the status as the window receives it.
 type StatusView struct {
 	// State sums the rest up:
-	//   setup    — the settings are not enough to start on;
+	//   stopped  — switched off in the window, or the settings are not
+	//              enough to start on (Problems and Unreadable say which);
 	//   starting — DSM and Telegram are being reached;
 	//   running  — both answered;
 	//   failed   — one of them refused, and it will not change by itself.
 	State string `json:"state"`
+	// Enabled is what the window's Start and Stop buttons last said.
+	Enabled bool `json:"enabled"`
 	// Problems lists what the settings lack, in the order the window asks.
 	Problems []config.Problem `json:"problems,omitempty"`
 	// Unreadable is set when files of an earlier installation are in the way.
@@ -105,6 +108,13 @@ func (s *Status) SetUnreadable(u *Unreadable) {
 	s.v.Unreadable = u
 }
 
+// SetEnabled records whether the bot and the Mini App are switched on.
+func (s *Status) SetEnabled(on bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.v.Enabled = on
+}
+
 // SetDSM records how the connection to DSM is doing.
 func (s *Status) SetDSM(l Link) {
 	s.mu.Lock()
@@ -126,8 +136,8 @@ func (s *Status) View() StatusView {
 	s.mu.RUnlock()
 
 	switch {
-	case len(v.Problems) > 0 || v.Unreadable != nil:
-		v.State = "setup"
+	case !v.Enabled || len(v.Problems) > 0 || v.Unreadable != nil:
+		v.State = "stopped"
 	case v.DSM.State == LinkFailed || v.Bot.State == LinkFailed:
 		v.State = "failed"
 	case v.DSM.State == LinkOK && v.Bot.State == LinkOK:

@@ -222,6 +222,10 @@ func TestAddressWorksThroughTheAdministratorsSession(t *testing.T) {
 
 func TestStatusSumsUp(t *testing.T) {
 	s := NewStatus()
+	if got := s.View().State; got != "stopped" {
+		t.Fatalf("not switched on yet: %s", got)
+	}
+	s.SetEnabled(true)
 	if got := s.View().State; got != "starting" {
 		t.Fatalf("nothing known yet: %s", got)
 	}
@@ -239,7 +243,7 @@ func TestStatusSumsUp(t *testing.T) {
 		t.Fatalf("a refused password: %s", got)
 	}
 	s.SetProblems([]config.Problem{{Key: "DSM_USER", Code: config.Missing}})
-	if got := s.View().State; got != "setup" {
+	if got := s.View().State; got != "stopped" {
 		t.Fatalf("settings missing: %s", got)
 	}
 }
@@ -257,5 +261,79 @@ func TestListenPortFallsBack(t *testing.T) {
 		if got := listenPort(c.file, c.running); got != c.want {
 			t.Fatalf("listenPort(%q, %q) = %d, want %d", c.file, c.running, got, c.want)
 		}
+	}
+}
+
+// A cleared field with a default drops the key: an empty DSM_URL left in the
+// file stopped the service reaching DSM for a tester.
+func TestClearedFieldDropsTheKey(t *testing.T) {
+	sc := newScreen(t)
+	if err := config.WriteFile(SettingsFile(sc.dir), map[string]string{
+		"DSM_URL": "https://localhost:5443", "LISTEN_ADDR": "127.0.0.1:59000", "DSM_USER": "u",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings", `{"values":{"DSM_URL":"","LISTEN_ADDR":"","DSM_USER":"u"}}`)
+	if code != http.StatusOK || got["applying"] != true {
+		t.Fatalf("got %d %v", code, got)
+	}
+	file := sc.file(t)
+	if _, still := file["DSM_URL"]; still {
+		t.Fatalf("DSM_URL stayed in the file: %v", file)
+	}
+	if _, still := file["LISTEN_ADDR"]; still {
+		t.Fatalf("LISTEN_ADDR stayed in the file: %v", file)
+	}
+}
+
+// The internet address of the NAS in DSM_URL, which is what a tester typed,
+// and every interface in LISTEN_ADDR: both are refused by the screen.
+func TestAddressesHaveToBeThisNAS(t *testing.T) {
+	sc := newScreen(t)
+	for key, value := range map[string]string{
+		"DSM_URL":     "https://mynas.me:8443",
+		"LISTEN_ADDR": "0.0.0.0:58080",
+	} {
+		code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+			`{"values":{"`+key+`":"`+value+`"}}`)
+		if code != http.StatusBadRequest || got["field"] != key || got["code"] != NotThisNAS {
+			t.Fatalf("%s=%s: got %d %v", key, value, code, got)
+		}
+	}
+	for key, value := range map[string]string{
+		"DSM_URL":     "https://localhost:5443",
+		"LISTEN_ADDR": "127.0.0.1:59000",
+	} {
+		code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+			`{"values":{"`+key+`":"`+value+`"}}`)
+		if code != http.StatusOK {
+			t.Fatalf("%s=%s was refused: %d %v", key, value, code, got)
+		}
+	}
+}
+
+// What an older installation left in the file and what works there does not
+// block saving something else: the window sends every field back, and a DSM
+// address on the LAN or the bare ":58080" that packages up to 1.0.0 wrote
+// would otherwise refuse a changed token until somebody cleared them.
+func TestOldAddressesDoNotBlockASave(t *testing.T) {
+	sc := newScreen(t)
+	if err := config.WriteFile(SettingsFile(sc.dir), map[string]string{
+		"DSM_URL": "https://192.168.1.10:5001", "LISTEN_ADDR": ":58080", "DSM_USER": "u",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, got := sc.do(t, http.MethodPut, "/dsm/admin/settings",
+		`{"values":{"DSM_URL":"https://192.168.1.10:5001","LISTEN_ADDR":":58080","DSM_USER":"v"}}`)
+	if code != http.StatusOK {
+		t.Fatalf("got %d %v", code, got)
+	}
+	if f := sc.file(t); f["DSM_USER"] != "v" || f["DSM_URL"] != "https://192.168.1.10:5001" {
+		t.Fatalf("file %v", f)
+	}
+	// Changing it to another address that is not this NAS is still refused.
+	code, got = sc.do(t, http.MethodPut, "/dsm/admin/settings", `{"values":{"DSM_URL":"https://203.0.113.7:5001"}}`)
+	if code != http.StatusBadRequest || got["code"] != NotThisNAS {
+		t.Fatalf("a new outside address got %d %v", code, got)
 	}
 }

@@ -14,7 +14,29 @@ import (
 const (
 	keyNotifications = "notifications"
 	keyWebhookSecret = "webhook_secret"
+	keyAppEnabled    = "app_enabled"
+	keyAccess        = "access"
 )
+
+// The ways the Mini App can be reached, as chosen in the settings window.
+// They only decide what the window explains and offers: the service itself
+// reads nothing but PUBLIC_URL, and "bot" is simply that address left empty.
+const (
+	AccessBot    = "bot"    // no Mini App: the bot on its own
+	AccessDDNS   = "ddns"   // a DDNS name DSM keeps up to date, ports forwarded
+	AccessDomain = "domain" // an own domain on a static address, ports forwarded
+	AccessLAN    = "lan"    // only from the home network or a VPN into it
+	AccessOther  = "other"  // a tunnel, Tailscale, a proxy elsewhere
+)
+
+// ValidAccess tells a known way from anything else.
+func ValidAccess(mode string) bool {
+	switch mode {
+	case AccessBot, AccessDDNS, AccessDomain, AccessLAN, AccessOther:
+		return true
+	}
+	return false
+}
 
 // meta reads one value; a missing key is not an error, it is the empty string.
 func (s *Store) meta(ctx context.Context, key string) (string, error) {
@@ -80,4 +102,42 @@ func (s *Store) WebhookSecret(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return v, nil
+}
+
+// AppEnabled says whether the bot and the Mini App are meant to run, as the
+// Start and Stop buttons of the settings window left it. set is false until
+// anything has decided: the service settles that on its first start.
+func (s *Store) AppEnabled(ctx context.Context) (enabled, set bool, err error) {
+	v, err := s.meta(ctx, keyAppEnabled)
+	if err != nil || v == "" {
+		return false, false, err
+	}
+	return v == "1", true, nil
+}
+
+// SetAppEnabled records the choice; it survives a restart of the NAS.
+func (s *Store) SetAppEnabled(ctx context.Context, enabled bool) error {
+	v := "0"
+	if enabled {
+		v = "1"
+	}
+	return s.setMeta(ctx, keyAppEnabled, v)
+}
+
+// Access returns how the Mini App is meant to be reached, or "" while nobody
+// has chosen: the window then works it out from the address itself.
+func (s *Store) Access(ctx context.Context) (string, error) {
+	v, err := s.meta(ctx, keyAccess)
+	if err != nil || !ValidAccess(v) {
+		return "", err
+	}
+	return v, nil
+}
+
+// SetAccess records the choice.
+func (s *Store) SetAccess(ctx context.Context, mode string) error {
+	if !ValidAccess(mode) {
+		return fmt.Errorf("unknown way to reach the mini app: %q", mode)
+	}
+	return s.setMeta(ctx, keyAccess, mode)
 }

@@ -211,3 +211,43 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 		t.Errorf("the data did not survive reopening: %v", got.PinnedFolders)
 	}
 }
+
+// Whether the app is switched on is unknown until something decides it, and
+// then it is kept.
+func TestAppEnabledRoundTrip(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	if on, set, err := s.AppEnabled(ctx); err != nil || set || on {
+		t.Fatalf("fresh database: on %v, set %v, err %v", on, set, err)
+	}
+	for _, want := range []bool{true, false} {
+		if err := s.SetAppEnabled(ctx, want); err != nil {
+			t.Fatal(err)
+		}
+		if on, set, err := s.AppEnabled(ctx); err != nil || !set || on != want {
+			t.Fatalf("after %v: on %v, set %v, err %v", want, on, set, err)
+		}
+	}
+}
+
+// The way the Mini App is reached is unknown until chosen, and nothing but
+// the known ways is kept.
+func TestAccessRoundTrip(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	if mode, err := s.Access(ctx); err != nil || mode != "" {
+		t.Fatalf("fresh database: %q, %v", mode, err)
+	}
+	if err := s.SetAccess(ctx, AccessLAN); err != nil {
+		t.Fatal(err)
+	}
+	if mode, _ := s.Access(ctx); mode != AccessLAN {
+		t.Fatalf("got %q", mode)
+	}
+	if err := s.SetAccess(ctx, "everything"); err == nil {
+		t.Fatal("an unknown way was accepted")
+	}
+	if mode, _ := s.Access(ctx); mode != AccessLAN {
+		t.Fatalf("a refused value replaced the choice: %q", mode)
+	}
+}

@@ -3,10 +3,12 @@ package dsmui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/alexlnos/dsm-mini/internal/config"
 	"github.com/alexlnos/dsm-mini/internal/dsm"
 	"github.com/alexlnos/dsm-mini/internal/store"
 )
@@ -97,12 +99,46 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /dsm/admin/settings", s.handleSaveSettings)
 	mux.HandleFunc("GET /dsm/admin/address", s.handleAddress)
 	mux.HandleFunc("POST /dsm/admin/address/proxy", s.handleCreateProxy)
+	mux.HandleFunc("POST /dsm/admin/check-account", s.handleCheckAccount)
+	mux.HandleFunc("POST /dsm/admin/run", s.handleRun)
 	mux.HandleFunc("GET /dsm/admin/whoami", s.handleWhoami)
 	return s.auth.Middleware(mux)
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.status.View())
+}
+
+// handleRun is the window's Start and Stop: whether the bot and the Mini App
+// run. The process itself keeps running either way — it is what serves the
+// window. Starting is refused while the settings are not enough to start on,
+// so that "switched on" never means "switched on and silently doing nothing".
+func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil || req.Enabled == nil {
+		http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
+		return
+	}
+	if s.store == nil {
+		s.fail(w, r, errors.New("the database is not open"), "cannot switch the app")
+		return
+	}
+	if *req.Enabled {
+		if v := s.status.View(); len(v.Problems) > 0 || v.Unreadable != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid", "code": config.Missing})
+			return
+		}
+	}
+	if err := s.store.SetAppEnabled(r.Context(), *req.Enabled); err != nil {
+		s.fail(w, r, err, "cannot switch the app")
+		return
+	}
+	who, _ := SessionFrom(r.Context())
+	s.log.Info("the app switched from the dsm screen", "enabled", *req.Enabled, "by", who.User)
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": *req.Enabled})
+	s.restart()
 }
 
 func (s *Server) handleWhoami(w http.ResponseWriter, r *http.Request) {

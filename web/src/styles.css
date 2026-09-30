@@ -804,6 +804,7 @@ h1 {
 .badge.bad { color: var(--bad); background: var(--bad-soft); }
 
 .home-error { font-size: 13px; color: var(--bad); margin-top: 10px; line-height: 1.4; }
+.home-note { font-size: 13px; color: var(--muted); margin-top: 10px; line-height: 1.4; }
 
 .meter { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
 .meter-label { width: 42px; font-size: 13px; color: var(--muted); }

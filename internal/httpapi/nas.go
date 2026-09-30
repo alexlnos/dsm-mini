@@ -2,12 +2,14 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/alexlnos/dsm-mini/internal/dsm"
 	"github.com/alexlnos/dsm-mini/internal/dsm/system"
 	"github.com/alexlnos/dsm-mini/internal/i18n"
 )
@@ -20,10 +22,12 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	// Three independent requests to the NAS go at once: one after another they
 	// added up to over two seconds of waiting on the home screen.
 	var (
-		info     system.Info
-		infoErr  error
-		usage    system.Usage
-		packages []system.Package
+		info        system.Info
+		infoErr     error
+		usage       system.Usage
+		usageErr    error
+		packages    []system.Package
+		packagesErr error
 	)
 
 	tasks := []struct {
@@ -34,20 +38,10 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 			info, infoErr = s.infoCache.GetStale(ctx, s.system.Info)
 		}},
 		{"nas load", func() {
-			value, err := s.usageCache.GetStale(ctx, s.system.Usage)
-			if err != nil {
-				s.log.Warn("cannot get the load", "err", err)
-				return
-			}
-			usage = value
+			usage, usageErr = s.usageCache.GetStale(ctx, s.system.Usage)
 		}},
 		{"package list", func() {
-			value, err := s.packagesCache.GetStale(ctx, s.system.Packages)
-			if err != nil {
-				s.log.Warn("cannot get the package list", "err", err)
-				return
-			}
-			packages = value
+			packages, packagesErr = s.packagesCache.GetStale(ctx, s.system.Packages)
 		}},
 	}
 
@@ -60,14 +54,48 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 
-	if infoErr != nil {
+	// Each part stands on its own. With an ordinary DSM account the details
+	// and the load are refused — checked by a tester, 1006 and 105 — and
+	// failing the whole answer over them showed "no connection" on the home
+	// screen of a service that was connected and working; zeros in place of
+	// a refused load would have been a plain lie.
+	//
+	// A DSM that does not answer at all is still "no connection", as it
+	// always was: only its refusals are told part by part.
+	var refused *dsm.APIError
+	if infoErr != nil && !errors.As(infoErr, &refused) {
 		s.fail(w, r, infoErr, "api.info")
 		return
 	}
+	u, _ := userFrom(ctx)
+	lang := i18n.Match(u.Language)
+	body := map[string]any{"info": nil, "usage": nil}
+	if infoErr != nil {
+		s.log.Warn("cannot get the nas details", "err", infoErr)
+		body["info_error"] = failureText(lang, "api.info", infoErr)
+	} else {
+		body["info"] = info
+	}
+	if usageErr != nil {
+		s.log.Warn("cannot get the load", "err", usageErr)
+		body["usage_error"] = failureText(lang, "api.load", usageErr)
+	} else {
+		body["usage"] = usage
+	}
 
 	// The interface only cares whether a section of the app is available.
+	// Without the package list it knows nothing either way, and says nothing:
+	// marking Download Station "not installed" because the list was refused
+	// would lock people out of the one section that does work for them.
 	state := make(map[string]any, 4)
+	if packagesErr != nil {
+		s.log.Warn("cannot get the package list", "err", packagesErr)
+		packages = nil
+	}
 	for _, id := range []string{"DownloadStation", "FileStation", "Virtualization", "ContainerManager"} {
+		if packagesErr != nil {
+			break
+		}
 		found := false
 		for _, p := range packages {
 			if strings.EqualFold(p.ID, id) {
@@ -84,11 +112,8 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"info":     info,
-		"usage":    usage,
-		"packages": state,
-	})
+	body["packages"] = state
+	writeJSON(w, http.StatusOK, body)
 }
 
 func (s *Server) handleSystemLog(w http.ResponseWriter, r *http.Request) {

@@ -285,3 +285,39 @@ func TestWriteReplacesAFileItCannotOpen(t *testing.T) {
 		t.Fatalf("got %v, err %v", got, err)
 	}
 }
+
+// An empty DSM_URL is what a cleared field used to leave in the file. It stands for
+// the default — DSM on this machine — not for an address of nothing, which
+// is what a tester got and had to fix by hand.
+func TestEmptyValueMeansTheDefault(t *testing.T) {
+	dir := isolate(t)
+	path := filepath.Join(dir, "config.env")
+	write(t, path, complete+"DSM_URL=''\nLISTEN_ADDR=''\n")
+	c, problems, err := Load(path)
+	if err != nil || len(problems) != 0 {
+		t.Fatalf("err %v, problems %v", err, problems)
+	}
+	if c.DSMURL != "https://localhost:5001" || c.ListenAddr != "127.0.0.1:58080" {
+		t.Fatalf("DSM_URL %q, LISTEN_ADDR %q: an empty value has to mean the default", c.DSMURL, c.ListenAddr)
+	}
+}
+
+// Without a public address there is no Mini App, but the bot works: it is a
+// way to run the package with nothing on the NAS published at all. A value
+// that is there is still held to https.
+func TestPublicAddressIsOptional(t *testing.T) {
+	dir := isolate(t)
+	path := filepath.Join(dir, "config.env")
+	write(t, path, `DSM_USER='u'
+DSM_PASSWORD='p'
+TELEGRAM_BOT_TOKEN='1234567890:AAExampleTokenReplaceThisWithYours0'
+ALLOWED_USER_IDS='12'
+`)
+	c, problems, err := Load(path)
+	if err != nil || len(problems) != 0 {
+		t.Fatalf("err %v, problems %v", err, problems)
+	}
+	if c.PublicURL != "" {
+		t.Fatalf("public address %q out of nowhere", c.PublicURL)
+	}
+}

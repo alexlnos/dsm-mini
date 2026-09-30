@@ -69,6 +69,8 @@ var en = map[string]string{
 	"api.transferStop":    "Could not stop the operation",
 	"api.openFile":        "Could not open the file",
 	"api.info":            "Could not get the NAS details",
+	"api.load":            "Could not get the load",
+	"api.noAccess":        "the DSM account the service uses has no access to this",
 	"api.log":             "Could not get the log",
 	"api.storage":         "Could not get the storage state",
 	"api.vms":             "Could not get the machine list",

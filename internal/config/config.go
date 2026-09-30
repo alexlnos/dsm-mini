@@ -96,8 +96,14 @@ func (p Problem) String() string {
 
 // Required are the settings only the person installing can know, in the
 // order the settings window asks for them. Everything else has a default.
+//
+// PUBLIC_URL is not among them. Without it there is no Mini App — Telegram
+// opens one only over public HTTPS — but the bot still takes links and
+// torrents and still sends notifications, and a person who would rather
+// publish nothing at all gets exactly that instead of a service that refuses
+// to start. A SynoCommunity tester asked for as much.
 var Required = []string{
-	"DSM_USER", "DSM_PASSWORD", "TELEGRAM_BOT_TOKEN", "ALLOWED_USER_IDS", "PUBLIC_URL",
+	"DSM_USER", "DSM_PASSWORD", "TELEGRAM_BOT_TOKEN", "ALLOWED_USER_IDS",
 }
 
 // Defaults are the values the optional settings take when nothing sets them,
@@ -171,9 +177,15 @@ func parse(values map[string]string) (*Config, []Problem) {
 	get := func(key, def string) string {
 		// A key the file names wins even when it is empty: ALLOWED_USER_IDS=''
 		// in the file means "nobody", and an environment variable must not be
-		// able to quietly say otherwise.
+		// able to quietly say otherwise. Empty stands for the default,
+		// though: DSM_URL='' left behind by a cleared field is DSM on this
+		// machine, not an address of nothing — that is what one tester got
+		// before the window learned to drop the key instead.
 		if v, ok := values[key]; ok {
-			return strings.TrimSpace(v)
+			if v = strings.TrimSpace(v); v != "" {
+				return v
+			}
+			return def
 		}
 		if v := os.Getenv(key); v != "" {
 			return v

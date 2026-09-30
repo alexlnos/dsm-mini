@@ -9,6 +9,10 @@ UNSUPPORTED_ARCHS = $(ARMv5_ARCHS)
 # not supported by go:
 UNSUPPORTED_ARCHS += $(PPC_ARCHS)
 
+# DSM 7 only: the package user, the settings window and the DSM APIs the
+# service calls are DSM 7's, and upstream's own package says 7.0 as well.
+REQUIRED_MIN_DSM = 7.0
+
 MAINTAINER = alexlnos
 DESCRIPTION = Run your Synology NAS from Telegram: send the bot a magnet link or a .torrent file, follow Download Station tasks, browse File Station folders, and check disks, virtual machines and containers from the Mini App. Only the Telegram accounts you list get in.
 DESCRIPTION_RUS = Управление NAS Synology из Telegram: пришлите боту magnet-ссылку или файл .torrent, следите за задачами Download Station, открывайте папки File Station и смотрите диски, виртуальные машины и контейнеры в Mini App. Доступ только у перечисленных вами аккаунтов.
@@ -30,11 +34,13 @@ SERVICE_SETUP = src/service-setup.sh
 STARTABLE = yes
 SERVICE_USER = auto
 
-# No SERVICE_PORT on purpose. The service listens on loopback only — the DSM
-# reverse proxy is what publishes it, because Telegram opens a Mini App over
-# HTTPS alone — and SERVICE_PORT would generate a firewall rule for a port
-# nobody outside should reach, plus a desktop shortcut to an address a browser
-# cannot open. The port is 58080 unless the settings window says otherwise.
+# The port is declared to DSM so that it is reserved — DSM's port conflict
+# check then names dsm-mini for 58080 — through a service file of our own
+# rather than SERVICE_PORT: the service listens on loopback only, behind the
+# DSM reverse proxy, so the file says port_forward="no" where SERVICE_PORT
+# would write "yes", and no desktop shortcut to an address a browser cannot
+# open gets generated.
+FWPORTS = src/dsm-mini.sc
 
 # The settings window in the DSM main menu, instead of a generated shortcut.
 # Same arrangement as spk/gentoo-chroot: an Ext JS app declared in app/config.
@@ -54,6 +60,6 @@ include ../../mk/spksrc.spk.mk
 .PHONY: dsm-mini_extra_install
 dsm-mini_extra_install:
 	@install -d -m 755 $(STAGING_DIR)/app/images
-	@install -m 644 src/app/index.html src/app/app.js src/app/i18n.js src/app/dsm-mini.js $(STAGING_DIR)/app/
+	@install -m 644 src/app/index.html src/app/app.js src/app/i18n.js src/app/installed.txt src/app/dsm-mini.js $(STAGING_DIR)/app/
 	@install -m 755 src/app/api.cgi $(STAGING_DIR)/app/
 	@install -m 644 src/app/images/*.png $(STAGING_DIR)/app/images/

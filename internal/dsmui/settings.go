@@ -1,13 +1,17 @@
 package dsmui
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/alexlnos/dsm-mini/internal/config"
+	"github.com/alexlnos/dsm-mini/internal/store"
 )
 
 // Keys of config.env that the screen edits, in the order it asks for them.
@@ -24,6 +28,45 @@ var editable = []string{
 // shows whether they are set and offers an empty field to replace them.
 var secret = map[string]bool{"DSM_PASSWORD": true, "TELEGRAM_BOT_TOKEN": true}
 
+// onThisNAS marks the addresses that can only ever be this NAS: the service
+// runs here, reaches DSM here and listens here for the reverse proxy. A
+// tester put the NAS's internet address into DSM_URL, which is a perfectly
+// good URL and stopped the service reaching DSM at all; and 0.0.0.0 in
+// LISTEN_ADDR would hand the app to the whole local network around the proxy.
+// So the screen refuses anything but loopback in both — when the value is
+// being changed: an address that is already in the file and works, a LAN
+// address from an older installation say, must not block the save of an
+// unrelated setting. The file itself is not held to this — running the
+// binary elsewhere while developing it needs a DSM on another machine.
+var onThisNAS = map[string]bool{"DSM_URL": true, "LISTEN_ADDR": true}
+
+// NotThisNAS is the code the screen gets for an address that is not loopback.
+const NotThisNAS = "loopback"
+
+func pointsAtThisNAS(key, v string) bool {
+	host := v
+	switch key {
+	case "DSM_URL":
+		u, err := url.Parse(v)
+		if err != nil {
+			return false
+		}
+		host = u.Hostname()
+	case "LISTEN_ADDR":
+		h, _, err := net.SplitHostPort(v)
+		if err != nil {
+			return false
+		}
+		// ":58080" is what packages up to 1.0.0 wrote, and config reads the
+		// bare form as loopback.
+		if h == "" {
+			return true
+		}
+		host = h
+	}
+	return isLoopback(host)
+}
+
 // SettingsFile is where the settings live: the package var, which survives an
 // upgrade.
 func SettingsFile(stateDir string) string {
@@ -39,6 +82,10 @@ type settingsBody struct {
 	// Notifications is the installation-wide choice. It is kept in the
 	// database and applies at once. Empty when the database is out of reach.
 	Notifications string `json:"notifications,omitempty"`
+	// Access is how the Mini App is reached, as last chosen in the window:
+	// see store.AccessBot and the rest. Empty while nobody has chosen, and
+	// then the window works it out from the address.
+	Access string `json:"access,omitempty"`
 	// Applying is true when the save changed something the service reads
 	// when it starts: it is starting again with it right now, and the screen
 	// waits for the status to settle.
@@ -57,10 +104,24 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Values        map[string]string `json:"values"`
 		Notifications *string           `json:"notifications"`
+		Access        *string           `json:"access"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 		http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 		return
+	}
+	if req.Access != nil && !store.ValidAccess(*req.Access) {
+		http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
+		return
+	}
+	// "The bot only" means no Mini App, whatever the address field held:
+	// the choice is what a person reads, and the address is what the
+	// service goes by, so the two must not disagree.
+	if req.Access != nil && *req.Access == store.AccessBot {
+		if req.Values == nil {
+			req.Values = map[string]string{}
+		}
+		req.Values["PUBLIC_URL"] = ""
 	}
 
 	current, ok := s.readSettings(w, r)
@@ -68,6 +129,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defaults := config.Defaults()
 	changed := false
 	for _, key := range editable {
 		v, ok := req.Values[key]
@@ -82,7 +144,20 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		if v == "" && secret[key] {
 			continue
 		}
-		if code := config.Check(key, v); code != "" {
+		// An empty field that has a default means the default, and the key
+		// goes from the file rather than staying there as an empty value.
+		if _, hasDefault := defaults[key]; hasDefault && v == "" {
+			if _, present := current[key]; present {
+				delete(current, key)
+				changed = true
+			}
+			continue
+		}
+		code := config.Check(key, v)
+		if code == "" && onThisNAS[key] && v != current[key] && !pointsAtThisNAS(key, v) {
+			code = NotThisNAS
+		}
+		if code != "" {
 			// A code, not a sentence: the screen speaks ten languages.
 			writeJSON(w, http.StatusBadRequest,
 				map[string]string{"error": "invalid", "field": key, "code": code})
@@ -112,6 +187,15 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		who, _ := SessionFrom(r.Context())
 		s.log.Info("notification mode set from the dsm screen", "mode", mode, "by", who.User)
+	}
+
+	if req.Access != nil && s.store != nil {
+		if err := s.store.SetAccess(r.Context(), *req.Access); err != nil {
+			s.fail(w, r, err, "cannot save the way the mini app is reached")
+			return
+		}
+		who, _ := SessionFrom(r.Context())
+		s.log.Info("mini app access set from the dsm screen", "access", *req.Access, "by", who.User)
 	}
 
 	writeJSON(w, http.StatusOK, s.view(current, changed))
@@ -153,5 +237,19 @@ func (s *Server) view(values map[string]string, applying bool) settingsBody {
 		out.Values[key] = values[key]
 	}
 	out.Notifications = s.notifyMode()
+	out.Access = s.accessMode()
 	return out
+}
+
+// accessMode is the saved way of reaching the Mini App, or "" when there is
+// none or no database to keep it in.
+func (s *Server) accessMode() string {
+	if s.store == nil {
+		return ""
+	}
+	mode, err := s.store.Access(context.Background())
+	if err != nil {
+		s.log.Warn("cannot read the way the mini app is reached", "err", err)
+	}
+	return mode
 }
