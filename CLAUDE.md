@@ -416,7 +416,9 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
 - **The port is reserved in DSM** through a service file of our own,
   `dsm-mini.sc` (`ui/` in our package with `conf/resource` `port-config`,
   `src/` in the recipe through `FWPORTS`): DSM's port conflict check then
-  names dsm-mini for 58080. `port_forward="no"`, which DSM's own files use too
+  names dsm-mini for 58080 — checked on a live NAS with 1.0.14, and
+  `/usr/syno/bin/servicetool --conf-port-conflict-check --tcp 58080` needs no
+  root when called by its full path. `port_forward="no"`, which DSM's own files use too
   (WS-Transfer in `SMBService.sc`): the service is loopback-only, so offering
   to forward it on the router would be offering nothing. Not `SERVICE_PORT`,
   which writes `"yes"`; and **never `NO_SERVICE_SHORTCUT`** — in spksrc it also
