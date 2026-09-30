@@ -425,7 +425,10 @@ Changes in this area are covered by tests in `internal/httpapi/auth_test.go`.
   switches off `DSM_UI_CONFIG`, and the settings window would vanish from the
   menu.
 - The recipe's documentation page is `contrib/spksrc/docs/dsm-mini.md`; it goes
-  to SynoCommunity as `docs/packages/dsm-mini.md`, after their template.
+  to SynoCommunity as `docs/packages/dsm-mini.md`, after their template, and
+  needs two lines of theirs as well: `mkdocs.yml` (under Downloads) and a row
+  in `docs/packages/index.md`, which lists every documented package in
+  alphabetical order. Without them the page builds and nothing links to it.
 - **No brackets in the display name.** spksrc writes it into INFO unquoted
   through the shell, so brackets are a syntax error, and elsewhere quoted into
   `jq`, so escaping them leaks a backslash. The name is "DSM mini — Telegram
