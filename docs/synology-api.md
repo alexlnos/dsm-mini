@@ -674,6 +674,36 @@ SYNO.Core.System.info: DSM error with code 1006
 `password` (`encryption:["password"]`). Причина не установлена — смотреть
 `/var/log/synoscgi.log` (root), а не гадать.
 
+## Имя сессии при входе — не просто метка
+
+Официальный PDF (DSM Login Web API Guide) описывает `session` в
+`SYNO.API.Auth` `login` одной строкой — «Login session name for DSM
+Applications», в примере `session=FileStation`. Код **402** там — «Denied
+permission». Выход — по `_sid`: «If you don't use a cookie, log out the session
+by passing the _sid parameter».
+
+Тестер SynoCommunity (30.09.2026, его NAS, 1.0.14): учётная запись `dsm-mini`
+без прав администратора, в «Приложениях» разрешены Download Station и File
+Station, как велит документация, DSM — через группу. Кнопка «Проверить учётную
+запись» входила под своим именем сессии, `DsmMiniCheck`, и получила на входе
+**402** — окно написало «DSM отказал этой учётной записи в доступе». Служба
+входила с той же учётной записью под `DownloadStation` (его журнал от 27.09:
+`signed in to DSM user=dsm-mini`). Ответа DSM целиком нет: окно показывает
+только код. У нас кнопку проверяли только администратором, и он проходил.
+
+Отсюда правило в коде: все клиенты входят под одним именем, `DownloadStation`
+(`sessionName` в `internal/dsm/client.go`), кнопка проверки тоже.
+
+Почему DSM отказал — **не проверено**: ни по его журналам, ни на нашем NAS с
+обычной учётной записью. `TestSessionNames`
+(`internal/dsm/session_integration_test.go`) входит под обоими именами и пишет,
+что ответил DSM на каждое:
+
+```
+DSM_URL=… DSM_USER=<обычная учётная запись> DSM_PASSWORD=… DSM_INSECURE_TLS=true \
+  go test -tags=integration -run TestSessionNames -v ./internal/dsm/
+```
+
 ## Файл порта для брандмауэра: `port_forward` бывает и `"no"`
 
 `port-config` в `conf/resource` указывает на `.sc`-файл, и DSM регистрирует

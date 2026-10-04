@@ -59,6 +59,11 @@ Known traps that specific lines of code exist for:
 - The level filter in the system log does not work: we filter on our side.
 - `Thumb` and `Download` return bytes, and report an error by switching the
   Content-Type to JSON.
+- **The session name at sign-in is not a free label.** Under a name of our
+  own (`DsmMiniCheck`) a tester's ordinary account was refused with 402, while
+  as `DownloadStation` it signed in; an administrator gets in under either.
+  Every client signs in under `DownloadStation`. Why DSM refused is not yet
+  checked — see `docs/synology-api.md`.
 
 This file is kept up to date continuously: a new API finding, the cause of a
 non-obvious failure or an architecture decision is written here in the same
@@ -512,9 +517,16 @@ on and **Start** has been pressed.
   — and goes through what the service does with it, read-only: the sign-in,
   Download Station, File Station and the shared folders it sees (without them
   the bot cannot work), then every section of the Mini App, each with DSM's
-  code when refused. It signs in under a session name of its own
-  (`DsmMiniCheck`), so that its sign-out has nothing to do with the service's
-  session. The log gets the account and the outcome, never the password.
+  code when refused. It signs in **exactly as the service does**, session name
+  included (`DownloadStation`). It used to take a name of its own
+  (`DsmMiniCheck`), to keep its sign-out apart from the service's session, and
+  a SynoCommunity tester's ordinary account — set up as the documentation says,
+  and signed in by the service — was refused right at the check's sign-in with
+  402; an administrator gets in under either name, so it never showed here.
+  The sign-out closes the check's own session by its SID, as DSM's guide
+  describes, and should DSM end the service's session anyway, the service
+  signs in again by itself (106, 107, 119). The log gets the account and the
+  outcome, never the password.
 
 - **A save applies without restarting the package.** The service reads
   `config.env` itself (not through the start script's environment, which would
