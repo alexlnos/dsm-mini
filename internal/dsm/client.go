@@ -39,7 +39,6 @@ type Client struct {
 	// session; see Options.
 	cookie    string
 	synoToken string
-	session   string
 
 	mu   sync.RWMutex
 	sid  string
@@ -66,12 +65,6 @@ type Options struct {
 	InsecureTLS bool
 	Timeout     time.Duration
 	Logger      *slog.Logger
-
-	// Session names the DSM session; "DownloadStation" when empty. A client
-	// that signs in beside the service as the same account — the settings
-	// window checking it — takes a name of its own, which keeps its sign-out
-	// apart from the service's session.
-	Session string
 
 	// Cookie and SynoToken make the client act inside somebody else's browser
 	// session instead of signing in itself: the settings window inside DSM
@@ -105,7 +98,6 @@ func New(o Options) *Client {
 		otp:         o.OTP,
 		cookie:      o.Cookie,
 		synoToken:   o.SynoToken,
-		session:     o.Session,
 		http:        &http.Client{Timeout: o.Timeout, Transport: transport},
 		log:         o.Logger,
 		apis:        make(map[string]apiInfo),
@@ -136,7 +128,7 @@ func (c *Client) Login(ctx context.Context) error {
 	params := map[string]any{
 		"account": c.user,
 		"passwd":  c.pass,
-		"session": c.sessionName(),
+		"session": sessionName,
 		"format":  "sid",
 	}
 	if c.otp != "" {
@@ -180,7 +172,7 @@ func (c *Client) Logout(ctx context.Context) error {
 		return nil
 	}
 	_, err := c.post(ctx, "entry.cgi", buildForm("SYNO.API.Auth", "logout", 7,
-		sid, map[string]any{"session": c.sessionName()}, false))
+		sid, map[string]any{"session": sessionName}, false))
 	c.mu.Lock()
 	c.sid = ""
 	c.mu.Unlock()
@@ -396,9 +388,11 @@ func asAPIError(err error, target **APIError) bool {
 	return false
 }
 
-func (c *Client) sessionName() string {
-	if c.session != "" {
-		return c.session
-	}
-	return "DownloadStation"
-}
+// sessionName is what every client signs in under. DSM's guide calls it the
+// "login session name for DSM Applications", and it is not a free label: the
+// settings window's check once signed in under a name of its own
+// (DsmMiniCheck), and a SynoCommunity tester's ordinary account — allowed
+// Download Station and File Station, as the documentation says — was refused
+// there with 402, while the service signed in with it as DownloadStation. An
+// administrator got in under either name. See docs/synology-api.md.
+const sessionName = "DownloadStation"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,15 +14,21 @@ import (
 )
 
 // checkNAS is a DSM that treats the signed-in account the way a real one
-// treated a tester's ordinary account: Download Station and File Station
-// answer, the NAS details come back with 1006 and the rest of the overview
-// with 105. Virtual Machine Manager is not installed at all.
+// treated a tester's ordinary account: it lets the account in only under the
+// session name of an application it may use — Download Station or File
+// Station — and refuses any other name with 402, which an administrator gets
+// past. Download Station and File Station answer, the NAS details come back
+// with 1006 and the rest of the overview with 105. Virtual Machine Manager is
+// not installed at all.
 type checkNAS struct {
 	password string
 	admin    bool
 	shares   int
 	refuse   map[string]int
 	absent   map[string]bool
+
+	mu       sync.Mutex
+	sessions []string // the session name of every sign-in, in order
 }
 
 func (n *checkNAS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -32,8 +39,20 @@ func (n *checkNAS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch api {
 	case "SYNO.API.Auth":
-		if method == "login" && r.Form.Get("passwd") != n.password {
+		if method != "login" {
+			answer(map[string]any{"success": true})
+			return
+		}
+		session := r.Form.Get("session")
+		n.mu.Lock()
+		n.sessions = append(n.sessions, session)
+		n.mu.Unlock()
+		if r.Form.Get("passwd") != n.password {
 			answer(map[string]any{"success": false, "error": map[string]any{"code": 400}})
+			return
+		}
+		if !n.admin && session != "DownloadStation" && session != "FileStation" {
+			answer(map[string]any{"success": false, "error": map[string]any{"code": 402}})
 			return
 		}
 		answer(map[string]any{"success": true, "data": map[string]any{"sid": "s1d"}})
@@ -71,7 +90,7 @@ func runCheck(t *testing.T, nas *checkNAS, password string) map[string]CheckItem
 	srv := httptest.NewServer(nas)
 	t.Cleanup(srv.Close)
 	c := dsm.New(dsm.Options{BaseURL: srv.URL, User: "dsm-mini", Password: password,
-		Timeout: 5 * time.Second, Session: checkSession, Logger: quietLog()})
+		Timeout: 5 * time.Second, Logger: quietLog()})
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	out := map[string]CheckItem{}
@@ -155,5 +174,40 @@ func TestCheckUsesTheSavedPassword(t *testing.T) {
 	items, _ := got["items"].([]any)
 	if len(items) == 0 || items[0].(map[string]any)["state"] != "ok" {
 		t.Fatalf("items %v: the saved password should have been used", items)
+	}
+}
+
+// The check signs in exactly as the service does. Under a session name of its
+// own it told a tester that DSM denied the account access — an ordinary
+// account the service itself signed in with.
+func TestCheckSignsInLikeTheService(t *testing.T) {
+	nas := &checkNAS{password: "p", shares: 1}
+	srv := httptest.NewServer(nas)
+	defer srv.Close()
+
+	service := dsm.New(dsm.Options{BaseURL: srv.URL, User: "dsm-mini", Password: "p", Logger: quietLog()})
+	if err := service.Login(context.Background()); err != nil {
+		t.Fatalf("the service's own sign-in: %v", err)
+	}
+
+	sc := newScreen(t)
+	if err := config.WriteFile(SettingsFile(sc.dir), map[string]string{
+		"DSM_URL": srv.URL, "DSM_USER": "dsm-mini", "DSM_PASSWORD": "p",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, got := sc.do(t, http.MethodPost, "/dsm/admin/check-account", `{"user":"dsm-mini","password":""}`)
+	if code != http.StatusOK {
+		t.Fatalf("got %d %v", code, got)
+	}
+	items, _ := got["items"].([]any)
+	if len(items) == 0 || items[0].(map[string]any)["state"] != "ok" {
+		t.Fatalf("items %v: the account the service signs in with was refused to the check", items)
+	}
+
+	nas.mu.Lock()
+	defer nas.mu.Unlock()
+	if len(nas.sessions) != 2 || nas.sessions[1] != nas.sessions[0] {
+		t.Fatalf("sign-ins under %q: the check has to use the service's session name", nas.sessions)
 	}
 }

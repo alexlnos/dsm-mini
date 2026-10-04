@@ -38,11 +38,6 @@ type CheckItem struct {
 	Count int `json:"count,omitempty"`
 }
 
-// checkSession is the DSM session name the check signs in under, apart from
-// the service's own, which keeps the check's sign-out away from the service's
-// session when both use the same account.
-const checkSession = "DsmMiniCheck"
-
 func (s *Server) handleCheckAccount(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		User     string `json:"user"`
@@ -71,13 +66,17 @@ func (s *Server) handleCheckAccount(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
+	// The client signs in exactly as the service's does, session name and
+	// all: under a name of its own, an ordinary account was refused here
+	// although the service signed in with it. Its sign-out closes its own
+	// session by its SID, and should DSM end the service's session anyway,
+	// the service signs in again by itself.
 	client := dsm.New(dsm.Options{
 		BaseURL:     cfg.DSMURL,
 		User:        user,
 		Password:    password,
 		InsecureTLS: cfg.DSMInsecure,
 		Timeout:     20 * time.Second,
-		Session:     checkSession,
 		Logger:      s.log,
 	})
 	items := checkAccount(ctx, client)
