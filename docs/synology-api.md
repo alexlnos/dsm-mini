@@ -714,6 +714,16 @@ DSM_URL=… DSM_USER=<обычная учётная запись> DSM_PASSWORD=�
 WS-Discovery в `SMBService.sc`, `syno_oob.sc`. Для службы на loopback это и
 верно: пробрасывать её порт на роутере бессмысленно.
 
+Проверено на живом NAS (DSM 7.4.1, 1.0.14, 01.10.2026): после установки файл
+лежит в `/usr/local/etc/services.d/dsm-mini.sc` (владелец — пользователь
+пакета), и проверка конфликтов его называет. `servicetool` нет в `PATH`
+обычного пользователя, но полным путём он работает и без root:
+
+```
+$ /usr/syno/bin/servicetool --conf-port-conflict-check --tcp 58080
+IsConflict: true	Port: 58080	Protocol: tcp	ServiceName: dsm-mini
+```
+
 ## Сообщение после установки: `SYNOPKG_TEMP_LOGFILE`
 
 Центр пакетов по окончании установки показывает окно с текстом, если он есть:
